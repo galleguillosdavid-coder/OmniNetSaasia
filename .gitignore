@@ -38,3 +38,8 @@ ENV/
 .idea/
 *.swp
 
+# Environment variables & secrets
+.env
+*.env
+cloud_server/.env
+
