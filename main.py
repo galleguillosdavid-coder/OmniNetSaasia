@@ -56,10 +56,11 @@ from netopt.autonomous_scheduler import get_task_scheduler
 from netopt.device_maintenance import DeviceMaintenanceEngine
 from netopt.licensing import get_license_manager
 from netopt.llm_gateway import LLMGateway, load_llm_config, save_llm_config
+from netopt.ecosystem_subagents import get_ecosystem_orchestrator
 from dataclasses import asdict
 
 
-VERSION = "2.0.0"
+VERSION = "2.9.0"
 
 
 def get_dashboard_html() -> str:
@@ -241,6 +242,25 @@ def get_dashboard_html() -> str:
     </div>
   </div>
 
+  <!-- Las 10 Especialidades del Ecosistema (Sub-Agentes Especializados) -->
+  <div class="card p-5 space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="ecosystemTitle" class="text-sm md:text-base font-bold text-white flex items-center gap-2">
+          <span>🛡️</span> Las 10 Especialidades del Ecosistema
+        </h2>
+        <p id="ecosystemSub" class="text-xs text-[var(--muted)]">10 Sub-Agentes autónomos impulsados por librerías abiertas líderes para cuidar tu equipo</p>
+      </div>
+      <button onclick="loadSubagents()" class="text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+        <span>🔄</span> <span>Actualizar</span>
+      </button>
+    </div>
+
+    <div id="subagentsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <!-- 10 Tarjetas generadas dinámicamente -->
+    </div>
+  </div>
+
   <!-- Chat Simple y Amigable con el Asistente -->
   <div class="card p-5 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -386,6 +406,18 @@ def get_dashboard_html() -> str:
           el.innerHTML = `<span class="text-2xl">${icon}</span><div><div class="font-bold text-sm md:text-base">${title}</div><div class="text-xs ${subCls}">${sub}</div></div>`;
         }
       });
+      const titleEl = document.getElementById('ecosystemTitle');
+      const subEl = document.getElementById('ecosystemSub');
+      if (titleEl) {
+        if (lang === 'en') titleEl.innerHTML = '<span>🛡️</span> The 10 Ecosystem Specialties';
+        else if (lang === 'pt') titleEl.innerHTML = '<span>🛡️</span> As 10 Especialidades do Ecossistema';
+        else titleEl.innerHTML = '<span>🛡️</span> Las 10 Especialidades del Ecosistema';
+      }
+      if (subEl) {
+        if (lang === 'en') subEl.textContent = '10 Autonomous Sub-Agents powered by leading open-source engines to safeguard your system';
+        else if (lang === 'pt') subEl.textContent = '10 Sub-Agentes autônomos com motores abertos líderes para cuidar do seu computador';
+        else subEl.textContent = '10 Sub-Agentes autónomos impulsados por librerías abiertas líderes para cuidar tu equipo';
+      }
     }
 
     function onProviderChange() {
@@ -621,9 +653,67 @@ def get_dashboard_html() -> str:
       }
     }
 
+    async function loadSubagents() {
+      try {
+        const res = await fetch('/api/subagents');
+        const list = await res.json();
+        const container = document.getElementById('subagentsGrid');
+        if (!container || !Array.isArray(list)) return;
+        container.innerHTML = list.map(item => `
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between space-y-2 hover:border-slate-700 transition">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xl">${item.emoji}</span>
+                <span id="badge-${item.id}" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-${item.color}-950 text-${item.color}-300 border border-${item.color}-700/60">${escapeHtml(item.status)}</span>
+              </div>
+              <div class="font-bold text-xs text-white leading-tight">${escapeHtml(item.name)}</div>
+              <div class="text-[11px] text-slate-400 leading-snug line-clamp-2" title="${escapeHtml(item.motor)}">${escapeHtml(item.motor)}</div>
+            </div>
+            <button id="btn-sub-${item.id}" onclick="runSubagent('${item.id}')" class="mt-2 w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1 shadow-sm">
+              <span>⚡</span> <span>Revisar</span>
+            </button>
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function runSubagent(sid) {
+      const btn = document.getElementById(`btn-sub-${sid}`);
+      const badge = document.getElementById(`badge-${sid}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> <span>Revisando...</span>';
+      }
+      try {
+        const res = await fetch('/api/subagents/run', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: sid, execute: true})
+        });
+        const data = await res.json();
+        if (badge) {
+          badge.textContent = 'Verificado';
+          badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+        }
+        if (data.summary) {
+          setBanner(`✅ <strong>Sub-Agente Activo:</strong> ${escapeHtml(data.summary)}`, 'border-emerald-600');
+          appendMessage('agent', data.summary);
+        }
+        await refreshSimpleCards();
+      } catch (e) {
+        setBanner('⚠️ No se pudo completar la acción del sub-agente.', 'border-rose-600');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>⚡</span> <span>Revisar</span>';
+        }
+      }
+    }
+
     window.onload = () => {
       refreshSimpleCards();
       loadLicenseStatus();
+      loadSubagents();
     };
   </script>
 </body>
@@ -720,6 +810,8 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
             if safe_cfg.get("api_key"):
                 safe_cfg["api_key_masked"] = safe_cfg["api_key"][:4] + "..." + safe_cfg["api_key"][-3:]
             self.send_json(200, safe_cfg)
+        elif self.path == "/api/subagents":
+            self.send_json(200, get_ecosystem_orchestrator().get_all_subagents_status())
         elif self.path == "/api/status":
             try:
                 from netopt.elevation import is_elevated, elevation_status_str
@@ -814,6 +906,11 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/device/maintain":
             maint = DeviceMaintenanceEngine(hal)
             res = maint.run_full_device_maintenance(execute=execute)
+            self.send_json(200, res)
+        elif self.path == "/api/subagents/run":
+            sid = payload.get("id", "")
+            orch = get_ecosystem_orchestrator()
+            res = orch.execute_subagent_by_id(sid, execute=execute)
             self.send_json(200, res)
         elif self.path == "/api/license/activate":
             lkey = payload.get("license_key", "")

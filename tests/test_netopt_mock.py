@@ -425,6 +425,14 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertEqual(r_cat["executed_tool"], "subagent_ecosystem_catalog")
         self.assertIn("10 Especialidades del Ecosistema", r_cat["reply"])
 
+        # 3. Visual Dashboard status & direct dispatch
+        statuses = orch.get_all_subagents_status()
+        self.assertEqual(len(statuses), 10)
+        self.assertTrue(all("badge" in s and "status" in s for s in statuses))
+
+        exec_res = orch.execute_subagent_by_id("antivirus", execute=False)
+        self.assertEqual(exec_res["subagent"], "antivirus")
+
 
 
 
