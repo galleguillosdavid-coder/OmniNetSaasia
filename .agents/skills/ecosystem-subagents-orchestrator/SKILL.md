@@ -49,3 +49,4 @@ En el chat del Dashboard o mediante `LLMGateway`:
 - *"Acelera el arranque de mi PC"* ➔ Activa `subagent_startup_boost`.
 - *"Activa el anti-rastreo y privacidad"* ➔ Activa `subagent_privacy_shield`.
 - *"Limpia la basura y repara mi computador"* ➔ Ejecuta BleachBit + SDIO + DISM.
+
