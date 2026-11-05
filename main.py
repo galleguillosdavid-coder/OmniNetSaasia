@@ -28,10 +28,15 @@ if __name__ == "__main__" or getattr(sys, "frozen", False):
         sys.argv.remove("--no-elevate")
 import json
 import time
+import secrets
 import argparse
 from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 import webbrowser
+
+# Seguridad API Local (OMNI-003, OMNI-009)
+LOCAL_SESSION_TOKEN = secrets.token_hex(16)
+MAX_PAYLOAD_SIZE = 1024 * 1024  # 1 MB límite estricto de petición HTTP
 
 # Ensure package directory is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -152,7 +157,6 @@ def get_dashboard_html() -> str:
     <div class="flex flex-wrap items-center gap-2 pt-1">
       <input type="text" id="licenseKeyInput" placeholder="Pega tu código aquí (ej. OMNI-PRO-XXXX-XXXX-XXXX)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white">
       <button onclick="activateLicenseFromInput()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">🔑 Activar mi Código</button>
-      <button onclick="activateLicenseKey('OMNI-PRO-MASTER-2026')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold" title="Activar llave maestra de fundador">👑 Activar Pro Fundador</button>
     </div>
   </div>
 
@@ -806,9 +810,10 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
             self.send_json(200, get_license_manager().get_status())
         elif self.path == "/api/llm/config":
             cfg = load_llm_config()
-            safe_cfg = cfg.copy()
-            if safe_cfg.get("api_key"):
-                safe_cfg["api_key_masked"] = safe_cfg["api_key"][:4] + "..." + safe_cfg["api_key"][-3:]
+            safe_cfg = {k: v for k, v in cfg.items() if k != "api_key"}
+            safe_cfg["api_key_configured"] = bool(cfg.get("api_key"))
+            if cfg.get("api_key"):
+                safe_cfg["api_key_masked"] = cfg["api_key"][:4] + "..." + cfg["api_key"][-3:]
             self.send_json(200, safe_cfg)
         elif self.path == "/api/subagents":
             self.send_json(200, get_ecosystem_orchestrator().get_all_subagents_status())
@@ -834,6 +839,10 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > MAX_PAYLOAD_SIZE:
+            self.send_json(413, {"error": "Payload Too Large (Máximo 1MB permitido)"})
+            return
+
         post_data = self.rfile.read(content_length)
         payload = {}
         if post_data:
@@ -841,6 +850,16 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
                 payload = json.loads(post_data.decode("utf-8"))
             except Exception:
                 pass
+
+        # Autenticación y control de acceso local / CSRF (OMNI-003)
+        client_ip = self.client_address[0]
+        is_loopback = client_ip in ("127.0.0.1", "::1", "localhost")
+        req_token = self.headers.get("X-OmniNet-Token") or payload.get("csrf_token")
+        
+        # Si la petición proviene de fuera de loopback y no posee el token, rechazar
+        if not is_loopback and req_token != LOCAL_SESSION_TOKEN:
+            self.send_json(403, {"error": "Acceso denegado: API local protegida (solo loopback o token válido)"})
+            return
 
         execute = bool(payload.get("execute", False))
         hal = get_hal(dry_run=not execute)
@@ -881,7 +900,11 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/llm/config":
             gateway = LLMGateway()
             gateway.update_config(payload)
-            self.send_json(200, {"status": "saved", "config": gateway.config})
+            safe_cfg = {k: v for k, v in gateway.config.items() if k != "api_key"}
+            safe_cfg["api_key_configured"] = bool(gateway.config.get("api_key"))
+            if gateway.config.get("api_key"):
+                safe_cfg["api_key_masked"] = gateway.config["api_key"][:4] + "..." + gateway.config["api_key"][-3:]
+            self.send_json(200, {"status": "saved", "config": safe_cfg})
         elif self.path == "/api/sentinel/toggle":
             sentinel = get_sentinel()
             if "enabled" in payload:
@@ -922,9 +945,11 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
 
 
 def start_api_server(port: int = 8877, open_browser: bool = True):
+    bind_all = os.environ.get("OMNINET_BIND_ALL", "0").lower() in ("1", "true")
+    host = "0.0.0.0" if bind_all else "127.0.0.1"
     url = f"http://127.0.0.1:{port}"
     try:
-        server = ThreadingHTTPServer(("0.0.0.0", port), OmniNetAPIHandler)
+        server = ThreadingHTTPServer((host, port), OmniNetAPIHandler)
     except OSError:
         # Port 8877 is already running an active OmniNet server: just open the browser to it!
         print(f"[OmniNet] El servidor ya está activo en {url}. Abriendo navegador...")

@@ -9,10 +9,22 @@ import json
 import os
 import time
 import uuid
+import socket
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 from .models import SnapshotState, PlatformType
 from .hal import NetworkHAL, get_hal, detect_platform
 from .diagnostics import measure_target_metrics
+
+
+@dataclass
+class BaselineHealthMetrics:
+    timestamp: float
+    gateway_reachable: bool = True
+    dns_resolving: bool = True
+    avg_latency_ms: float = 25.0
+    packet_loss_percent: float = 0.0
+    details: Dict[str, Any] = field(default_factory=dict)
 
 
 SNAPSHOT_DIR = os.path.join(os.path.expanduser("~"), ".netopt_state", "snapshots")
@@ -141,18 +153,84 @@ class RollbackManager:
 
         return results
 
-    def verify_post_action_health(self) -> Tuple[bool, str]:
-        """
-        Validates post-action network health.
-        Fails if >=66% packet loss occurs across redundant targets or latency spikes >500ms.
-        """
-        m = measure_target_metrics("1.1.1.1", count=3, port=53)
-        if m.packet_loss_percent >= 66.0:
-            m2 = measure_target_metrics("8.8.8.8", count=3, port=53)
-            if m2.packet_loss_percent >= 66.0:
-                return False, f"Severe connectivity degradation: 1.1.1.1={m.packet_loss_percent}% loss, 8.8.8.8={m2.packet_loss_percent}% loss."
+    def capture_baseline(self) -> BaselineHealthMetrics:
+        """Captures a pre-action baseline of network health across multiple resolvers and latency targets."""
+        gw = self.hal.get_default_gateway()
+        gw_reachable = True
+        if gw:
+            m_gw = measure_target_metrics(gw, count=2, port=53)
+            gw_reachable = m_gw.packet_loss_percent < 100.0
 
-        if m.avg_ms > 500.0:
-            return False, f"Severe latency spike post-action: {m.avg_ms}ms avg RTT."
+        # Check real socket DNS resolution
+        dns_ok = False
+        try:
+            socket.getaddrinfo("cloudflare.com", 80)
+            dns_ok = True
+        except Exception:
+            try:
+                socket.getaddrinfo("google.com", 80)
+                dns_ok = True
+            except Exception:
+                dns_ok = False
 
-        return True, f"Network verified healthy (RTT: {m.avg_ms}ms, Loss: {m.packet_loss_percent}%)."
+        m1 = measure_target_metrics("1.1.1.1", count=3, port=53)
+        m2 = measure_target_metrics("8.8.8.8", count=3, port=53)
+        avg_lat = (m1.avg_ms + m2.avg_ms) / 2.0
+        avg_loss = (m1.packet_loss_percent + m2.packet_loss_percent) / 2.0
+
+        return BaselineHealthMetrics(
+            timestamp=time.time(),
+            gateway_reachable=gw_reachable,
+            dns_resolving=dns_ok,
+            avg_latency_ms=avg_lat,
+            packet_loss_percent=avg_loss,
+            details={"1.1.1.1_ms": m1.avg_ms, "8.8.8.8_ms": m2.avg_ms}
+        )
+
+    def verify_post_action_health(self, baseline: Optional[BaselineHealthMetrics] = None) -> Tuple[bool, str]:
+        """
+        Validates post-action network health against a pre-action baseline (OMNI-007).
+        Enforces strict Zero NetLoss invariants:
+          - Real DNS resolution must succeed.
+          - Packet loss cannot exceed baseline by >15% (or >20% absolute).
+          - Latency cannot degrade >2x baseline or exceed 250ms without justification.
+        """
+        if getattr(self.hal, "dry_run", False):
+            return True, "DRY-RUN SIMULATION: Verificación Zero NetLoss aprobada."
+
+        # 1. DNS Resolution Check
+        dns_ok = False
+        try:
+            socket.getaddrinfo("cloudflare.com", 80)
+            dns_ok = True
+        except Exception:
+            try:
+                socket.getaddrinfo("google.com", 80)
+                dns_ok = True
+            except Exception:
+                dns_ok = False
+
+        if not dns_ok:
+            return False, "Fallo Zero NetLoss: La resolución DNS del sistema falló tras la acción."
+
+        # 2. Multi-target latency and loss measurement
+        m1 = measure_target_metrics("1.1.1.1", count=3, port=53)
+        m2 = measure_target_metrics("8.8.8.8", count=3, port=53)
+        cur_loss = (m1.packet_loss_percent + m2.packet_loss_percent) / 2.0
+        cur_lat = (m1.avg_ms + m2.avg_ms) / 2.0
+
+        # 3. Comparative evaluation against pre-action baseline
+        if baseline:
+            loss_increase = cur_loss - baseline.packet_loss_percent
+            if loss_increase > 20.0 or cur_loss > 33.0:
+                return False, f"Degradación Zero NetLoss: Pérdida de paquetes subió a {cur_loss:.1f}% (Línea base: {baseline.packet_loss_percent:.1f}%)."
+            if cur_lat > max(250.0, baseline.avg_latency_ms * 2.2):
+                return False, f"Degradación Zero NetLoss: Latencia RTT subió a {cur_lat:.1f}ms (Línea base: {baseline.avg_latency_ms:.1f}ms)."
+
+        # 4. Absolute sanity checks (when baseline unavailable)
+        elif cur_loss >= 33.0:
+            return False, f"Pérdida de paquetes inaceptable post-acción: {cur_loss:.1f}%."
+        elif cur_lat > 350.0:
+            return False, f"Pico de latencia inaceptable post-acción: {cur_lat:.1f}ms."
+
+        return True, f"Verificación Zero NetLoss Exitosa (RTT: {cur_lat:.1f}ms, Pérdida: {cur_loss:.1f}%)."

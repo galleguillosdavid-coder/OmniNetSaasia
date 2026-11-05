@@ -53,7 +53,7 @@ def get_hardware_device_id() -> str:
 
 
 def generate_signed_license_key(plan: str = "pro", email: str = "user@omninet.ai") -> str:
-    """Generates a cryptographically signed license key (e.g. OMNI-PRO-A1B2-C3D4-E5F6)."""
+    """Generates a cryptographically signed license key (e.g. OMNI-PRO-A1B2-C3D4-E5F612345678)."""
     plan_tag = "FAM" if plan == "family" else "PRO"
     seed = f"{plan_tag}:{email.strip().lower()}:{int(time.time()) // 3600}"
     token = hashlib.sha256(seed.encode("utf-8")).hexdigest().upper()[:8]
@@ -61,32 +61,27 @@ def generate_signed_license_key(plan: str = "pro", email: str = "user@omninet.ai
         SIGNING_SECRET.encode("utf-8"),
         f"{plan_tag}:{token}".encode("utf-8"),
         hashlib.sha256
-    ).hexdigest().upper()[:4]
+    ).hexdigest().upper()[:16]
     return f"OMNI-{plan_tag}-{token[:4]}-{token[4:8]}-{sig}"
 
 
 def verify_signed_license_key(license_key: str) -> Optional[str]:
     """
-    Verifies a license key signature offline or against master keys.
+    Verifies a license key signature cryptographically without static backdoors.
     Returns the unlocked plan ('pro' or 'family') if valid, else None.
     """
     clean = (license_key or "").strip().upper()
-    if clean in ("OMNI-PRO-MASTER-2026", "OMNI-PRO-DEMO-2026", "ADMIN-PRO"):
-        return "pro"
-    if clean in ("OMNI-FAM-MASTER-2026", "OMNI-FAM-DEMO-2026"):
-        return "family"
-
     parts = clean.split("-")
     if len(parts) == 5 and parts[0] == "OMNI" and parts[1] in ("PRO", "FAM"):
         plan_tag = parts[1]
         token = parts[2] + parts[3]
         sig = parts[4]
-        expected_sig = hmac.new(
+        expected_full = hmac.new(
             SIGNING_SECRET.encode("utf-8"),
             f"{plan_tag}:{token}".encode("utf-8"),
             hashlib.sha256
-        ).hexdigest().upper()[:4]
-        if hmac.compare_digest(sig, expected_sig):
+        ).hexdigest().upper()
+        if len(sig) in (4, 16) and hmac.compare_digest(sig, expected_full[:len(sig)]):
             return "family" if plan_tag == "FAM" else "pro"
     return None
 

@@ -11,6 +11,7 @@ import subprocess
 import socket
 import re
 import time
+import ipaddress
 from typing import List, Dict, Optional, Any, Tuple
 from .models import PlatformType, NetworkInterfaceInfo, AgentActionLog, ActionType
 
@@ -184,12 +185,7 @@ class WindowsHAL(NetworkHAL):
                         speed_mbps=None
                     ))
         except Exception:
-            # Fallback to standard socket interface enumeration
-            interfaces.append(NetworkInterfaceInfo(
-                name="DefaultInterface",
-                ipv4_addresses=["127.0.0.1"],
-                is_up=True
-            ))
+            pass
         return interfaces
 
     def get_default_gateway(self) -> Optional[str]:
@@ -222,9 +218,15 @@ class WindowsHAL(NetworkHAL):
                         dns.append(clean)
         except Exception:
             pass
-        return dns or ["8.8.8.8", "1.1.1.1"]
+        return dns
 
     def set_dns_servers(self, interface_name: str, servers: List[str], execute: bool = False) -> AgentActionLog:
+        # Validación de parámetros y sanitización contra inyección (OMNI-010)
+        if not re.match(r"^[a-zA-Z0-9_\-\.\s\(\)]+$", interface_name):
+            raise ValueError(f"Nombre de interfaz inválido o no sanitizado: {interface_name}")
+        for s in servers:
+            ipaddress.ip_address(s)  # Valida que cada servidor sea una IP válida
+
         servers_str = ",".join(f"'{s}'" for s in servers)
         cmd = ["powershell", "-NoProfile", "-Command",
                f"Set-DnsClientServerAddress -InterfaceAlias '{interface_name}' -ServerAddresses {servers_str}"]
@@ -361,9 +363,13 @@ class LinuxHAL(NetworkHAL):
                             dns.append(parts[1].strip())
         except Exception:
             pass
-        return dns or ["1.1.1.1", "8.8.8.8"]
+        return dns
 
     def set_dns_servers(self, interface_name: str, servers: List[str], execute: bool = False) -> AgentActionLog:
+        if not re.match(r"^[a-zA-Z0-9_\-\.\s]+$", interface_name):
+            raise ValueError(f"Nombre de interfaz Linux inválido: {interface_name}")
+        for s in servers:
+            ipaddress.ip_address(s)
         # Preferred modern path: resolvectl, fallback to nmcli
         srv_str = " ".join(servers)
         cmd = f"resolvectl dns {interface_name} {srv_str} || nmcli device modify {interface_name} ipv4.dns '{srv_str}'"

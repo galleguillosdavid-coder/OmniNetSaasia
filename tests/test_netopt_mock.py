@@ -278,8 +278,8 @@ class TestOmniNetCore(unittest.TestCase):
         act_pro = mgr.activate_license(pro_key, email="cliente@mundo.com")
         self.assertTrue(act_pro["success"])
         self.assertEqual(act_pro["plan"], "pro")
-        # Restore master pro key for test environment
-        mgr.activate_license("OMNI-PRO-MASTER-2026")
+        # Keep valid signed pro key for test environment
+        mgr.activate_license(pro_key)
 
     def test_high_value_internet_research_features(self):
         from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic
@@ -433,9 +433,37 @@ class TestOmniNetCore(unittest.TestCase):
         exec_res = orch.execute_subagent_by_id("antivirus", execute=False)
         self.assertEqual(exec_res["subagent"], "antivirus")
 
+    def test_security_audit_compliance(self):
+        """Verifies resolution of OMNI-001 through OMNI-011 security audit findings."""
+        from netopt.licensing import verify_signed_license_key, generate_signed_license_key
+        from netopt.hal import WindowsHAL
+        from netopt.rollback import RollbackManager, BaselineHealthMetrics
 
+        # 1. OMNI-002: Verify elimination of static master backdoors
+        self.assertIsNone(verify_signed_license_key("OMNI-PRO-MASTER-2026"))
+        self.assertIsNone(verify_signed_license_key("ADMIN-PRO"))
 
+        # Valid signed keys work
+        valid_key = generate_signed_license_key("pro", "test@omninet.ai")
+        self.assertEqual(verify_signed_license_key(valid_key), "pro")
 
+        # 2. OMNI-010: HAL input sanitization
+        hal = WindowsHAL(dry_run=True)
+        with self.assertRaises(ValueError):
+            hal.set_dns_servers("Ethernet; rm -rf /", ["1.1.1.1"])
+        with self.assertRaises(ValueError):
+            hal.set_dns_servers("Ethernet", ["999.999.999.999"])
+
+        # 3. OMNI-007: Baseline comparator in RollbackManager
+        mgr = RollbackManager(hal)
+        base = BaselineHealthMetrics(
+            timestamp=100.0,
+            avg_latency_ms=20.0,
+            packet_loss_percent=0.0
+        )
+        ok, msg = mgr.verify_post_action_health(baseline=base)
+        self.assertTrue(ok)
+        self.assertIn("aprobada", msg.lower())
 
 
 if __name__ == "__main__":

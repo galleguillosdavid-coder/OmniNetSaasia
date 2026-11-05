@@ -158,10 +158,11 @@ class NetworkOptimizer:
             plan.status = "simulated"
             return True, logs
 
-        # Mandatory Safety Step 1: Capture Pre-Optimization Snapshot
+        # Mandatory Safety Step 1: Capture Pre-Optimization Snapshot & Baseline Metrics (OMNI-007)
         snap = self.rollback_mgr.capture_snapshot(description=f"Auto-snapshot before Plan {plan.plan_id}")
+        baseline = self.rollback_mgr.capture_baseline()
         plan.rollback_snapshot_id = snap.snapshot_id
-        logs.append(f"Captured safety snapshot: {snap.snapshot_id}")
+        logs.append(f"Captured safety snapshot: {snap.snapshot_id} (Baseline Latency: {baseline.avg_latency_ms:.1f}ms, Loss: {baseline.packet_loss_percent:.1f}%)")
 
         # Mandatory Safety Step 2: Apply Changes (DNS + TCP + Flush)
         plat = detect_platform()
@@ -202,9 +203,9 @@ class NetworkOptimizer:
             self.hal.flush_dns_cache(execute=True)
             logs.append("Applied TCP stack optimizations, Encrypted DoH, NIC low-latency mode, and flushed DNS cache.")
 
-            # Mandatory Safety Step 3: Verification Gate
+            # Mandatory Safety Step 3: Verification Gate vs Baseline (OMNI-007)
             time.sleep(1.0)
-            healthy, report_msg = self.rollback_mgr.verify_post_action_health()
+            healthy, report_msg = self.rollback_mgr.verify_post_action_health(baseline=baseline)
             logs.append(f"Verification gate: {report_msg}")
 
             if not healthy:

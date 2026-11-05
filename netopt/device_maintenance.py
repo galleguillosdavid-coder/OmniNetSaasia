@@ -928,8 +928,10 @@ class DeviceMaintenanceEngine:
         actions_log: List[Dict[str, str]] = []
         snap_id: Optional[str] = None
 
+        baseline = None
         if execute:
             snap = self.rollback_mgr.capture_snapshot(f"Full Device Maintenance ({self.platform.value})")
+            baseline = self.rollback_mgr.capture_baseline()
             snap_id = snap.snapshot_id
 
         # 1. CCleaner Deep Temp, Browser Cache, CrashDumps & Shaders Cleanup
@@ -1056,7 +1058,7 @@ class DeviceMaintenanceEngine:
         verified = True
         verify_msg = "Conectividad íntegra verificada (Zero NetLoss OK)"
         if execute:
-            verified, verify_msg = self.rollback_mgr.verify_post_action_health()
+            verified, verify_msg = self.rollback_mgr.verify_post_action_health(baseline=baseline)
             if not verified and snap_id:
                 self.rollback_mgr.rollback(snap_id, execute=True)
 
