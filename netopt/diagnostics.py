@@ -672,6 +672,37 @@ def audit_lan_radar_devices() -> Dict[str, Any]:
         except Exception:
             known_macs = set()
 
+    # Zero-Trust Gateway MAC baseline and impersonation check
+    gw_mac_file = os.path.expanduser("~/.netopt_state/trusted_gateway.json")
+    trusted_gw_mac = None
+    if os.path.exists(gw_mac_file):
+        try:
+            with open(gw_mac_file, "r", encoding="utf-8") as f:
+                trusted_gw_mac = json.load(f).get("mac")
+        except Exception:
+            trusted_gw_mac = None
+
+    current_gw_mac = None
+    for n in raw_neighbors:
+        if n.get("ip") == gateway_ip:
+            current_gw_mac = n.get("mac", "").lower()
+            break
+
+    gateway_impersonation = False
+    anomalies = list(base_arp.get("anomalies", []))
+    if current_gw_mac:
+        if trusted_gw_mac and trusted_gw_mac != current_gw_mac:
+            gateway_impersonation = True
+            anomalies.append(
+                f"ALERTA CRÍTICA: Posible suplantación de gateway (ARP Spoofing/MitM). MAC del router cambió de {trusted_gw_mac} a {current_gw_mac}."
+            )
+        elif not trusted_gw_mac:
+            try:
+                with open(gw_mac_file, "w", encoding="utf-8") as f:
+                    json.dump({"gateway_ip": gateway_ip, "mac": current_gw_mac, "locked_at": time.time()}, f, indent=2)
+            except Exception:
+                pass
+
     devices = []
     new_devices = []
 
@@ -718,8 +749,9 @@ def audit_lan_radar_devices() -> Dict[str, Any]:
         "total_devices_detected": len(devices),
         "devices": devices,
         "new_devices_found": new_devices,
-        "anomalies": base_arp.get("anomalies", []),
-        "radar_status": "SEGURO (Sin intrusos ni conflictos ARP)" if not new_devices and not base_arp.get("anomalies") else "ALERTA (Nuevos dispositivos o anomalías detectadas)"
+        "anomalies": anomalies,
+        "gateway_impersonation_detected": gateway_impersonation,
+        "radar_status": "SEGURO (Sin intrusos ni conflictos ARP)" if not new_devices and not anomalies else "ALERTA (Nuevos dispositivos o anomalías detectadas)"
     }
 
 
