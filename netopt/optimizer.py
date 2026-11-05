@@ -245,20 +245,28 @@ class NetworkOptimizer:
                 "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
                 "/v", "DisableTaskOffload", "/t", "REG_DWORD", "/d", "0", "/f"
             ]
+            reg_pmtubh = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f"
+            ]
             self.hal.run_cmd(reg_throttle, execute=execute)
             self.hal.run_cmd(reg_resp, execute=execute)
             self.hal.run_cmd(reg_qos, execute=execute)
             self.hal.run_cmd(reg_offload, execute=execute)
+            self.hal.run_cmd(reg_pmtubh, execute=execute)
             actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
             actions.append("Liberar 100% del ancho de banda reservado por Windows QoS (NonBestEffortLimit=0)")
             actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
+            actions.append("Activar mitigación de agujeros negros de MTU (EnablePMTUBHDetect=1 / RFC 4821)")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_low_latency=1"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.core.default_qdisc=fq"], execute=execute)
+            self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
             actions.append("Activar TCP ECN y flag tcp_low_latency en kernel Linux")
             actions.append("Activar Fair Queueing (fq) para control de flujo y pacing")
+            actions.append("Activar sondeo de MTU PLPMTUD en kernel Linux (tcp_mtu_probing=1 / RFC 4821)")
         else:
             self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=execute)
             actions.append("Desactivar delayed_ack para interactividad en tiempo real")
