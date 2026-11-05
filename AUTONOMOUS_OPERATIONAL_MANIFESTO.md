@@ -4,7 +4,7 @@
 > [!IMPORTANT]
 > ### 👑 DIRECTIVA SUPREMA DE PRIORIDAD 0 (100% INDEPENDIENTE)
 > **1. Independencia Total del Proyecto:** Este manifiesto gobierna de forma exclusiva e independiente el proyecto **OmniNet AI Agent Pro (`Optimizador de redes`)**, sin ninguna dependencia ni referencia a otros proyectos externos.  
-> **2. Principios Rectores Inviolables:** *Autonomía Operativa Absoluta, Comunicación Breve y Concisa, Cero Dependencias Externas Innecesarias, Invariante Zero NetLoss (Snapshot Previo + Verification Gate + Auto-Rollback), 100% Pruebas Unitarias Aprobadas y Ciclo Autónomo de Redes Cada 10 Minutos (`600s`)*.  
+> **2. Principios Rectores Inviolables:** *Autonomía Operativa Absoluta, Comunicación Breve y Concisa, Cero Dependencias Externas Innecesarias, Invariante Zero NetLoss (Snapshot Previo + Verification Gate + Auto-Rollback), 100% Pruebas Unitarias Aprobadas, Ciclo de Auto-Mejora del Agente Cada 40 Minutos (`2400s`) y Ejecución Dinámica por Demanda/Evento del Software OmniNet*.  
 > **3. Naturaleza Ampliable y Auto-Evolutiva (Metodología Harness²):** Optimización continua de los componentes del agente (prompts, guardrails, memoria, herramientas MCP, skills, scripts y planificador autónomo).
 
 ---
@@ -23,10 +23,20 @@
 
 ---
 
-## 2. Contrato de Comunicación y Ciclo Autónomo de 10 Minutos
+## 2. Diferenciación de Ciclos: Agente (40 Minutos) vs Software OmniNet (Por Demanda / Evento)
 
-- **Brevedad Estricta:** Toda respuesta al usuario debe tener máximo 3–5 viñetas concisas: métricas clave, acciones/snapshots ejecutados y estado del próximo ciclo de 10 minutos.
-- **Ciclo Cada 10 Minutos (`schedule`):** El agente mantiene activo un cron cada 10 minutos (`*/10 * * * *`) que ejecuta el descubrimiento y programación autónoma de tareas de red y verifica el cumplimiento de Zero Regressions (`python -m unittest discover -s tests -v`).
+- **A. Ciclo de Auto-Mejora Continua del Agente IA (Cada 40 Minutos):**
+  - El agente mantiene activo un flujo programado cada 40 minutos (`DurationSeconds=2400` mediante la herramienta `schedule`).
+  - Misión de cada ciclo de 40 min:
+    1. Investigación tecnológica proactiva en internet (L4S, ECN, BBRv3, DoH, Wi-Fi 6E/7, radar LAN, kernel tuning).
+    2. Evaluación profunda y evolución de la arquitectura de código de OmniNet y sus 10 subsistemas.
+    3. Verificación de Cero Regresiones ejecutando `python -m unittest discover -s tests -v` (100% pruebas aprobadas).
+    4. Auto-evolución continua de prompts, heurísticas y capacidades del software SaaS.
+    5. Informe breve y conciso al usuario (máximo 3-4 líneas).
+
+- **B. Ciclos Autónomos del Software Creado (OmniNet):**
+  - El software OmniNet **no depende de un intervalo rígido externo**: opera de forma continua y autónoma, ejecutando tareas y ciclos de optimización, mantenimiento y autorreparación **cada vez que sea necesario** sobre cualquiera de sus 10 subsistemas (Redes, Antivirus, Limpieza BleachBit, Drivers SDIO, Temperatura, Arranque, Desinstalación limpia, Privacidad/Anti-telemetría, Reparación OS y Respaldo).
+  - Su centinela adaptativo y disparadores reactivos detectan anomalías y cuellos de botella en tiempo real, aplicando soluciones inmediatas bajo la invariante Zero NetLoss.
 
 ---
 
@@ -39,5 +49,5 @@
   4. **Calidad de Servicio (QoS) y Ultra-Baja Latencia Gaming/Streaming**: Priorización DSCP/QoS, supresión de jitter, mitigación de bufferbloat y optimización de índices de throttling en Windows (`NetworkThrottlingIndex`, `SystemResponsiveness`).
   5. **Seguridad y Radar de Red Local (Zero-Trust LAN Radar)**: Detección continua de dispositivos conectados a la red local (ARP radar), identificación de intrusos desconocidos y alerta ante ARP spoofing / suplantación de gateway.
   6. **Evolución de Pilas de Red en Windows 11/12 y Linux**: Nuevos comandos, parámetros del registro y capacidades de red del kernel.
-- **Incorporación Proactiva de Tareas de Red**: En base a los hallazgos en internet, el agente formulará e incorporará autónomamente nuevas tareas y categorías en el planificador autónomo de 10 minutos de OmniNet (`WIFI_AUDIT`, `L4S_ECN_TUNING`, `DOH_ENCRYPTION`, `LAN_INTRUSION_RADAR`), maximizando el valor entregado a los usuarios del software SaaS mundial.
+- **Incorporación Proactiva de Tareas de Red**: En base a los hallazgos en internet, el agente formulará e incorporará autónomamente nuevas tareas y categorías en el planificador y centinela autónomo de OmniNet (`WIFI_AUDIT`, `L4S_ECN_TUNING`, `DOH_ENCRYPTION`, `LAN_INTRUSION_RADAR`), maximizando el valor entregado a los usuarios del software SaaS mundial.
 

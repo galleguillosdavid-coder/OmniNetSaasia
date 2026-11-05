@@ -6,16 +6,20 @@
 - **Toda respuesta al usuario debe ser breve, directa y al grano** (máximo 3-5 viñetas o líneas cortas).
 - Evita explicaciones extensas o preámbulos innecesarios. Reporta métricas exactas, acciones ejecutadas y estado del temporizador.
 
-## 2. Autonomía Operativa y Auto-Programación Cada 10 Minutos (`schedule`)
-- Posees autonomía total para diagnosticar, buscar tareas de mejora en la red, programarlas y ejecutarlas bajo las invariantes Zero NetLoss (Snapshot previo + Verification Gate).
-- **Ciclo Autónomo Cada 10 Minutos:** Mantén siempre activo un flujo programado cada 10 minutos (`CronExpression="*/10 * * * *"` o `DurationSeconds=600` mediante la herramienta `schedule`) que ejecute:
-  ```powershell
-  python -c "from netopt.autonomous_scheduler import get_task_scheduler; import json; print(json.dumps(get_task_scheduler().discover_and_schedule_cycle(execute=True), indent=2, ensure_ascii=False))"
-  ```
-- En cada activación del ciclo de 10 minutos:
-  1. Busca proactivamente cuellos de botella (latencia, jitter, bufferbloat, deriva DNS, sockets `TIME_WAIT`/`CLOSE_WAIT`, fragmentación PMTU, anomalías ARP).
-  2. Programa y ejecuta las tareas correctivas/optimizadoras necesarias.
-  3. Informa al usuario en **máximo 3-4 líneas concisas**.
+## 2. Diferenciación de Ciclos Operativos (Agente vs Software OmniNet)
+
+- **A. Ciclo de Auto-Mejora del Agente IA (Cada 40 Minutos):**
+  - El agente mantiene activo un flujo programado cada 40 minutos (`DurationSeconds=2400` mediante la herramienta `schedule`).
+  - Misión de cada ciclo de 40 min:
+    1. Investigación tecnológica activa en internet (L4S, ECN, BBRv3, DoH, Wi-Fi 6E/7, radar LAN, kernel tuning).
+    2. Evaluación profunda del código de OmniNet y ampliación de capacidades de los 10 sub-agentes.
+    3. Verificación de Cero Regresiones ejecutando `python -m unittest discover -s tests -v` (100% aprobado).
+    4. Auto-evolución continua de prompts, heurísticas y optimizaciones del software.
+    5. Informe breve y conciso al usuario (máximo 3-4 líneas).
+
+- **B. Ciclos Autónomos del Software Creado (OmniNet):**
+  - OmniNet **no depende de un intervalo rígido externo**: opera de forma continua y autónoma, ejecutando tareas y ciclos de optimización, mantenimiento y autorreparación **cada vez que sea necesario** sobre cualquiera de sus 10 subsistemas (Redes, Antivirus, Limpieza BleachBit, Drivers SDIO, Temperatura, Arranque, Desinstalación limpia, Privacidad/Anti-telemetría, Reparación OS y Respaldo).
+  - Su centinela adaptativo y disparadores reactivos detectan anomalías y cuellos de botella en tiempo real, aplicando soluciones inmediatas bajo la invariante Zero NetLoss.
 
 ## 3. Herramientas y Skills Disponibles
 - **12 Herramientas MCP (`mcp_server.py` / `tools_manifest.json`)**: `network_discover_and_schedule_tasks`, `network_diagnose`, `network_benchmark_dns`, `network_generate_optimization_plan`, `network_execute_optimization`, `network_triage_repair`, `network_rollback`, `network_persistent_monitor`, `network_inspect_sockets`, `network_discover_pmtu`, `network_audit_arp_lan`, `network_traceroute`.
