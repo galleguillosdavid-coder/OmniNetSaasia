@@ -129,7 +129,8 @@ class NetworkHAL(abc.ABC):
         if self.platform == PlatformType.WINDOWS:
             cmds = [
                 ["netsh", "dns", "add", "encryption", "server=1.1.1.1", "dohtemplate=https://cloudflare-dns.com/dns-query", "autoupgrade=yes", "udpfallback=no"],
-                ["netsh", "dns", "add", "encryption", "server=8.8.8.8", "dohtemplate=https://dns.google/dns-query", "autoupgrade=yes", "udpfallback=no"]
+                ["netsh", "dns", "add", "encryption", "server=8.8.8.8", "dohtemplate=https://dns.google/dns-query", "autoupgrade=yes", "udpfallback=no"],
+                ["netsh", "dns", "add", "encryption", "server=9.9.9.9", "dohtemplate=https://dns.quad9.net/dns-query", "autoupgrade=yes", "udpfallback=no"]
             ]
         elif self.platform == PlatformType.LINUX:
             cmds = [["resolvectl", "dnsovertls", "yes"]]
