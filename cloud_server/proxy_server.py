@@ -21,6 +21,25 @@ from typing import Dict, Any, List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from netopt.licensing import generate_signed_license_key, verify_signed_license_key, PLAN_CATALOG
 
+try:
+    from .supabase_client import (
+        is_supabase_configured,
+        get_license_from_supabase,
+        upsert_license_in_supabase,
+        update_license_devices,
+        save_conversation_feedback_in_supabase,
+        save_payment_event_in_supabase
+    )
+except (ImportError, ValueError):
+    from supabase_client import (
+        is_supabase_configured,
+        get_license_from_supabase,
+        upsert_license_in_supabase,
+        update_license_devices,
+        save_conversation_feedback_in_supabase,
+        save_payment_event_in_supabase
+    )
+
 CLOUD_DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloud_subscriptions_db.json")
 CLOUD_FEEDBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloud_global_feedback.json")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -99,13 +118,18 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             lics = db.get("licenses", {})
             self.send_json(200, {
                 "service": "OmniNet Global Cloud Proxy",
+                "supabase_connected": is_supabase_configured(),
                 "total_licenses": len(lics),
                 "active_licenses": sum(1 for v in lics.values() if v.get("active")),
                 "total_queries_proxied": sum(v.get("queries_count", 0) for v in lics.values()),
                 "sample_keys": list(lics.keys())[:5]
             })
         else:
-            self.send_json(200, {"status": "online", "service": "OmniNet Global SaaS Cloud Proxy"})
+            self.send_json(200, {
+                "status": "online",
+                "service": "OmniNet Global SaaS Cloud Proxy",
+                "supabase_connected": is_supabase_configured()
+            })
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -119,13 +143,20 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             dev_id = (data.get("device_id") or "UNKNOWN").strip()
             email = (data.get("email") or "").strip()
 
-            rec = lics.get(key)
+            rec = None
+            if is_supabase_configured():
+                rec = get_license_from_supabase(key)
+
+            if not rec:
+                rec = lics.get(key)
+
             if not rec:
                 plan_sig = verify_signed_license_key(key)
                 if plan_sig:
                     rec = {
+                        "license_key": key,
                         "plan": plan_sig,
-                        "email": email,
+                        "email": email or "customer@omninet.ai",
                         "active": True,
                         "max_devices": PLAN_CATALOG[plan_sig]["max_devices"],
                         "devices": [],
@@ -133,27 +164,41 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                         "created_at": time.time()
                     }
                     lics[key] = rec
+                    if is_supabase_configured():
+                        upsert_license_in_supabase(rec)
 
             if not rec or not rec.get("active"):
                 self.send_json(403, {"valid": False, "error": "Licencia inválida o inactiva"})
                 return
 
-            devices = rec.setdefault("devices", [])
+            devices = rec.get("devices", [])
+            if isinstance(devices, str):
+                try:
+                    devices = json.loads(devices)
+                except Exception:
+                    devices = []
+            if not isinstance(devices, list):
+                devices = []
+
+            max_devs = rec.get("max_devices", 1)
             if dev_id not in devices:
-                if len(devices) >= rec.get("max_devices", 1):
+                if len(devices) >= max_devs:
                     self.send_json(403, {
                         "valid": False,
-                        "error": f"Esta licencia ya alcanzó el límite de {rec.get('max_devices', 1)} computador(es)."
+                        "error": f"Esta licencia ya alcanzó el límite de {max_devs} computador(es)."
                     })
                     return
                 devices.append(dev_id)
+                rec["devices"] = devices
                 save_cloud_db(db)
+                if is_supabase_configured():
+                    update_license_devices(key, devices, rec.get("queries_count", 0))
 
             self.send_json(200, {
                 "valid": True,
                 "plan": rec["plan"],
                 "devices_bound": len(devices),
-                "max_devices": rec.get("max_devices", 1)
+                "max_devices": max_devs
             })
 
         # 2. Secure DeepSeek Proxy Endpoint (hides API key from client EXE)
@@ -162,7 +207,12 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             dev_id = (data.get("device_id") or "").strip()
             messages = data.get("messages", [])
 
-            rec = lics.get(key)
+            rec = None
+            if is_supabase_configured():
+                rec = get_license_from_supabase(key)
+            if not rec:
+                rec = lics.get(key)
+
             plan_sig = verify_signed_license_key(key)
             if not rec and not plan_sig:
                 self.send_json(402, {"error": "Suscripción Pro requerida para usar el proxy IA en la nube."})
@@ -171,12 +221,29 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             if rec:
                 rec["queries_count"] = rec.get("queries_count", 0) + 1
                 save_cloud_db(db)
+                if is_supabase_configured():
+                    devs = rec.get("devices", [])
+                    if isinstance(devs, str):
+                        try:
+                            devs = json.loads(devs)
+                        except Exception:
+                            devs = []
+                    update_license_devices(key, devs, rec["queries_count"])
 
-            append_global_feedback({
+            last_msg = messages[-1].get("content", "")[:300] if messages else ""
+            feedback_entry = {
                 "timestamp": time.time(),
                 "device_id": dev_id,
-                "user_message": messages[-1].get("content", "")[:250] if messages else ""
-            })
+                "license_key": key,
+                "user_message": last_msg
+            }
+            append_global_feedback(feedback_entry)
+            if is_supabase_configured():
+                save_conversation_feedback_in_supabase({
+                    "device_id": dev_id,
+                    "license_key": key,
+                    "user_message": last_msg
+                })
 
             if not DEEPSEEK_API_KEY:
                 self.send_json(503, {"error": "DEEPSEEK_API_KEY no configurada en el servidor nube."})
@@ -211,7 +278,8 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             if plan not in ("pro", "family"):
                 plan = "pro"
             new_key = generate_signed_license_key(plan, email)
-            lics[new_key] = {
+            record = {
+                "license_key": new_key,
                 "plan": plan,
                 "email": email,
                 "active": True,
@@ -220,7 +288,13 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "queries_count": 0,
                 "created_at": time.time()
             }
+            lics[new_key] = record
             save_cloud_db(db)
+
+            if is_supabase_configured():
+                upsert_license_in_supabase(record)
+                save_payment_event_in_supabase("order_created", "lemon_squeezy", data)
+
             self.send_json(200, {
                 "created": True,
                 "email": email,
