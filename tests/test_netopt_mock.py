@@ -323,6 +323,46 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertEqual(res_priv["executed_tool"], "network_doh_privacy")
         self.assertIn("Máxima Privacidad Activada", res_priv["reply"])
 
+    def test_dynamic_software_catalog_and_installer(self):
+        from netopt.software_catalog import find_matching_software, install_software_package, SOFTWARE_REGISTRY
+        from netopt.llm_gateway import LLMGateway
+
+        zip_recs = find_matching_software("necesito descomprimir archivos rar")
+        self.assertTrue(any(r["id"] == "7zip" for r in zip_recs))
+
+        office_recs = find_matching_software("word y excel para escribir documentos")
+        self.assertTrue(any(r["id"] == "libreoffice" for r in office_recs))
+
+        sim_res = install_software_package("7zip", execute=False)
+        self.assertTrue(sim_res["success"])
+        self.assertTrue(sim_res["simulated"])
+        self.assertEqual(sim_res["program_name"], "7-Zip")
+
+        gw = LLMGateway()
+        gw.config["api_key"] = ""
+        res_rec = gw.chat("¿qué programa me recomiendas para descomprimir archivos?")
+        self.assertEqual(res_rec["executed_tool"], "software_recommendation")
+        self.assertIn("7-Zip", res_rec["reply"])
+        self.assertIn("te instale", res_rec["reply"])
+
+        history = [
+            {"role": "user", "content": "¿qué programa me recomiendas para descomprimir archivos?"},
+            {"role": "assistant", "content": res_rec["reply"]}
+        ]
+        with patch("netopt.llm_gateway.install_software_package") as mock_install:
+            mock_install.return_value = {
+                "success": True,
+                "installed": True,
+                "program_name": "7-Zip",
+                "message": "¡7-Zip quedó instalado con éxito en tu computador!"
+            }
+            res_confirm = gw.chat("sí, instálalo", history=history)
+
+        self.assertEqual(res_confirm["executed_tool"], "software_install")
+        self.assertIn("Instalación de Software", res_confirm["reply"])
+        self.assertIn("7-Zip", res_confirm["reply"])
+
+
 
 
 

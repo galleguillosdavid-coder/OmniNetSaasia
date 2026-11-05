@@ -36,6 +36,7 @@ from .auto_trigger import get_sentinel
 from .autonomous_scheduler import get_task_scheduler
 from .device_maintenance import DeviceMaintenanceEngine
 from .licensing import get_license_manager
+from .software_catalog import find_matching_software, install_software_package, SOFTWARE_REGISTRY
 
 
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".netopt_state", "llm_config.json")
@@ -150,6 +151,8 @@ class LLMGateway:
             return "apply_optimization"
         if any(w in low for w in ["limpieza del disco", "seguimos con la limpieza"]):
             return "find_large_files"
+        if any(w in low for w in ["te lo instale", "instalarlo", "instale automáticamente", "quieres que lo instale", "deseas que lo instale", "te ayude a instalarlo", "instalo ahora"]):
+            return "install_recommended_software"
         return None
 
     def _record_conversation_feedback(
@@ -229,7 +232,7 @@ class LLMGateway:
         # INTENT 0: AUTONOMOUS 10-MINUTE TASK DISCOVERY & SCHEDULER
         # ------------------------------------------------------------------
         if any(w in msg_lower for w in [
-            "10 min", "10m", "cada 10", "programar", "programa", "tareas", "autonom", "autónom", "auto-schedule", "ciclo"
+            "10 min", "10m", "cada 10", "programar tareas", "auto-programar", "autonom", "autónom", "auto-schedule", "ciclo autónomo", "ciclo de red"
         ]):
             executed_tool = "network_discover_and_schedule_tasks"
             sched = get_task_scheduler()
@@ -287,6 +290,64 @@ class LLMGateway:
                 "status": "SUCCESS",
                 "duration_ms": 340.0
             })
+
+        # ------------------------------------------------------------------
+        # INTENT 0C: INSTALL RECOMMENDED SOFTWARE (ONE-CLICK SILENT WINGET / WEB)
+        # ------------------------------------------------------------------
+        elif (
+            any(w in msg_lower for w in ["instala", "instálame", "instalame", "instalar", "descarga", "descárgalo", "descargalo", "instalarlo", "instalalo", "instálalo"])
+            and not any(w in msg_lower for w in ["tarea", "red", "driver", "dispositivos"])
+        ) or (
+            pending_followup == "install_recommended_software"
+            and any(w in msg_lower for w in ["si", "sí", "ok", "dale", "hazlo", "bueno", "claro", "adelante", "por favor"])
+        ):
+            executed_tool = "software_install"
+            target_pkg = ""
+            for pkg_id, info in SOFTWARE_REGISTRY.items():
+                if pkg_id in msg_lower or info["name"].lower() in msg_lower:
+                    target_pkg = pkg_id
+                    break
+            if not target_pkg and pending_followup == "install_recommended_software":
+                for pkg_id, info in SOFTWARE_REGISTRY.items():
+                    if pkg_id in last_assistant_msg or info["name"].lower() in last_assistant_msg:
+                        target_pkg = pkg_id
+                        break
+            if not target_pkg:
+                target_pkg = msg_clean.replace("instala", "").replace("instálame", "").replace("descarga", "").strip()
+
+            tool_output = install_software_package(target_pkg, execute=True)
+            backend_trace.append({
+                "step": "SOFTWARE_INSTALL",
+                "command": f"install_software_package('{target_pkg}')",
+                "output": tool_output.get("message", "Instalación ejecutada"),
+                "status": "SUCCESS" if tool_output.get("success") else "ERROR",
+                "duration_ms": 350.0
+            })
+
+        # ------------------------------------------------------------------
+        # INTENT 0D: DYNAMIC SOFTWARE RECOMMENDATION (2026 CATALOG)
+        # ------------------------------------------------------------------
+        elif any(w in msg_lower for w in [
+            "recomienda", "recomiéndame", "recomiendame", "que programa", "qué programa",
+            "para editar", "para descomprimir", "para ver videos", "reproductor",
+            "ofimática", "ofimatica", "word gratis", "excel gratis", "buen antivirus",
+            "programa para", "aplicación para", "aplicacion para", "herramienta para",
+            "catálogo de programas", "catalogo de programas", "programas recomendados"
+        ]):
+            executed_tool = "software_recommendation"
+            recs = find_matching_software(msg_clean)
+            tool_output = {
+                "query": msg_clean,
+                "recommendations": recs[:3]
+            }
+            backend_trace.append({
+                "step": "SOFTWARE_RECOMMEND",
+                "command": f"find_matching_software('{msg_clean}')",
+                "output": f"Recomendados: {', '.join([r['name'] for r in recs[:2]])}",
+                "status": "SUCCESS",
+                "duration_ms": 40.0
+            })
+
 
         # ------------------------------------------------------------------
         # INTENT 1: APPLY / EXECUTE OPTIMIZATION (REAL MUTATION WITH SNAPSHOT)
@@ -509,9 +570,9 @@ class LLMGateway:
         # ------------------------------------------------------------------
         # INTENT 4: FULL DIAGNOSTICS
         # ------------------------------------------------------------------
-        elif any(w in msg_lower for w in [
+        elif msg_lower in ["1", "a", "a)"] or any(w in msg_lower for w in [
             "diagnostica", "diagnostico", "diagnóstico", "cómo está mi red", "como esta mi red",
-            "estado de red", "haz el diagnóstico", "lanza el diagnóstico", "ejecuta el diagnóstico", "1", "a", "a)"
+            "estado de red", "haz el diagnóstico", "lanza el diagnóstico", "ejecuta el diagnóstico"
         ]):
             executed_tool = "network_diagnose"
             diag = run_full_diagnostics()
@@ -731,6 +792,29 @@ class LLMGateway:
                 f"• **Qué quedó reparado:** Vacié la Papelera de Reciclaje, amplié los canales de red, activé el escaneo de drivers y reinicié los servicios de conexión.\n"
                 f"• **Espacio en tu disco ({st.get('free_gb', '--')} GB libres):** Los archivos más pesados que encontré son: {top_str}."
             )
+        elif executed_tool == "software_install":
+            reply = (
+                f"📦 **Instalación de Software:**\n"
+                f"• {tool_output.get('message', 'Proceso completado con éxito.')}"
+            )
+        elif executed_tool == "software_recommendation":
+            recs = tool_output.get("recommendations", [])
+            if recs:
+                top = recs[0]
+                rec_lines = "\n".join([
+                    f"• **{r['name']}** ({r['modality']}): {r['description']}"
+                    for r in recs[:2]
+                ])
+                reply = (
+                    f"💡 **Te recomiendo los mejores programas para lo que necesitas:**\n"
+                    f"{rec_lines}\n\n"
+                    f"¿Quieres que te instale **{top['name']}** automáticamente ahora mismo en tu computador?"
+                )
+            else:
+                reply = (
+                    "💡 Puedes consultar el catálogo completo de herramientas digitales 2026 en el directorio oficial. "
+                    "¿Qué tipo de programa necesitas (edición, ofimática, antivirus, juegos, multimedia)?"
+                )
         elif executed_tool == "network_execute_optimization":
             reply = (
                 f"✅ **¡Listo! Tu Internet fue Acelerado y Optimizado**\n"
