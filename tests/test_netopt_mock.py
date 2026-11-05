@@ -294,6 +294,8 @@ class TestOmniNetCore(unittest.TestCase):
         ecn = check_l4s_ecn_status()
         self.assertIn("ecn_enabled", ecn)
         self.assertIn("latency_mode", ecn)
+        self.assertIn("dualq_aqm_supported", ecn)
+        self.assertIn("quic_0rtt_capable", ecn)
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
