@@ -246,6 +246,7 @@ class WindowsHAL(NetworkHAL):
             "congestionprovider": "default",
             "rss": "enabled",
             "rsc": "enabled",
+            "dca": "enabled",
             "ecncapability": "disabled",
             "timestamps": "disabled"
         }

@@ -77,6 +77,12 @@ class NetworkOptimizer:
                 command="netsh int tcp set global rsc=enabled",
                 is_dry_run=self.hal.dry_run
             ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable Direct Cache Access (DCA) to deliver network packets directly into CPU L3 cache",
+                command="netsh int tcp set global dca=enabled",
+                is_dry_run=self.hal.dry_run
+            ))
 
         elif plat == PlatformType.LINUX:
             reasons.append("Tuning Linux kernel TCP stack: BBR congestion control, FQ pacing, TCP Fast Open, and buffer expansion.")

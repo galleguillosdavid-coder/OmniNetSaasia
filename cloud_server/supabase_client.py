@@ -11,19 +11,49 @@ import urllib.parse
 from typing import Dict, Any, Optional, List
 
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+def _load_env_if_present() -> None:
+    env_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+    ]
+    for p in env_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip().strip("'\"")
+                            if k not in os.environ and v:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+
+_load_env_if_present()
+
+
+def get_supabase_url() -> str:
+    return os.environ.get("SUPABASE_URL", "").rstrip("/")
+
+
+def get_supabase_key() -> str:
+    return os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY", "")
 
 
 def is_supabase_configured() -> bool:
-    return bool(SUPABASE_URL and SUPABASE_KEY)
+    return bool(get_supabase_url() and get_supabase_key())
 
 
 def _supabase_request(endpoint: str, method: str = "GET", body: Optional[Dict[str, Any]] = None, query_params: Optional[Dict[str, str]] = None) -> Any:
     if not is_supabase_configured():
         return None
 
-    url = f"{SUPABASE_URL}/rest/v1/{endpoint.lstrip('/')}"
+    sb_url = get_supabase_url()
+    sb_key = get_supabase_key()
+
+    url = f"{sb_url}/rest/v1/{endpoint.lstrip('/')}"
     if query_params:
         url += "?" + urllib.parse.urlencode(query_params)
 
@@ -32,8 +62,8 @@ def _supabase_request(endpoint: str, method: str = "GET", body: Optional[Dict[st
         url,
         data=data,
         headers={
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "apikey": sb_key,
+            "Authorization": f"Bearer {sb_key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         },
