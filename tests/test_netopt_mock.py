@@ -362,6 +362,70 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertIn("Instalación de Software", res_confirm["reply"])
         self.assertIn("7-Zip", res_confirm["reply"])
 
+    def test_10_specialized_ecosystem_subagents(self):
+        from netopt.ecosystem_subagents import get_ecosystem_orchestrator
+        from netopt.llm_gateway import LLMGateway
+
+        orch = get_ecosystem_orchestrator()
+        cat = orch.get_ecosystem_catalog()
+        self.assertEqual(len(cat), 10)
+
+        # 1. Verify individual subagents
+        net_res = orch.run_network_subagent(execute=False)
+        self.assertEqual(net_res["subagent"], "network")
+
+        av_res = orch.run_antivirus_subagent(execute=False)
+        self.assertEqual(av_res["subagent"], "antivirus")
+
+        clean_res = orch.run_cleaner_subagent(execute=False)
+        self.assertEqual(clean_res["subagent"], "cleaner")
+
+        drv_res = orch.run_drivers_subagent(execute=False)
+        self.assertEqual(drv_res["subagent"], "drivers")
+
+        hw_res = orch.run_hardware_thermal_subagent(execute=False)
+        self.assertEqual(hw_res["subagent"], "hardware_thermal")
+
+        start_res = orch.run_startup_boost_subagent(execute=False)
+        self.assertEqual(start_res["subagent"], "startup_boost")
+
+        unin_res = orch.run_uninstaller_subagent(execute=False)
+        self.assertEqual(unin_res["subagent"], "uninstaller")
+
+        priv_res = orch.run_privacy_shield_subagent(execute=False)
+        self.assertEqual(priv_res["subagent"], "privacy_shield")
+
+        os_res = orch.run_os_repair_subagent(execute=False)
+        self.assertEqual(os_res["subagent"], "os_repair")
+
+        bak_res = orch.run_backup_subagent(execute=False)
+        self.assertEqual(bak_res["subagent"], "backup")
+
+        # 2. Conversational Intent Dispatching
+        gw = LLMGateway()
+        gw.config["api_key"] = ""
+
+        r_av = gw.chat("revisa si tengo virus")
+        self.assertEqual(r_av["executed_tool"], "subagent_antivirus")
+        self.assertIn("Escudo Antivirus", r_av["reply"])
+
+        r_hw = gw.chat("qué temperatura tiene mi procesador y hardware")
+        self.assertEqual(r_hw["executed_tool"], "subagent_hardware_thermal")
+        self.assertIn("Hardware y Temperatura", r_hw["reply"])
+
+        r_boot = gw.chat("acelera el arranque y programas de inicio")
+        self.assertEqual(r_boot["executed_tool"], "subagent_startup_boost")
+        self.assertIn("Acelerador de Arranque", r_boot["reply"])
+
+        r_priv = gw.chat("activa el anti-rastreo y privacidad de windows")
+        self.assertEqual(r_priv["executed_tool"], "subagent_privacy_shield")
+        self.assertIn("Escudo de Privacidad", r_priv["reply"])
+
+        r_cat = gw.chat("cuáles son las 10 especialidades del ecosistema")
+        self.assertEqual(r_cat["executed_tool"], "subagent_ecosystem_catalog")
+        self.assertIn("10 Especialidades del Ecosistema", r_cat["reply"])
+
+
 
 
 

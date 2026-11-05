@@ -37,6 +37,7 @@ from .autonomous_scheduler import get_task_scheduler
 from .device_maintenance import DeviceMaintenanceEngine
 from .licensing import get_license_manager
 from .software_catalog import find_matching_software, install_software_package, SOFTWARE_REGISTRY
+from .ecosystem_subagents import get_ecosystem_orchestrator
 
 
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".netopt_state", "llm_config.json")
@@ -346,6 +347,115 @@ class LLMGateway:
                 "output": f"Recomendados: {', '.join([r['name'] for r in recs[:2]])}",
                 "status": "SUCCESS",
                 "duration_ms": 40.0
+            })
+
+        # ------------------------------------------------------------------
+        # INTENT 0E: THE 10 ECOSYSTEM SPECIALIZED SUB-AGENTS
+        # ------------------------------------------------------------------
+        elif any(w in msg_lower for w in [
+            "antivirus", "virus", "escanear virus", "analizar virus", "buscar virus", "infección", "infeccion", "malware", "defender"
+        ]):
+            executed_tool = "subagent_antivirus"
+            tool_output = get_ecosystem_orchestrator().run_antivirus_subagent(execute=True)
+            backend_trace.append({
+                "step": "SUBAGENT_ANTIVIRUS",
+                "command": "orchestrator.run_antivirus_subagent(execute=True)",
+                "output": tool_output.get("summary", "Escudo Antivirus verificado"),
+                "status": "SUCCESS",
+                "duration_ms": 120.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "temperatura", "se calienta", "calor", "ventilador", "ventiladores", "batería", "bateria", "hardware", "cpu"
+        ]):
+            executed_tool = "subagent_hardware_thermal"
+            tool_output = get_ecosystem_orchestrator().run_hardware_thermal_subagent()
+            backend_trace.append({
+                "step": "SUBAGENT_HARDWARE",
+                "command": "orchestrator.run_hardware_thermal_subagent()",
+                "output": tool_output.get("summary", "Telemetría de hardware obtenida"),
+                "status": "SUCCESS",
+                "duration_ms": 90.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "arranque", "inicio lento", "tarda en prender", "al encender", "acelerar inicio", "programas de inicio", "programas al prender"
+        ]):
+            executed_tool = "subagent_startup_boost"
+            tool_output = get_ecosystem_orchestrator().run_startup_boost_subagent(execute=True)
+            backend_trace.append({
+                "step": "SUBAGENT_STARTUP",
+                "command": "orchestrator.run_startup_boost_subagent(execute=True)",
+                "output": tool_output.get("summary", "Arranque optimizado"),
+                "status": "SUCCESS",
+                "duration_ms": 110.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "desinstalar", "desinstalador", "quitar programas", "eliminar aplicaciones", "programas instalados", "quitar apps"
+        ]):
+            executed_tool = "subagent_uninstaller"
+            tool_output = get_ecosystem_orchestrator().run_uninstaller_subagent()
+            backend_trace.append({
+                "step": "SUBAGENT_UNINSTALLER",
+                "command": "orchestrator.run_uninstaller_subagent()",
+                "output": tool_output.get("summary", "Catálogo de desinstalación listo"),
+                "status": "SUCCESS",
+                "duration_ms": 95.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "anti-rastreo", "antirastreo", "telemetria", "telemetría", "bloquear rastreo", "privacidad de windows", "shutup"
+        ]):
+            executed_tool = "subagent_privacy_shield"
+            tool_output = get_ecosystem_orchestrator().run_privacy_shield_subagent(execute=True)
+            backend_trace.append({
+                "step": "SUBAGENT_PRIVACY",
+                "command": "orchestrator.run_privacy_shield_subagent(execute=True)",
+                "output": tool_output.get("summary", "Escudo de privacidad activado"),
+                "status": "SUCCESS",
+                "duration_ms": 85.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "reparar windows", "archivos dañados", "archivos corruptos", "pantalla azul", "sfc", "dism", "integridad del sistema"
+        ]):
+            executed_tool = "subagent_os_repair"
+            tool_output = get_ecosystem_orchestrator().run_os_repair_subagent(execute=True)
+            backend_trace.append({
+                "step": "SUBAGENT_OS_REPAIR",
+                "command": "orchestrator.run_os_repair_subagent(execute=True)",
+                "output": tool_output.get("summary", "Reparación de OS completada"),
+                "status": "SUCCESS",
+                "duration_ms": 160.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "copia de seguridad", "respaldo", "backup", "respaldar", "guardar mis archivos", "resguardar archivos"
+        ]):
+            executed_tool = "subagent_backup"
+            tool_output = get_ecosystem_orchestrator().run_backup_subagent(execute=True)
+            backend_trace.append({
+                "step": "SUBAGENT_BACKUP",
+                "command": "orchestrator.run_backup_subagent(execute=True)",
+                "output": tool_output.get("summary", "Respaldo inteligente creado"),
+                "status": "SUCCESS",
+                "duration_ms": 210.0
+            })
+
+        elif any(w in msg_lower for w in [
+            "10 especialidades", "ecosistema", "subagentes", "sub-agentes", "qué puedes hacer", "que puedes hacer", "tus funciones", "capacidades"
+        ]):
+            executed_tool = "subagent_ecosystem_catalog"
+            tool_output = {
+                "specialties": get_ecosystem_orchestrator().get_ecosystem_catalog()
+            }
+            backend_trace.append({
+                "step": "ECOSYSTEM_CATALOG",
+                "command": "orchestrator.get_ecosystem_catalog()",
+                "output": "10 Especialidades del Ecosistema presentadas",
+                "status": "SUCCESS",
+                "duration_ms": 20.0
             })
 
 
@@ -815,6 +925,51 @@ class LLMGateway:
                     "💡 Puedes consultar el catálogo completo de herramientas digitales 2026 en el directorio oficial. "
                     "¿Qué tipo de programa necesitas (edición, ofimática, antivirus, juegos, multimedia)?"
                 )
+        elif executed_tool == "subagent_antivirus":
+            reply = (
+                f"🛡️ **Escudo Antivirus y Seguridad:**\n"
+                f"• {tool_output.get('summary', 'Protección en tiempo real activa.')}"
+            )
+        elif executed_tool == "subagent_hardware_thermal":
+            reply = (
+                f"🌡️ **Monitoreo de Hardware y Temperatura:**\n"
+                f"• {tool_output.get('summary', 'Hardware funcionando en temperaturas óptimas.')}"
+            )
+        elif executed_tool == "subagent_startup_boost":
+            reply = (
+                f"🚀 **Acelerador de Arranque:**\n"
+                f"• {tool_output.get('summary', 'Arranque del sistema optimizado.')}"
+            )
+        elif executed_tool == "subagent_uninstaller":
+            sample = ", ".join(tool_output.get("sample_apps", [])[:4]) or "Programas listados"
+            reply = (
+                f"🗑️ **Desinstalador Limpio de Programas:**\n"
+                f"• {tool_output.get('summary', 'Listo para desinstalar sin dejar basura.')}\n"
+                f"• **Aplicaciones detectadas:** {sample}."
+            )
+        elif executed_tool == "subagent_privacy_shield":
+            reply = (
+                f"🔒 **Escudo de Privacidad Anti-Rastreo:**\n"
+                f"• {tool_output.get('summary', 'Reglas de privacidad aplicadas.')}"
+            )
+        elif executed_tool == "subagent_os_repair":
+            reply = (
+                f"🩺 **Salud y Reparación de Windows:**\n"
+                f"• {tool_output.get('summary', 'Integridad del sistema verificada.')}"
+            )
+        elif executed_tool == "subagent_backup":
+            reply = (
+                f"💾 **Copias de Seguridad Inteligente:**\n"
+                f"• {tool_output.get('summary', 'Respaldo del sistema completado.')}"
+            )
+        elif executed_tool == "subagent_ecosystem_catalog":
+            specs = tool_output.get("specialties", [])
+            lines = "\n".join([f"• **{s['emoji']} {s['name']}:** {s['mission']}" for s in specs[:10]])
+            reply = (
+                f"🌟 **Las 10 Especialidades del Ecosistema OmniNet:**\n"
+                f"{lines}\n\n"
+                f"Solo dime lo que necesitas con tus propias palabras y el sub-agente correspondiente se encargará de inmediato."
+            )
         elif executed_tool == "network_execute_optimization":
             reply = (
                 f"✅ **¡Listo! Tu Internet fue Acelerado y Optimizado**\n"
