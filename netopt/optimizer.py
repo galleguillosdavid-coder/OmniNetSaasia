@@ -237,14 +237,22 @@ class NetworkOptimizer:
                 "reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
                 "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"
             ]
+            reg_qos = [
+                "reg", "add", "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched",
+                "/v", "NonBestEffortLimit", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
             self.hal.run_cmd(reg_throttle, execute=execute)
             self.hal.run_cmd(reg_resp, execute=execute)
+            self.hal.run_cmd(reg_qos, execute=execute)
             actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
+            actions.append("Liberar 100% del ancho de banda reservado por Windows QoS (NonBestEffortLimit=0)")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_low_latency=1"], execute=execute)
+            self.hal.run_cmd(["sysctl", "-w", "net.core.default_qdisc=fq"], execute=execute)
             actions.append("Activar TCP ECN y flag tcp_low_latency en kernel Linux")
+            actions.append("Activar Fair Queueing (fq) para control de flujo y pacing")
         else:
             self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=execute)
             actions.append("Desactivar delayed_ack para interactividad en tiempo real")

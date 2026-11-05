@@ -93,3 +93,4 @@ def save_payment_event_in_supabase(event_type: str, provider: str, payload: Dict
         "payload": payload
     })
     return res is not None
+
