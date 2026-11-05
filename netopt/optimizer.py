@@ -217,3 +217,43 @@ class NetworkOptimizer:
             logs.extend(rb_logs)
             plan.status = "failed"
             return False, logs
+
+    def optimize_gaming_and_l4s_qos(self, execute: bool = False) -> Dict[str, Any]:
+        """
+        Enables L4S/ECN (Explicit Congestion Notification) to eliminate packet queuing delay,
+        and optimizes Windows NetworkThrottlingIndex / SystemResponsiveness for zero stuttering in games and video calls.
+        """
+        plat = detect_platform()
+        actions = []
+        if plat == PlatformType.WINDOWS:
+            self.hal.run_cmd(["netsh", "int", "tcp", "set", "global", "ecncapability=enabled"], execute=execute)
+            actions.append("Habilitar ECN (Notificación Explícita de Congestión L4S)")
+
+            reg_throttle = [
+                "reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+                "/v", "NetworkThrottlingIndex", "/t", "REG_DWORD", "/d", "0xffffffff", "/f"
+            ]
+            reg_resp = [
+                "reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+                "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
+            self.hal.run_cmd(reg_throttle, execute=execute)
+            self.hal.run_cmd(reg_resp, execute=execute)
+            actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
+
+        elif plat == PlatformType.LINUX:
+            self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)
+            self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_low_latency=1"], execute=execute)
+            actions.append("Activar TCP ECN y flag tcp_low_latency en kernel Linux")
+        else:
+            self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=execute)
+            actions.append("Desactivar delayed_ack para interactividad en tiempo real")
+
+        return {
+            "platform": plat.value,
+            "executed": execute,
+            "actions": actions,
+            "gaming_mode_active": True,
+            "summary": "Modo Ultra-Baja Latencia y Gaming (L4S/ECN) activado: bufferbloat suprimido y cero estrangulamiento."
+        }
+

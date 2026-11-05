@@ -28,3 +28,16 @@
 - **Brevedad Estricta:** Toda respuesta al usuario debe tener máximo 3–5 viñetas concisas: métricas clave, acciones/snapshots ejecutados y estado del próximo ciclo de 10 minutos.
 - **Ciclo Cada 10 Minutos (`schedule`):** El agente mantiene activo un cron cada 10 minutos (`*/10 * * * *`) que ejecuta el descubrimiento y programación autónoma de tareas de red y verifica el cumplimiento de Zero Regressions (`python -m unittest discover -s tests -v`).
 
+---
+
+## 3. Vigilancia e Investigación Tecnológica Continua en Internet (Obligatorio)
+
+- **Mandato de Búsqueda Frecuente en Internet**: El agente debe consultar proactivamente la web sobre todo tipo de información y avances clave en redes:
+  1. **Pila de transporte y control de congestión de última generación**: L4S (RFC 9330/9331), ECN (Explicit Congestion Notification), TCP BBRv2/BBRv3, TCP Prague, QUIC (HTTP/3).
+  2. **Seguridad y Privacidad DNS**: Cifrado DoH (DNS-over-HTTPS), DoT (DNS-over-TLS), Encrypted Client Hello (ECH), DNSSEC y mitigación de fugas DNS.
+  3. **Conectividad Inalámbrica (Wi-Fi 6E/7 - 802.11be)**: Diagnóstico de señal RSSI %, congestión e interferencia de canales (2.4 GHz vs 5 GHz vs 6 GHz), velocidad PHY y roaming.
+  4. **Calidad de Servicio (QoS) y Ultra-Baja Latencia Gaming/Streaming**: Priorización DSCP/QoS, supresión de jitter, mitigación de bufferbloat y optimización de índices de throttling en Windows (`NetworkThrottlingIndex`, `SystemResponsiveness`).
+  5. **Seguridad y Radar de Red Local (Zero-Trust LAN Radar)**: Detección continua de dispositivos conectados a la red local (ARP radar), identificación de intrusos desconocidos y alerta ante ARP spoofing / suplantación de gateway.
+  6. **Evolución de Pilas de Red en Windows 11/12 y Linux**: Nuevos comandos, parámetros del registro y capacidades de red del kernel.
+- **Incorporación Proactiva de Tareas de Red**: En base a los hallazgos en internet, el agente formulará e incorporará autónomamente nuevas tareas y categorías en el planificador autónomo de 10 minutos de OmniNet (`WIFI_AUDIT`, `L4S_ECN_TUNING`, `DOH_ENCRYPTION`, `LAN_INTRUSION_RADAR`), maximizando el valor entregado a los usuarios del software SaaS mundial.
+

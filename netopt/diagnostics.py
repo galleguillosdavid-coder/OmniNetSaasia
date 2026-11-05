@@ -4,6 +4,8 @@ Measures latency, RFC 3550 jitter, packet loss, DNS resolution times, PMTU, and 
 """
 
 from __future__ import annotations
+import os
+import json
 import socket
 import time
 import struct
@@ -570,6 +572,151 @@ def measure_bandwidth_speed() -> Dict[str, Any]:
         "download_time_sec": dl_duration_s,
         "upload_time_sec": ul_duration_s
     }
+
+
+def check_doh_status() -> Dict[str, Any]:
+    """Inspects if DNS-over-HTTPS (DoH) / DNS-over-TLS (DoT) is enabled."""
+    plat = detect_platform()
+    doh_configured = False
+    templates = []
+    if plat == PlatformType.WINDOWS:
+        try:
+            res = subprocess.run(["netsh", "dns", "show", "encryption"], capture_output=True, text=True, errors="replace", timeout=5)
+            if res.returncode == 0 and res.stdout:
+                for line in res.stdout.splitlines():
+                    if "https://" in line:
+                        templates.append(line.split(":", 1)[1].strip() if ":" in line else line.strip())
+                        doh_configured = True
+        except Exception:
+            pass
+    elif plat == PlatformType.LINUX:
+        try:
+            res = subprocess.run(["resolvectl", "status"], capture_output=True, text=True, errors="replace", timeout=5)
+            if res.returncode == 0 and "DNSOverTLS=yes" in res.stdout:
+                doh_configured = True
+        except Exception:
+            pass
+    return {
+        "platform": plat.value,
+        "doh_enabled": doh_configured,
+        "templates": templates[:4],
+        "is_encrypted": doh_configured,
+        "privacy_status": "ALTA (Cifrado DoH activo contra espionaje)" if doh_configured else "ESTÁNDAR (Consultas en texto plano)"
+    }
+
+
+def check_l4s_ecn_status() -> Dict[str, Any]:
+    """Inspects if Explicit Congestion Notification (ECN) and low-latency transport signaling are enabled."""
+    plat = detect_platform()
+    ecn_enabled = False
+    congestion_provider = "default"
+    if plat == PlatformType.WINDOWS:
+        try:
+            res = subprocess.run(["netsh", "int", "tcp", "show", "global"], capture_output=True, text=True, errors="replace", timeout=5)
+            if res.returncode == 0 and res.stdout:
+                for line in res.stdout.splitlines():
+                    ll = line.lower()
+                    if "ecn" in ll and "enabled" in ll:
+                        ecn_enabled = True
+                    elif "congesti" in ll and ":" in line:
+                        congestion_provider = line.split(":", 1)[1].strip()
+        except Exception:
+            pass
+    elif plat == PlatformType.LINUX:
+        try:
+            res = subprocess.run(["sysctl", "-n", "net.ipv4.tcp_ecn"], capture_output=True, text=True, timeout=3)
+            if res.returncode == 0 and res.stdout.strip() in ("1", "2"):
+                ecn_enabled = True
+        except Exception:
+            pass
+    return {
+        "platform": plat.value,
+        "ecn_enabled": ecn_enabled,
+        "congestion_provider": congestion_provider,
+        "l4s_ready": ecn_enabled,
+        "latency_mode": "Ultra-baja latencia (L4S / ECN activo)" if ecn_enabled else "Estándar (Posible acumulación en colas de router)"
+    }
+
+
+def audit_lan_radar_devices() -> Dict[str, Any]:
+    """
+    Performs comprehensive LAN Radar scan identifying Gateway, Host PC, and all connected devices,
+    catalogs new vs known devices in ~/.netopt_state/known_devices.json, and flags rogue intruders or ARP spoofing.
+    """
+    base_arp = audit_arp_lan()
+    raw_neighbors = base_arp.get("neighbors", [])
+    hal = get_hal(dry_run=True)
+    gateway_ip = hal.get_default_gateway() or "192.168.1.1"
+
+    local_ips = set()
+    local_macs = set()
+    for iface in hal.get_interfaces():
+        if iface.is_up:
+            for ip in iface.ipv4_addresses:
+                local_ips.add(ip)
+            if iface.mac_address:
+                local_macs.add(iface.mac_address.lower().replace("-", ":"))
+
+    known_file = os.path.expanduser("~/.netopt_state/known_devices.json")
+    os.makedirs(os.path.dirname(known_file), exist_ok=True)
+    known_macs = set()
+    if os.path.exists(known_file):
+        try:
+            with open(known_file, "r", encoding="utf-8") as f:
+                known_macs = set(json.load(f))
+        except Exception:
+            known_macs = set()
+
+    devices = []
+    new_devices = []
+
+    for n in raw_neighbors:
+        ip = n.get("ip", "")
+        mac = n.get("mac", "").lower()
+        is_gw = (ip == gateway_ip)
+        is_me = (ip in local_ips or mac in local_macs)
+
+        role = "Router / Puerta de Enlace" if is_gw else ("Este Computador" if is_me else "Dispositivo en Red")
+        vendor = "Desconocido / Dispositivo Wi-Fi"
+        if is_gw:
+            vendor = "Router Principal (ISP)"
+        elif is_me:
+            vendor = "Equipo Local"
+        elif mac.startswith(("f8:ed:fc", "74:24:9f", "a4:e8:8d", "ac:bc:32")):
+            vendor = "Dispositivo Móvil / Smart TV"
+        elif mac.startswith(("b8:27:eb", "dc:a6:32", "e4:5f:01")):
+            vendor = "Microcontrolador / IoT"
+
+        is_new = (mac not in known_macs and not is_gw and not is_me)
+        if is_new:
+            new_devices.append({"ip": ip, "mac": mac, "role": role, "vendor": vendor})
+        known_macs.add(mac)
+
+        devices.append({
+            "ip": ip,
+            "mac": mac,
+            "role": role,
+            "vendor": vendor,
+            "is_gateway": is_gw,
+            "is_local_host": is_me,
+            "is_new": is_new
+        })
+
+    try:
+        with open(known_file, "w", encoding="utf-8") as f:
+            json.dump(list(known_macs), f, indent=2)
+    except Exception:
+        pass
+
+    return {
+        "gateway_ip": gateway_ip,
+        "total_devices_detected": len(devices),
+        "devices": devices,
+        "new_devices_found": new_devices,
+        "anomalies": base_arp.get("anomalies", []),
+        "radar_status": "SEGURO (Sin intrusos ni conflictos ARP)" if not new_devices and not base_arp.get("anomalies") else "ALERTA (Nuevos dispositivos o anomalías detectadas)"
+    }
+
 
 
 

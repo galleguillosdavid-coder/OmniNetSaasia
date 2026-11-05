@@ -22,7 +22,11 @@ from .diagnostics import (
     measure_target_metrics,
     inspect_active_sockets,
     discover_path_mtu,
-    audit_arp_lan
+    audit_arp_lan,
+    inspect_wifi_and_nic,
+    audit_lan_radar_devices,
+    check_doh_status,
+    check_l4s_ecn_status
 )
 from .optimizer import NetworkOptimizer
 from .repair import NetworkRepairEngine
@@ -274,7 +278,54 @@ class AutonomousTaskScheduler:
                 status="SCHEDULED"
             ))
 
-        # 6. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
+        # 7. Check Wi-Fi Radio Quality & Channel Congestion
+        wifi_data = inspect_wifi_and_nic()
+        if wifi_data.get("anomalies"):
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="WIFI_AUDIT",
+                priority="LOW",
+                title="Auditoría de radio Wi-Fi y congestión de canales",
+                reason="; ".join(wifi_data["anomalies"][:2]),
+                status="SCHEDULED"
+            ))
+
+        # 8. Check L4S / ECN Low-Latency Activation Opportunity
+        ecn_data = check_l4s_ecn_status()
+        if not ecn_data.get("ecn_enabled") and self.evolution.get("last_l4s_tune_attempt") != "applied":
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="L4S_ECN_TUNING",
+                priority="MEDIUM",
+                title="Afinamiento L4S/ECN y priorización Gaming/Videollamadas",
+                reason="ECN desactivado; activar señalización explícita para eliminar bufferbloat.",
+                status="SCHEDULED"
+            ))
+
+        # 9. Check Local Network Radar & Intruder Detection
+        radar_data = audit_lan_radar_devices()
+        if radar_data.get("new_devices_found") or radar_data.get("anomalies"):
+            reasons = []
+            if radar_data.get("new_devices_found"):
+                reasons.append(f"{len(radar_data['new_devices_found'])} dispositivo(s) nuevo(s) detectado(s)")
+            if radar_data.get("anomalies"):
+                reasons.append("; ".join(radar_data["anomalies"]))
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="LAN_INTRUSION_RADAR",
+                priority="HIGH" if radar_data.get("anomalies") else "MEDIUM",
+                title="Radar LAN: Detección de intrusos y auditoría de red local",
+                reason="; ".join(reasons),
+                status="SCHEDULED"
+            ))
+
+        # 10. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
         if not discovered:
             best_dns_str = f"{best_dns.provider} ({best_dns.avg_latency_ms}ms)" if best_dns else "OK"
             discovered.append(AutonomousNetworkTask(
@@ -325,7 +376,7 @@ class AutonomousTaskScheduler:
         }
 
     def _execute_task(self, task: AutonomousNetworkTask, do_exec: bool, rtt_before: float = 0.0, opt_mtu: int = 1500, diag: Any = None):
-        mutating_categories = ("TRIAGE_REPAIR", "TCP_TUNING", "DNS_OPTIMIZATION", "PMTU_TUNE")
+        mutating_categories = ("TRIAGE_REPAIR", "TCP_TUNING", "DNS_OPTIMIZATION", "PMTU_TUNE", "L4S_ECN_TUNING")
         if do_exec and task.category in ("TRIAGE_REPAIR", "PMTU_TUNE"):
             snap = self.rollback_mgr.capture_snapshot(description=f"AutoTask {task.task_id} ({task.category})")
             task.snapshot_id = snap.snapshot_id
@@ -363,6 +414,19 @@ class AutonomousTaskScheduler:
                     f"{len(dev_res.get('actions_executed', []))} rutinas ejecutadas, "
                     f"{dev_res.get('temp_cleanup', {}).get('freed_mb', 0)} MB liberados."
                 )
+            elif task.category == "WIFI_AUDIT":
+                w_info = inspect_wifi_and_nic()
+                wf = w_info.get("wifi", {})
+                task.concise_result = f"Wi-Fi {wf.get('ssid') or 'N/A'}: Señal {wf.get('signal_percent') or 0}%, Banda {wf.get('band') or 'N/A'}, Canal {wf.get('channel') or 0}."
+            elif task.category == "L4S_ECN_TUNING":
+                g_res = self.optimizer.optimize_gaming_and_l4s_qos(execute=do_exec)
+                if do_exec:
+                    self.evolution["last_l4s_tune_attempt"] = "applied"
+                    self._save_evolution()
+                task.concise_result = f"L4S/ECN {'aplicado' if do_exec else 'simulado'}: {len(g_res['actions'])} ajustes aplicados."
+            elif task.category == "LAN_INTRUSION_RADAR":
+                r_res = audit_lan_radar_devices()
+                task.concise_result = f"Radar LAN: {r_res['total_devices_detected']} dispositivos activos ({r_res['radar_status']})."
             else:
                 self.hal.flush_dns_cache(execute=do_exec)
                 task.concise_result = "Auditoría 10m sin anomalías; caché DNS refrescada."

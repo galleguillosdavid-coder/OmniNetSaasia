@@ -23,3 +23,13 @@
   - `autonomous-net-scheduler`: Descubrimiento y programación autónoma de tareas de red cada 10 minutos.
   - `deep-network-diagnostics`: Telemetría profunda L1-L7, PMTU, auditoría de sockets y ARP LAN.
   - `tcp-dns-quic-optimizer`: Afinamiento seguro del stack TCP/UDP/DNS con Snapshot y Auto-Rollback.
+
+## 4. Vigilancia e Investigación Tecnológica Continua en Internet (Obligatorio)
+- **Búsqueda Frecuente y Sistemática en la Web**: El agente debe consultar proactivamente la web sobre todo tipo de información y avances clave en redes:
+  1. **Pila de transporte y algoritmos de congestión moderna**: L4S (RFC 9330/9331), ECN (Explicit Congestion Notification), TCP BBRv2/BBRv3, TCP Prague, QUIC (HTTP/3).
+  2. **Seguridad y Privacidad DNS**: Cifrado DoH (DNS-over-HTTPS), DoT (DNS-over-TLS), Encrypted Client Hello (ECH), DNSSEC y Anycast resolvers.
+  3. **Conectividad Inalámbrica (Wi-Fi 6E/7 - 802.11be)**: Diagnóstico de señal RSSI %, congestión e interferencia de canales (2.4 GHz vs 5 GHz vs 6 GHz), velocidad PHY y roaming.
+  4. **Calidad de Servicio (QoS) y Ultra-Baja Latencia Gaming/Streaming**: Priorización DSCP/QoS, supresión de jitter, mitigación de bufferbloat y optimización de índices de throttling en Windows (`NetworkThrottlingIndex`, `SystemResponsiveness`).
+  5. **Seguridad y Radar de Red Local (Zero-Trust LAN Radar)**: Detección continua de dispositivos conectados a la red local (ARP radar), identificación de intrusos desconocidos y alerta ante ARP spoofing / suplantación de gateway.
+  6. **Novedades en Windows 11/12 y Linux Network Stacks**: Nuevos comandos, parámetros del registro y capacidades de red del kernel.
+- **Fijación Proactiva de Tareas de Alto Valor**: En base a cada investigación en internet, el agente formulará e incorporará autónomamente nuevas tareas preventivas, correctivas y de optimización en OmniNet, maximizando el valor entregado a los usuarios del software SaaS.

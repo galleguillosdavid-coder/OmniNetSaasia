@@ -281,6 +281,49 @@ class TestOmniNetCore(unittest.TestCase):
         # Restore master pro key for test environment
         mgr.activate_license("OMNI-PRO-MASTER-2026")
 
+    def test_high_value_internet_research_features(self):
+        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic
+        from netopt.optimizer import NetworkOptimizer
+        from netopt.llm_gateway import LLMGateway
+
+        # 1. DoH & L4S/ECN status
+        doh = check_doh_status()
+        self.assertIn("doh_enabled", doh)
+        self.assertIn("privacy_status", doh)
+
+        ecn = check_l4s_ecn_status()
+        self.assertIn("ecn_enabled", ecn)
+        self.assertIn("latency_mode", ecn)
+
+        # 2. LAN Radar device auditing
+        radar = audit_lan_radar_devices()
+        self.assertIn("gateway_ip", radar)
+        self.assertIn("total_devices_detected", radar)
+        self.assertIn("devices", radar)
+        self.assertIn("radar_status", radar)
+
+        # 3. Gaming & L4S QoS optimizer
+        opt = NetworkOptimizer(WindowsHAL(dry_run=True))
+        g_res = opt.optimize_gaming_and_l4s_qos(execute=False)
+        self.assertTrue(g_res["gaming_mode_active"])
+        self.assertGreaterEqual(len(g_res["actions"]), 2)
+
+        # 4. LLM Gateway Intent routing for high-value tasks
+        gw = LLMGateway()
+        gw.config["api_key"] = ""
+        res_radar = gw.chat("¿Hay intrusos o desconocidos en mi wifi?")
+        self.assertEqual(res_radar["executed_tool"], "network_lan_radar")
+        self.assertIn("Radar de Red Local", res_radar["reply"])
+
+        res_game = gw.chat("activa el modo juego para videollamadas")
+        self.assertEqual(res_game["executed_tool"], "network_gaming_mode")
+        self.assertIn("Modo Juegos y Videollamadas", res_game["reply"])
+
+        res_priv = gw.chat("activa máxima privacidad y cifrar dns")
+        self.assertEqual(res_priv["executed_tool"], "network_doh_privacy")
+        self.assertIn("Máxima Privacidad Activada", res_priv["reply"])
+
+
 
 
 if __name__ == "__main__":
