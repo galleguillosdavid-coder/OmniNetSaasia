@@ -241,11 +241,17 @@ class NetworkOptimizer:
                 "reg", "add", "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched",
                 "/v", "NonBestEffortLimit", "/t", "REG_DWORD", "/d", "0", "/f"
             ]
+            reg_offload = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "DisableTaskOffload", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
             self.hal.run_cmd(reg_throttle, execute=execute)
             self.hal.run_cmd(reg_resp, execute=execute)
             self.hal.run_cmd(reg_qos, execute=execute)
+            self.hal.run_cmd(reg_offload, execute=execute)
             actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
             actions.append("Liberar 100% del ancho de banda reservado por Windows QoS (NonBestEffortLimit=0)")
+            actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)

@@ -511,6 +511,11 @@ def inspect_wifi_and_nic() -> Dict[str, Any]:
     if wifi_info.get("band") and "2.4" in str(wifi_info.get("band")):
         anomalies.append("Connected on 2.4 GHz band — switch to 5 GHz for lower latency and higher throughput")
 
+    rad = str(wifi_info.get("radio_type") or "").lower()
+    if any(w in rad for w in ["802.11be", "wifi 7", "wi-fi 7"]):
+        wifi_info["is_wifi_7"] = True
+        wifi_info["mlo_capable"] = True
+
     return {
         "platform": plat.value,
         "wifi": wifi_info,
