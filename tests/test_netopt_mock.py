@@ -293,7 +293,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_tcp_fast_open_status, check_wifi_rsc_latency_status,
             check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status,
             check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
-            check_wifi7_emlsr_status
+            check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
+            check_windows_24h2_loopback_bbr_safety
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -409,6 +410,17 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(rsc["jitter_mitigation_active"])
         self.assertTrue(rsc["immediate_packet_delivery"])
         self.assertIn("Wi-Fi", rsc["wifi_rsc_coalescing_status"])
+
+        uro_uso = check_udp_offload_uro_uso_status()
+        self.assertTrue(uro_uso["uro_supported"])
+        self.assertTrue(uro_uso["uso_supported"])
+        self.assertTrue(uro_uso["quic_http3_acceleration_active"])
+        self.assertEqual(uro_uso["cpu_interrupt_reduction_pct"], 35)
+
+        w24h2 = check_windows_24h2_loopback_bbr_safety()
+        self.assertTrue(w24h2["loopback_stall_mitigation_active"])
+        self.assertTrue(w24h2["zero_netloss_safe"])
+        self.assertIn(w24h2["congestion_provider"], ["cubic", "bbr2"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
