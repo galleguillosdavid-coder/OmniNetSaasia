@@ -122,7 +122,7 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     elif name == "network_discover_and_schedule_tasks":
-        exec_tasks = bool(arguments.get("execute", True))
+        exec_tasks = bool(arguments.get("execute", False))
         sched = get_task_scheduler()
         return sched.discover_and_schedule_cycle(execute=exec_tasks)
 

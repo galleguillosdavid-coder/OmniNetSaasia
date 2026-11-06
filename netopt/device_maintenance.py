@@ -716,47 +716,54 @@ class DeviceMaintenanceEngine:
         Auto-installs SDIO via Winget in background if not yet present.
         """
         if self.platform != PlatformType.WINDOWS:
-            return {"installed": False, "status": "SKIPPED_NON_WINDOWS", "detail": "Actualización de drivers gestionada por kernel/fwupdmgr"}
+            return {"installed": False, "binary": None, "status": "SKIPPED_NON_WINDOWS", "detail": "Actualización de drivers gestionada por gestor de paquetes de SO"}
 
         sdio_bin = self._find_sdio_binary()
-        if not execute:
+        # OMNI-016: If SDIO is not installed, return UNAVAILABLE. Never fake 'builtin-pnp-sdio' or EXECUTED.
+        if not sdio_bin:
             return {
-                "installed": sdio_bin is not None,
-                "binary": sdio_bin,
-                "status": "DRY_RUN",
-                "detail": f"SDIO {'detectado' if sdio_bin else 'se auto-instalará'} (-autoinstall -autoclose -nogui)"
+                "installed": False,
+                "binary": None,
+                "status": "UNAVAILABLE",
+                "detail": "SDIO (Snappy Driver Installer Origin) no está instalado en el sistema. Descarga requerida."
             }
 
-        if sdio_bin:
-            try:
-                cmd = f'"{sdio_bin}" -autoinstall -autoclose -nogui -create_restore_point -checkupdates'
-                subprocess.Popen(
-                    cmd,
-                    shell=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    creationflags=0x08000000
-                )
-                return {
-                    "installed": True,
-                    "binary": sdio_bin,
-                    "status": "EXECUTED",
-                    "detail": "SDIO (Snappy Driver Installer Origin) actualizando drivers en silencio con punto de restauración"
-                }
-            except Exception as e:
-                return {"installed": True, "binary": sdio_bin, "status": "CHECKED", "detail": str(e)[:120]}
+        if not execute:
+            return {
+                "installed": True,
+                "binary": sdio_bin,
+                "status": "DRY_RUN",
+                "detail": f"SDIO detectado en {sdio_bin}. Requiere aprobación explícita para aplicar cambios de drivers."
+            }
 
-        return {
-            "installed": True,
-            "binary": "builtin-pnp-sdio",
-            "status": "EXECUTED",
-            "detail": "Verificación y reparación silenciosa de drivers de red, video y sistema completada sin ventanas emergentes"
-        }
+        try:
+            cmd = [sdio_bin, "-autoinstall", "-autoclose", "-nogui", "-create_restore_point", "-checkupdates"]
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=60,
+                creationflags=0x08000000
+            )
+            status = "SUCCESS" if res.returncode == 0 else "FAILED"
+            return {
+                "installed": True,
+                "binary": sdio_bin,
+                "status": status,
+                "returncode": res.returncode,
+                "detail": (res.stdout or res.stderr or f"SDIO finalizó con código {res.returncode}").strip()[:140]
+            }
+        except subprocess.TimeoutExpired:
+            return {"installed": True, "binary": sdio_bin, "status": "TIMEOUT", "detail": "SDIO excedió el tiempo límite"}
+        except Exception as e:
+            return {"installed": True, "binary": sdio_bin, "status": "ERROR", "detail": str(e)[:120]}
 
-    def update_system_and_drivers(self, execute: bool = False) -> Dict[str, Any]:
+    def update_system_and_drivers(self, execute: bool = False, allow_high_risk_updates: bool = False) -> Dict[str, Any]:
         """
-        Scans for PnP driver errors, rescans hardware devices, triggers OS/driver update checks,
-        and upgrades system packages via native package managers (winget / apt / dnf / softwareupdate / pkg).
+        Scans for PnP driver errors, rescans hardware devices, and checks for available OS/driver updates.
+        OMNI-016: High-risk kernel/package upgrades (apt-get upgrade, fwupdmgr) require explicit
+        approval and are never executed as routine silent background tasks.
         """
         driver_issues: List[str] = []
         update_actions: List[Dict[str, str]] = []
@@ -781,21 +788,28 @@ class DeviceMaintenanceEngine:
 
             cmds = [
                 ("PNP_DRIVER_SCAN", "Re-escaneo PnP y Rehabilitación de Drivers de Hardware", "pnputil /scan-devices"),
-                ("WINDOWS_DRIVER_UPDATE", "Búsqueda Silenciosa de Actualizaciones de Sistema y Drivers WHQL", "UsoClient StartInteractiveScan"),
+                ("WINDOWS_DRIVER_CHECK", "Comprobación de Actualizaciones WHQL Pendientes", "UsoClient StartInteractiveScan"),
             ]
         elif self.platform == PlatformType.LINUX:
+            # Safe scan/check commands; non-destructive by default
             cmds = [
-                ("LINUX_PKG_UPGRADE", "Actualización de Paquetes y Kernel del Sistema", "apt-get update && apt-get upgrade -y || dnf upgrade -y"),
-                ("LINUX_FIRMWARE_DRV", "Actualización de Firmware y Drivers (fwupdmgr)", "fwupdmgr update -y 2>/dev/null || true")
+                ("LINUX_PKG_CHECK", "Comprobación de Paquetes Actualizables", "apt-get update 2>/dev/null || true"),
+                ("LINUX_FIRMWARE_CHECK", "Auditoría de Firmware y Dispositivos PnP", "fwupdmgr get-updates 2>/dev/null || true")
             ]
+            if allow_high_risk_updates and execute:
+                cmds.append(("LINUX_PKG_UPGRADE", "Actualización de Paquetes y Kernel (Aprobada)", "apt-get upgrade -y || dnf upgrade -y"))
         elif self.platform == PlatformType.DARWIN:
             cmds = [
-                ("MACOS_SW_UPDATE", "Actualización de Sistema macOS y Seguridad", "softwareupdate -i -a")
+                ("MACOS_SW_CHECK", "Búsqueda de Actualizaciones de macOS Pendientes", "softwareupdate -l")
             ]
+            if allow_high_risk_updates and execute:
+                cmds.append(("MACOS_SW_UPDATE", "Instalación de Actualizaciones de macOS (Aprobada)", "softwareupdate -i -a"))
         else:
             cmds = [
-                ("BSD_PKG_UPGRADE", "Actualización de Paquetes FreeBSD", "pkg upgrade -y")
+                ("BSD_PKG_CHECK", "Auditoría de Vulnerabilidades y Paquetes FreeBSD", "pkg audit -F 2>/dev/null || true")
             ]
+            if allow_high_risk_updates and execute:
+                cmds.append(("BSD_PKG_UPGRADE", "Actualización de Paquetes FreeBSD (Aprobada)", "pkg upgrade -y"))
 
         for cat, title, cmd in cmds:
             if execute:

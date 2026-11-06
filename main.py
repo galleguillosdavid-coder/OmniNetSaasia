@@ -65,7 +65,7 @@ from netopt.ecosystem_subagents import get_ecosystem_orchestrator
 from dataclasses import asdict
 
 
-VERSION = "2.9.0"
+VERSION = "2.9.6"
 
 
 def get_dashboard_html() -> str:
@@ -924,7 +924,7 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
             })
         elif self.path == "/api/tasks/trigger":
             sched = get_task_scheduler()
-            res = sched.discover_and_schedule_cycle(execute=True)
+            res = sched.discover_and_schedule_cycle(execute=bool(payload.get("execute", False)))
             self.send_json(200, res)
         elif self.path == "/api/device/maintain":
             maint = DeviceMaintenanceEngine(hal)

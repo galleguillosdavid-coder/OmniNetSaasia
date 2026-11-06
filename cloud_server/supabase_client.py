@@ -38,12 +38,33 @@ def get_supabase_url() -> str:
     return os.environ.get("SUPABASE_URL", "").rstrip("/")
 
 
-def get_supabase_key() -> str:
-    return os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY", "")
+def get_supabase_backend_key() -> str:
+    """Returns the privileged Service Role Key for backend server operations (OMNI-023)."""
+    return os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 
-def is_supabase_configured() -> bool:
-    return bool(get_supabase_url() and get_supabase_key())
+def get_supabase_client_key() -> str:
+    """Returns the unprivileged Anon / Publishable key for public client reads (OMNI-023)."""
+    return os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
+
+
+def get_supabase_key(require_service_role: bool = False) -> str:
+    """
+    OMNI-023: Explicitly separates backend server credentials from public client credentials.
+    Backend write operations require service-role to avoid unexpected RLS write drops.
+    """
+    srv = get_supabase_backend_key()
+    if srv:
+        return srv
+    if require_service_role:
+        return ""
+    return get_supabase_client_key()
+
+
+def is_supabase_configured(require_backend: bool = False) -> bool:
+    url = get_supabase_url()
+    key = get_supabase_key(require_service_role=require_backend)
+    return bool(url and key)
 
 
 def _supabase_request(endpoint: str, method: str = "GET", body: Optional[Dict[str, Any]] = None, query_params: Optional[Dict[str, str]] = None) -> Any:

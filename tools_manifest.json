@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "OmniNetAgentToolManifest",
   "description": "Model-agnostic tool definitions for autonomous network optimization, repair, deep telemetry, and 10-minute self-scheduled maintenance across Windows, Linux, macOS, and BSD.",
-  "version": "2.0.0",
+  "version": "2.9.6",
   "tools": [
     {
       "name": "network_diagnose",

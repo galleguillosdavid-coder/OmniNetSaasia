@@ -63,23 +63,49 @@ def load_cloud_db() -> Dict[str, Any]:
         "licenses": {},
         "processed_webhook_events": []
     }
-    return db
-                "queries_count": 0,
-                "created_at": time.time()
-            },
-            demo_key: {
-                "plan": "pro",
-                "email": "demo@omninet.ai",
-                "active": True,
-                "max_devices": 1,
-                "devices": [],
-                "queries_count": 0,
-                "created_at": time.time()
-            }
-        }
-    }
     save_cloud_db(db)
     return db
+
+
+def verify_lemon_squeezy_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    """Verifies Lemon Squeezy HMAC-SHA256 signature from X-Signature header."""
+    if not secret or not signature_header:
+        return False
+    expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature_header.strip(), expected)
+
+
+def verify_stripe_signature(raw_body: bytes, signature_header: str, secret: str, tolerance: int = 300) -> bool:
+    """
+    Verifies Stripe-Signature header according to Stripe's official standard:
+    Header format: t=timestamp,v1=signature[,v0=...]
+    Signed payload: f"{t}.".encode('utf-8') + raw_body
+    """
+    if not secret or not signature_header:
+        return False
+    parts: Dict[str, List[str]] = {}
+    for item in signature_header.split(","):
+        kv = item.split("=", 1)
+        if len(kv) == 2:
+            parts.setdefault(kv[0].strip(), []).append(kv[1].strip())
+
+    timestamp_list = parts.get("t")
+    v1_signatures = parts.get("v1")
+    if not timestamp_list or not v1_signatures:
+        return False
+
+    try:
+        ts = int(timestamp_list[0])
+    except (ValueError, TypeError):
+        return False
+
+    if tolerance > 0 and abs(time.time() - ts) > tolerance:
+        return False
+
+    signed_payload = f"{ts}.".encode("utf-8") + raw_body
+    expected = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+
+    return any(hmac.compare_digest(sig, expected) for sig in v1_signatures)
 
 
 def save_cloud_db(db: Dict[str, Any]) -> None:
@@ -115,11 +141,14 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/v1/admin/stats":
-            if ADMIN_SECRET_KEY:
-                auth = self.headers.get("Authorization", "")
-                if auth != f"Bearer {ADMIN_SECRET_KEY}":
-                    self.send_json(401, {"error": "Unauthorized: Clave de administrador requerida"})
-                    return
+            # OMNI-022: Fail-Closed. Endpoint administrativo deshabilitado si OMNINET_ADMIN_KEY no está configurado
+            if not ADMIN_SECRET_KEY:
+                self.send_json(503, {"error": "Endpoint administrativo deshabilitado: OMNINET_ADMIN_KEY no configurado en servidor (Fail-Closed)."})
+                return
+            auth = self.headers.get("Authorization", "")
+            if auth != f"Bearer {ADMIN_SECRET_KEY}":
+                self.send_json(401, {"error": "Unauthorized: Clave de administrador requerida."})
+                return
             db = load_cloud_db()
             lics = db.get("licenses", {})
             self.send_json(200, {
@@ -217,7 +246,7 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "max_devices": max_devs
             })
 
-        # 2. Secure DeepSeek Proxy Endpoint (OMNI-004, OMNI-008)
+        # 2. Secure DeepSeek Proxy Endpoint (OMNI-004, OMNI-018, OMNI-022)
         elif self.path == "/v1/chat":
             key = (data.get("license_key") or "").strip().upper()
             dev_id = (data.get("device_id") or "").strip()
@@ -227,18 +256,36 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 self.send_json(401, {"error": "Clave de licencia requerida para acceder al proxy IA."})
                 return
 
+            # OMNI-018: Rechazar device_id ausente o malformado
+            if not dev_id or len(dev_id) < 4:
+                self.send_json(400, {"error": "Identificador de dispositivo (device_id) válido requerido."})
+                return
+
+            # OMNI-022: Validación estricta de estructura y tamaño de mensajes
+            if not isinstance(messages, list) or len(messages) == 0:
+                self.send_json(400, {"error": "Lista de mensajes ('messages') requerida y no vacía."})
+                return
+            if len(messages) > 50:
+                self.send_json(400, {"error": "Límite de historial excedido (máximo 50 mensajes por consulta)."})
+                return
+
             rec = None
             if is_supabase_configured():
                 rec = get_license_from_supabase(key)
             if not rec:
                 rec = lics.get(key)
 
-            # OMNI-004: Validar existencia y estado activo de la licencia
+            # OMNI-004 / OMNI-018: Validar existencia, estado activo y expiración
             if not rec or not rec.get("active"):
                 self.send_json(403, {"error": "Licencia no encontrada, cancelada o inactiva."})
                 return
 
-            # OMNI-004: Validar vinculación del dispositivo
+            expires_at = rec.get("expires_at")
+            if expires_at and float(expires_at) < time.time():
+                self.send_json(403, {"error": "Licencia expirada. Renueve su suscripción para continuar."})
+                return
+
+            # OMNI-018: Validación estricta de vinculación previa (prohibido auto-registro en /v1/chat)
             devices = rec.get("devices", [])
             if isinstance(devices, str):
                 try:
@@ -248,22 +295,25 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             if not isinstance(devices, list):
                 devices = []
 
-            max_devs = rec.get("max_devices", 1)
-            if dev_id and dev_id not in devices:
-                if len(devices) < max_devs:
-                    devices.append(dev_id)
-                    rec["devices"] = devices
-                    save_cloud_db(db)
-                    if is_supabase_configured():
-                        update_license_devices(key, devices, rec.get("queries_count", 0))
-                else:
-                    self.send_json(403, {"error": f"Dispositivo no autorizado para esta licencia (máximo {max_devs} equipos alcanzado)."})
-                    return
+            if dev_id not in devices:
+                self.send_json(403, {
+                    "error": "Dispositivo no autorizado para esta licencia. Debe activar su equipo previamente en /v1/license/activate."
+                })
+                return
 
-            # OMNI-004: Aplicación efectiva de cuotas mensuales
+            # OMNI-018: Ciclo de cuota mensual real con ventana de 30 días
+            now_ts = time.time()
+            period_start = float(rec.get("period_start", rec.get("created_at", now_ts)))
+            if now_ts - period_start >= 30 * 86400:
+                # Nuevo ciclo mensual iniciado
+                rec["period_start"] = now_ts
+                rec["queries_count"] = 0
+                cur_count = 0
+            else:
+                cur_count = int(rec.get("queries_count", 0))
+
             plan = rec.get("plan", "pro")
             limit = PLAN_CATALOG.get(plan, {}).get("monthly_ai_limit", 999999)
-            cur_count = int(rec.get("queries_count", 0))
             if cur_count >= limit:
                 self.send_json(429, {"error": f"Cuota mensual de consultas de IA alcanzada ({cur_count}/{limit})."})
                 return
@@ -315,55 +365,98 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                     reply = resp_data["choices"][0]["message"]["content"]
                     self.send_json(200, {"reply": reply, "model": "deepseek-chat-cloud-proxy"})
             except Exception as e:
-                self.send_json(500, {"error": str(e)})
+                # OMNI-022: Error genérico seguro con request_id (sin exponer trazas internas)
+                req_id = hashlib.sha256(f"{time.time()}:{key}".encode()).hexdigest()[:8]
+                self.send_json(500, {
+                    "error": "Error de comunicación con el proveedor de IA. Intente nuevamente en unos instantes.",
+                    "request_id": req_id
+                })
 
-        # 3. Payment Webhook con Validación Criptográfica e Idempotencia (OMNI-001)
+        # 3. Payment Webhook con Validación Criptográfica Estricta e Idempotencia (OMNI-013)
         elif self.path == "/v1/webhooks/payment":
-            # 3.1 Verificación Criptográfica de Firma
-            if LEMONSQUEEZY_WEBHOOK_SECRET:
-                inc_sig = self.headers.get("X-Signature", "")
-                exp_sig = hmac.new(LEMONSQUEEZY_WEBHOOK_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
-                if not inc_sig or not hmac.compare_digest(inc_sig, exp_sig):
-                    self.send_json(401, {"error": "Firma HMAC de webhook inválida o ausente."})
-                    return
+            # 3.1 Fail-Closed: Si los secretos no están configurados, rechazar y nunca emitir licencias
+            if not LEMONSQUEEZY_WEBHOOK_SECRET and not STRIPE_WEBHOOK_SECRET:
+                self.send_json(503, {"error": "Webhooks no configurados: secretos de pago ausentes en servidor (Fail-Closed)."})
+                return
 
-            if STRIPE_WEBHOOK_SECRET:
-                stripe_sig = self.headers.get("Stripe-Signature", "")
-                if not stripe_sig:
-                    self.send_json(401, {"error": "Cabecera Stripe-Signature ausente."})
-                    return
+            lemon_sig = self.headers.get("X-Signature", "").strip()
+            stripe_sig = self.headers.get("Stripe-Signature", "").strip()
 
-            # 3.2 Idempotencia
-            event_id = str(data.get("meta", {}).get("event_id") or data.get("id") or data.get("data", {}).get("id") or "")
+            if not lemon_sig and not stripe_sig:
+                self.send_json(401, {"error": "Firma de webhook ausente (X-Signature o Stripe-Signature requerida)."})
+                return
+
+            provider = ""
+            if lemon_sig:
+                if not LEMONSQUEEZY_WEBHOOK_SECRET:
+                    self.send_json(503, {"error": "Proveedor Lemon Squeezy no configurado en servidor."})
+                    return
+                if not verify_lemon_squeezy_signature(raw_body, lemon_sig, LEMONSQUEEZY_WEBHOOK_SECRET):
+                    self.send_json(401, {"error": "Firma Lemon Squeezy HMAC inválida."})
+                    return
+                provider = "lemon_squeezy"
+            elif stripe_sig:
+                if not STRIPE_WEBHOOK_SECRET:
+                    self.send_json(503, {"error": "Proveedor Stripe no configurado en servidor."})
+                    return
+                if not verify_stripe_signature(raw_body, stripe_sig, STRIPE_WEBHOOK_SECRET):
+                    self.send_json(401, {"error": "Firma Stripe HMAC inválida o timestamp expirado."})
+                    return
+                provider = "stripe"
+
+            # 3.2 Idempotencia Persistente
+            event_id = str(data.get("meta", {}).get("event_id") or data.get("id") or data.get("data", {}).get("id") or "").strip()
+            if not event_id:
+                self.send_json(400, {"error": "Identificador de evento (event_id) ausente en payload."})
+                return
+
             processed = db.setdefault("processed_webhook_events", [])
-            if event_id and event_id in processed:
+            if event_id in processed:
                 self.send_json(200, {"status": "idempotent_duplicate_ignored", "event_id": event_id})
                 return
 
-            # 3.3 Validación de estado de pago
-            event_name = str(data.get("meta", {}).get("event_name") or data.get("type", "")).lower()
-            attrs = data.get("data", {}).get("attributes", {})
-            payment_status = str(attrs.get("status", "")).lower()
+            # 3.3 Verificación estricta de evento de pago aprobado
+            if provider == "lemon_squeezy":
+                event_name = str(data.get("meta", {}).get("event_name", "")).lower()
+                attrs = data.get("data", {}).get("attributes", {})
+                payment_status = str(attrs.get("status", "")).lower()
+                is_paid = (
+                    event_name in ("order_created", "subscription_created") and
+                    payment_status in ("paid", "active")
+                )
+                email = (attrs.get("user_email") or "").strip().lower()
+                custom_plan = str(data.get("meta", {}).get("custom_data", {}).get("plan") or "").lower()
+                product_name = str(attrs.get("first_order_item", {}).get("product_name", "")).lower()
+            else:  # stripe
+                event_name = str(data.get("type", "")).lower()
+                obj = data.get("data", {}).get("object", {})
+                payment_status = str(obj.get("payment_status") or obj.get("status") or "").lower()
+                is_paid = (
+                    (event_name == "checkout.session.completed" and payment_status in ("paid", "complete")) or
+                    (event_name == "payment_intent.succeeded" and payment_status in ("succeeded", "paid"))
+                )
+                email = (
+                    obj.get("customer_details", {}).get("email") or
+                    obj.get("receipt_email") or
+                    obj.get("customer_email") or
+                    ""
+                ).strip().lower()
+                custom_plan = str(obj.get("metadata", {}).get("plan") or "").lower()
+                product_name = str(obj.get("description", "")).lower()
 
-            is_valid_paid_event = (
-                "order_created" in event_name or
-                "subscription_created" in event_name or
-                "payment_intent.succeeded" in event_name or
-                payment_status == "paid" or
-                not (LEMONSQUEEZY_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET)
-            )
-
-            if not is_valid_paid_event:
-                self.send_json(200, {"status": "ignored_non_paid_event", "event_name": event_name})
+            if not is_paid:
+                self.send_json(200, {
+                    "status": "ignored_non_paid_event",
+                    "event_name": event_name,
+                    "payment_status": payment_status
+                })
                 return
 
-            email = attrs.get("user_email") or data.get("email")
             if not email:
                 self.send_json(400, {"error": "Email no encontrado en el payload de pago."})
                 return
 
-            custom_plan = data.get("meta", {}).get("custom_data", {}).get("plan")
-            product_name = str(attrs.get("first_order_item", {}).get("product_name", "")).lower()
+            # 3.4 Mapeo de producto autorizado (sin texto libre arbitrario)
             if custom_plan in ("pro", "family"):
                 plan = custom_plan
             elif "family" in product_name or "hogar" in product_name or "5 pc" in product_name:
@@ -383,21 +476,21 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "created_at": time.time()
             }
             lics[new_key] = record
-            if event_id:
-                processed.append(event_id)
-                if len(processed) > 5000:
-                    db["processed_webhook_events"] = processed[-5000:]
+            processed.append(event_id)
+            if len(processed) > 5000:
+                db["processed_webhook_events"] = processed[-5000:]
             save_cloud_db(db)
 
             if is_supabase_configured():
                 upsert_license_in_supabase(record)
-                save_payment_event_in_supabase(event_name or "payment_received", "lemon_squeezy", data)
+                save_payment_event_in_supabase(event_name or "payment_received", provider, {"event_id": event_id, "email": email, "plan": plan})
 
             self.send_json(200, {
                 "created": True,
                 "email": email,
                 "plan": plan,
-                "license_key": new_key
+                "license_key": new_key,
+                "event_id": event_id
             })
         else:
             self.send_json(404, {"error": "Endpoint no encontrado"})

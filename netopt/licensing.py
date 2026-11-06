@@ -53,7 +53,7 @@ def get_hardware_device_id() -> str:
 
 
 def generate_signed_license_key(plan: str = "pro", email: str = "user@omninet.ai") -> str:
-    """Generates a cryptographically signed license key (e.g. OMNI-PRO-A1B2-C3D4-E5F612345678)."""
+    """Generates a cryptographically signed license key with full 128-bit/32-hex HMAC signature."""
     plan_tag = "FAM" if plan == "family" else "PRO"
     seed = f"{plan_tag}:{email.strip().lower()}:{int(time.time()) // 3600}"
     token = hashlib.sha256(seed.encode("utf-8")).hexdigest().upper()[:8]
@@ -61,27 +61,37 @@ def generate_signed_license_key(plan: str = "pro", email: str = "user@omninet.ai
         SIGNING_SECRET.encode("utf-8"),
         f"{plan_tag}:{token}".encode("utf-8"),
         hashlib.sha256
-    ).hexdigest().upper()[:16]
+    ).hexdigest().upper()[:32]
     return f"OMNI-{plan_tag}-{token[:4]}-{token[4:8]}-{sig}"
 
 
 def verify_signed_license_key(license_key: str) -> Optional[str]:
     """
-    Verifies a license key signature cryptographically without static backdoors.
+    Verifies a license key signature cryptographically without static backdoors or weak truncations.
+    Rejects any key that has a truncated signature (e.g. < 32 hex chars) or master backdoor string.
     Returns the unlocked plan ('pro' or 'family') if valid, else None.
     """
     clean = (license_key or "").strip().upper()
+    if clean in ("OMNI-PRO-MASTER-2026", "ADMIN-PRO", "MASTER", "ROOT"):
+        return None
+
     parts = clean.split("-")
     if len(parts) == 5 and parts[0] == "OMNI" and parts[1] in ("PRO", "FAM"):
         plan_tag = parts[1]
         token = parts[2] + parts[3]
         sig = parts[4]
+        # OMNI-014: Strictly reject truncated signatures (< 32 hex chars) to prevent brute-force
+        if len(sig) < 32:
+            return None
         expected_full = hmac.new(
             SIGNING_SECRET.encode("utf-8"),
             f"{plan_tag}:{token}".encode("utf-8"),
             hashlib.sha256
         ).hexdigest().upper()
-        if len(sig) in (4, 16) and hmac.compare_digest(sig, expected_full[:len(sig)]):
+        expected_32 = expected_full[:32]
+        if len(sig) == 32 and hmac.compare_digest(sig, expected_32):
+            return "family" if plan_tag == "FAM" else "pro"
+        elif len(sig) == 64 and hmac.compare_digest(sig, expected_full):
             return "family" if plan_tag == "FAM" else "pro"
     return None
 
@@ -95,16 +105,16 @@ class LicenseManager:
 
     def _default_state(self) -> Dict[str, Any]:
         return {
-            "plan": "pro",  # Default active Pro for owner; can switch to 'free' to test paywall
-            "license_key": "OMNI-PRO-MASTER-2026",
+            "plan": "free",  # Default Free tier; activation required for Pro / Family (OMNI-014)
+            "license_key": "",
             "email": "",
             "device_id": self.device_id,
             "ai_queries_used": 0,
-            "ai_queries_limit": 999999,
+            "ai_queries_limit": PLAN_CATALOG["free"]["monthly_ai_limit"],
             "checkout_url_pro": "https://omninet.lemonsqueezy.com/checkout/buy/pro-plan",
             "checkout_url_family": "https://omninet.lemonsqueezy.com/checkout/buy/family-plan",
             "cloud_proxy_url": os.environ.get("OMNINET_CLOUD_URL", ""),
-            "activated_at": time.time(),
+            "activated_at": None,
             "language": "es"
         }
 

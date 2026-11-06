@@ -61,7 +61,7 @@ class AutonomousTaskScheduler:
         self,
         hal: Optional[NetworkHAL] = None,
         interval_sec: int = 600,
-        auto_execute: bool = True
+        auto_execute: bool = False
     ):
         self.hal = hal or get_hal(dry_run=not auto_execute)
         self.interval_sec = interval_sec
@@ -481,5 +481,5 @@ _SCHEDULER_INSTANCE: Optional[AutonomousTaskScheduler] = None
 def get_task_scheduler() -> AutonomousTaskScheduler:
     global _SCHEDULER_INSTANCE
     if _SCHEDULER_INSTANCE is None:
-        _SCHEDULER_INSTANCE = AutonomousTaskScheduler(interval_sec=600, auto_execute=True)
+        _SCHEDULER_INSTANCE = AutonomousTaskScheduler(interval_sec=600, auto_execute=False)
     return _SCHEDULER_INSTANCE
