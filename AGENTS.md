@@ -1,6 +1,6 @@
 # Directivas del Agente del Workspace (`AGENTS.md` - OmniNet Autonomous Agent)
 
-- **Manifiesto Operacional Propio (100% Independiente):** [`AUTONOMOUS_OPERATIONAL_MANIFESTO.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/AUTONOMOUS_OPERATIONAL_MANIFESTO.md) rige este proyecto de forma autónoma e independiente de cualquier otro repositorio externo.
+- **Manifiesto Operacional Propio (100% Independiente):** [`docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md) rige este proyecto de forma autónoma e independiente de cualquier otro repositorio externo.
 
 ## 1. Comunicación Breve y Concisa (Obligatorio)
 - **Toda respuesta al usuario debe ser breve, directa y al grano** (máximo 3-5 viñetas o líneas cortas).

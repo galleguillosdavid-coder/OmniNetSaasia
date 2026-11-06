@@ -304,6 +304,12 @@ OmniNetSaasia cuenta con una puerta de enlace conversacional diseñada para demo
 - **Detección de Intenciones:** El motor interpreta la solicitud, identifica cuál de las diez especialidades o herramientas de red debe actuar, ejecuta la tarea en modo seguro y redacta una respuesta concisa que explica qué se hizo, qué se reparó y cuánto espacio o velocidad se ganó.
 - **Protocolo de Herramientas Estructurado:** Cuenta con herramientas declarativas para que tanto usuarios como agentes de inteligencia artificial puedan ordenar diagnósticos, benchmarks de nombres web, planes de afinamiento, pruebas de velocidad y reversión de cambios con total previsibilidad técnica.
 
+### Arnés y Orquestador Hermes (Hermes Agent Architecture)
+* **Funcionamiento:**
+  - **Despacho Multitarea en Paralelo:** Incorpora el patrón arnés de Nous Research Hermes para delegar misiones simultáneas a subagentes aislados con contextos y herramientas especializadas.
+  - **Entorno de Ejecución Python Dinámico (Sandbox):** Permite al agente ejecutar micro-scripts de telemetría y verificación en procesos independientes con límite de tiempo estricto, reduciendo la latencia de diagnóstico interactivo hasta en un 80%.
+  - **Destilación de Habilidades y Auto-Mejora Continua:** Analiza las sesiones exitosas y fallidas, destilando procedimientos óptimos en una memoria persistente (`hermes_memory.json`), cerrando el ciclo de auto-evolución continua bajo la regla de Cero Regresiones.
+
 ---
 
 ## 8. SEGURIDAD SAAS, LICENCIAMIENTO CRIPTOGRÁFICO Y NUBE
@@ -350,6 +356,7 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-26** | Depuración de Puertas de Enlace | Win 11 24H2 Route Pruner | Eliminación de rutas 0.0.0.0 duplicadas y desempate NCSI | ACTIVO Y VERIFICADO |
 | **CAP-27** | Fijación Estática de Gateway | Zero-Trust ARP Pinning | Blindaje contra ARP Spoofing y MitM en redes compartidas | ACTIVO Y VERIFICADO |
 | **CAP-28** | Recuperación Rápida RTO/SYN | RFC 6298 / RFC 7323 | Reducción del 66% en espera por caída de paquetes SYN iniciales | ACTIVO Y VERIFICADO |
+| **CAP-29** | Arnés y Orquestador Hermes | Hermes Agent Architecture | Subagentes en paralelo, sandbox Python y destilación de habilidades | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*

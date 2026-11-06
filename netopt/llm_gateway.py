@@ -42,7 +42,10 @@ from .ecosystem_subagents import get_ecosystem_orchestrator
 
 
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".netopt_state", "llm_config.json")
-INSTRUCTIONS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "AGENT_INSTRUCTIONS.md")
+_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INSTRUCTIONS_FILE = os.path.join(_root_dir, "docs", "AGENT_INSTRUCTIONS.md")
+if not os.path.exists(INSTRUCTIONS_FILE):
+    INSTRUCTIONS_FILE = os.path.join(_root_dir, "AGENT_INSTRUCTIONS.md")
 
 
 DEFAULT_CONFIG = {

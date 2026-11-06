@@ -30,7 +30,9 @@ from netopt.device_maintenance import DeviceMaintenanceEngine
 from netopt.llm_gateway import run_fast_traceroute
 
 
-MANIFEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools_manifest.json")
+MANIFEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "tools_manifest.json")
+if not os.path.exists(MANIFEST_PATH):
+    MANIFEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools_manifest.json")
 
 
 def load_tools_schema() -> List[Dict[str, Any]]:

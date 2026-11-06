@@ -46,5 +46,5 @@ omninet-agent = "main:main"
 omninet-mcp = "mcp_server:main"
 
 [tool.setuptools.packages.find]
-include = ["netopt*", "netopt.*"]
+include = ["netopt*", "netopt.*", "hermes*", "hermes.*", "cloud_server*"]
 

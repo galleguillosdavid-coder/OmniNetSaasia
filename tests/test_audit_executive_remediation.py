@@ -206,7 +206,8 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
             pyproj = tomllib.load(f)
         pkg_version = pyproj["project"]["version"]
 
-        with open("tools_manifest.json", "r", encoding="utf-8") as f:
+        manifest_path = "config/tools_manifest.json" if os.path.exists("config/tools_manifest.json") else "tools_manifest.json"
+        with open(manifest_path, "r", encoding="utf-8") as f:
             manifest = json.load(f)
         mcp_version = manifest["version"]
 

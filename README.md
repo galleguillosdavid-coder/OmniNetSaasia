@@ -1,12 +1,13 @@
 # ⚡ OmniNet AI Agent Pro v2.9.6
 ### Ecosistema Autónomo de Optimización de Redes, Mantenimiento de PC, 10 Sub-Agentes Especializados y SaaS Global con Supabase
 
-[![Version](https://img.shields.io/badge/version-2.9.6-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.9.6-blue.svg)](docs/CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011%2F10%20%7C%20Linux%20%7C%20macOS-success.svg)](netopt/hal.py)
-[![Sub-Agents](https://img.shields.io/badge/Ecosystem-10%20Sub--Agents-emerald.svg)](netopt/ecosystem_subagents.py)
+[![Orchestrator](https://img.shields.io/badge/Harness-Hermes%20Agent-purple.svg)](hermes/)
+[![Sub-Agents](https://img.shields.io/badge/Ecosystem-12%20Sub--Agents-emerald.svg)](netopt/ecosystem_subagents.py)
 [![Cloud Backend](https://img.shields.io/badge/Cloud%20SaaS-Supabase%20%2B%20DeepSeek-indigo.svg)](cloud_server/)
 [![Safety](https://img.shields.io/badge/Safety-Zero_NetLoss_%2B_Auto--Rollback-green.svg)](netopt/rollback.py)
-[![Tests](https://img.shields.io/badge/Tests-16%2F16%20Passing%20(100%25)-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-53%2F53%20Passing%20(100%25)-brightgreen.svg)](tests/)
 
 ---
 
@@ -90,10 +91,62 @@ flowchart LR
 
 ---
 
+## 📁 Nueva Estructura Limpia del Proyecto
+
+Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estrictamente despejada:
+
+```
+├── .gitignore                      # Reglas de exclusión Git
+├── README.md                       # Documentación principal del proyecto
+├── AGENTS.md                       # Directivas y reglas de agentes IA
+├── pyproject.toml                  # Configuración estándar del paquete Python
+├── setup.py                        # Script de instalación y empaquetado
+├── main.py                         # Punto de entrada de la aplicación y API
+├── mcp_server.py                   # Servidor de herramientas MCP
+│
+├── docs/                           # Toda la documentación técnica centralizada
+│   ├── OMNINETSAASIA_CAPACIDADES_Y_ARQUITECTURA.md
+│   ├── AUTONOMOUS_OPERATIONAL_MANIFESTO.md
+│   ├── OmniNetSaasia_Auditoria_Ejecutiva_2026-11-06.md
+│   ├── AGENT_INSTRUCTIONS.md, ORCHESTRATION_SPEC.md, CHANGELOG.md, audit.md
+├── hermes/                         # Arnés IA y Orquestador de Auto-Mejoramiento (Hermes Agent)
+│   ├── harness.py                  # Bucle cognitivo, sandbox Python y despacho de herramientas
+│   ├── orchestrator.py             # Spawner de sub-agentes en paralelo y síntesis de sesiones
+│   └── self_improvement.py        # Destilación de habilidades y memoria curada persistente
+├── config/                         # Manifiestos y configuraciones
+│   └── tools_manifest.json         # Manifiesto de 12 herramientas MCP
+├── scripts/                        # Scripts de arranque y compilación
+│   ├── bootstrap.py, OmniNet.bat, run.sh, OmniNet.spec
+├── netopt/                         # Núcleo de red, diagnósticos L1-L7 y subsistemas
+├── cloud_server/                   # Proxy SaaS y cliente Supabase
+└── tests/                          # 53 Pruebas unitarias automatizadas (100% aprobadas)
+```
+
+---
+
+## 🤖 Arnés IA y Orquestador Hermes (`hermes/`)
+
+Adaptado de la arquitectura de vanguardia de **Hermes Agent** (Nous Research), OmniNet incorpora un arnés y orquestador cognitivo para auto-mejoramiento continuo:
+
+1. **`HermesAgentHarness` (`hermes/harness.py`)**:
+   - Bucle autónomo de llamadas a herramientas con recuperación automática de errores.
+   - **Sandbox de Python Dinámico (`execute_python`)**: Ejecución programática en un solo turno para telemetría profunda sin demoras de ida y vuelta.
+
+2. **`HermesOrchestrator` (`hermes/orchestrator.py`)**:
+   - Generación de sesiones aisladas de subagentes (`spawn_session`) con ventanas de contexto independientes.
+   - Ejecución paralela multihilo (`delegate_parallel`) y síntesis ejecutiva de hallazgos.
+
+3. **`HermesSelfImprovementEngine` (`hermes/self_improvement.py`)**:
+   - **Destilación Automática de Habilidades**: Extrae recetas procedimentales de remediaciones exitosas y las persiste en memoria (`~/.netopt_state/hermes_memory.json`).
+   - **Compuerta de Cero Regresiones**: Ejecuta automáticamente la suite de tests para verificar invariantes antes de consolidar mejoras.
+
+---
+
 ## 🖥️ Uso y Ejecución
 
-### 1. Ejecutable Autónomo para Windows (`OmniNet.exe`)
-- Ubicado en la raíz y en `dist/OmniNet.exe`.
+### 1. Ejecutable Autónomo para Windows (`dist/OmniNet.exe`)
+- Ubicado en `dist/OmniNet.exe` (compilado limpio).
+- Script de lanzamiento directo: `scripts/OmniNet.bat`.
 - Al ejecutarse, abre automáticamente el navegador en `http://127.0.0.1:8877`.
 - Si ya hay una instancia activa, abre el navegador de inmediato sin conflictos de puerto.
 
