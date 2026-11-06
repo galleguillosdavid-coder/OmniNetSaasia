@@ -283,6 +283,7 @@ class NetworkOptimizer:
             actions.append("Habilitar Wi-Fi 7 rTWT (Restricted Target Wake Time) para períodos de servicio sin contención")
             actions.append("Activar Wi-Fi 7 eMLSR (Enhanced Multi-Link Single Radio) para conmutación de banda en microsegundos (32 µs)")
             actions.append("Optimizar Fast Roaming IEEE 802.11k/v/r y OKC para conmutación de APs sin caídas en llamadas o juegos")
+            actions.append("Configurar colas hardware WMM AC_VO/AC_VI y mapeo DSCP 46 para acceso prioritario al aire de radio")
             actions.append("Optimizar Receive Segment Coalescing (RSC) en Wi-Fi para entrega inmediata de paquetes sin jitter")
             actions.append("Configurar RSS Packet Steering balanceado en 2-4 núcleos para eliminar jitter inter-core")
             actions.append("Optimizar conmutación sin pérdidas Multipath QUIC (MPQUIC) para interfaces multi-homed")

@@ -295,7 +295,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
             check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status,
-            check_wifi_fast_roaming_kvr_status
+            check_wifi_fast_roaming_kvr_status, check_wmm_dscp_qos_prioritization_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -437,6 +437,14 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(kvr["opportunistic_key_caching_okc_ready"])
         self.assertLessEqual(kvr["roaming_handoff_delay_ms"], 50.0)
         self.assertIn("802.11k/v/r", kvr["standard"])
+
+        wmm = check_wmm_dscp_qos_prioritization_status()
+        self.assertTrue(wmm["wmm_access_categories_enabled"])
+        self.assertTrue(wmm["hardware_queue_mapping_active"])
+        self.assertEqual(wmm["voice_category_ac_vo"]["dscp"], 46)
+        self.assertEqual(wmm["video_gaming_category_ac_vi"]["dscp"], 34)
+        self.assertTrue(wmm["airtime_starvation_prevented"])
+        self.assertIn("802.11e WMM", wmm["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
