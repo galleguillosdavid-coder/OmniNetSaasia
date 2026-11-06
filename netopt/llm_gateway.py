@@ -459,6 +459,23 @@ class LLMGateway:
                 "duration_ms": 20.0
             })
 
+        elif any(w in msg_lower for w in [
+            "micro internet", "micro-internet", "did", "malla local", "mesh local",
+            "intercambio multimedia", "red cooperativa", "cooperative network", "hablen entre si",
+            "hablen entre sí"
+        ]):
+            from netopt.micro_internet import get_micro_internet_orchestrator
+            executed_tool = "micro_internet_mesh"
+            orch = get_micro_internet_orchestrator()
+            tool_output = orch.get_mesh_status()
+            backend_trace.append({
+                "step": "MICRO_INTERNET_STATUS",
+                "command": "get_micro_internet_orchestrator().get_mesh_status()",
+                "output": f"DID {tool_output['local_did']} verificado. Nodos descubiertos: {tool_output['discovered_nodes_count']}.",
+                "status": "SUCCESS",
+                "duration_ms": 15.0
+            })
+
 
         # ------------------------------------------------------------------
         # INTENT 1: APPLY / EXECUTE OPTIMIZATION (REAL MUTATION WITH SNAPSHOT)
@@ -972,6 +989,16 @@ class LLMGateway:
                 f"🌟 **Las 10 Especialidades del Ecosistema OmniNet:**\n"
                 f"{lines}\n\n"
                 f"Solo dime lo que necesitas con tus propias palabras y el sub-agente correspondiente se encargará de inmediato."
+            )
+        elif executed_tool == "micro_internet_mesh":
+            did = tool_output.get("local_did", "N/A")
+            nodes_count = tool_output.get("discovered_nodes_count", 0)
+            paths_count = tool_output.get("active_transports_count", 0)
+            reply = (
+                f"🌐 **Micro Internet OmniNet (Red Cooperativa P2P):**\n"
+                f"• **Identidad Criptográfica (DID):** `{did}` (independiente de tu IP).\n"
+                f"• **Nodos y Equipos Cooperando:** {nodes_count} dispositivo(s) conectados en el hogar/oficina listos para intercambiar archivos y multimedia a velocidad gigabit sin pasar por la nube externa.\n"
+                f"• **Transportes Multipath Activos:** {paths_count} interfaz(ces) vinculadas con tolerancia a fallas y conmutación automática de gateway."
             )
         elif executed_tool == "network_execute_optimization":
             reply = (

@@ -27,6 +27,7 @@ wheels/
 # Local state and telemetry
 .netopt_state/
 snapshots/
+data/
 
 # Virtual Environments
 .venv/

@@ -2,7 +2,7 @@
 OmniNet - Autonomous Cross-Platform Network Optimization, Self-Evolution & Healing Engine.
 """
 
-__version__ = "2.1.0"
+__version__ = "2.9.6"
 
 from .models import (
     PlatformType,
@@ -20,6 +20,7 @@ from .rollback import RollbackManager
 from .persistence import NetworkDaemon
 from .auto_trigger import get_sentinel, AutoSentinel
 from .autonomous_scheduler import get_task_scheduler, AutonomousTaskScheduler
+from .micro_internet import get_micro_internet_orchestrator, MicroInternetOrchestrator
 
 __all__ = [
     "PlatformType",
@@ -41,5 +42,7 @@ __all__ = [
     "get_sentinel",
     "AutoSentinel",
     "get_task_scheduler",
-    "AutonomousTaskScheduler"
+    "AutonomousTaskScheduler",
+    "get_micro_internet_orchestrator",
+    "MicroInternetOrchestrator"
 ]

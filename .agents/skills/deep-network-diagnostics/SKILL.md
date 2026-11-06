@@ -49,3 +49,9 @@ python -c "from netopt.diagnostics import discover_path_mtu; import json; print(
 ```powershell
 python -c "from netopt.diagnostics import inspect_active_sockets; import json; print(json.dumps(inspect_active_sockets(), indent=2))"
 ```
+
+### 7. Micro Internet & Decentralized Identity (DID) Mesh Telemetry
+```powershell
+python -c "from netopt.micro_internet import get_micro_internet_orchestrator; import json; print(json.dumps(get_micro_internet_orchestrator().get_mesh_status(), indent=2, ensure_ascii=False))"
+```
+*Inspecciona la identidad criptográfica DID del dispositivo, nodos descubiertos en el hogar/oficina, interfaces multipath activas y estado de la red cooperativa P2P para intercambio multimedia sin nube.*
