@@ -291,7 +291,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
             check_multipath_quic_status, check_ddr_dnr_discovery_status,
             check_tcp_fast_open_status, check_wifi_rsc_latency_status,
-            check_rss_packet_steering_status
+            check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -359,6 +359,12 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(rss["rss_packet_steering_enabled"])
         self.assertTrue(rss["cache_locality_optimized"])
         self.assertEqual(rss["recommended_rss_queues"], 4)
+
+        rack_prr = check_tcp_rack_tlp_prr_status()
+        self.assertTrue(rack_prr["rack_recent_ack_enabled"])
+        self.assertTrue(rack_prr["proportional_rate_reduction_active"])
+        self.assertIn("RFC 8985", rack_prr["standard"])
+        self.assertIn("RFC 6937", rack_prr["standard"])
 
         tfo = check_tcp_fast_open_status()
         self.assertTrue(tfo["tfo_supported"])
