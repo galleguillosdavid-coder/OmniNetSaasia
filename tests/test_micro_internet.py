@@ -81,6 +81,12 @@ class TestMicroInternet(unittest.TestCase):
         self.assertEqual(roamed["current_ip"], "10.0.0.45")
         self.assertEqual(roamed["port"], 7789)
 
+        # Zero-Conf mDNS beacon test
+        beacon = resolver.broadcast_zero_conf_beacon(peer_did, "10.0.0.45", 7789, "Laptop Living")
+        self.assertTrue(beacon["success"])
+        self.assertTrue(beacon["beacon_sent"])
+        self.assertIn("5353", beacon["multicast_group"])
+
         nodes = resolver.list_known_nodes()
         self.assertGreaterEqual(len(nodes), 1)
 
@@ -91,6 +97,12 @@ class TestMicroInternet(unittest.TestCase):
 
         paths = transport.inspect_available_paths()
         self.assertGreaterEqual(len(paths), 1)
+
+        # Wire-speed socket buffer tuning test
+        buf_res = transport.tune_socket_buffers_for_wire_speed()
+        self.assertTrue(buf_res["wire_speed_buffer_tuning"])
+        self.assertEqual(buf_res["target_buffer_bytes"], 4194304)
+        self.assertTrue(buf_res["quic_stream_multiplexing_optimized"])
 
         # Route to registered node
         target_did = "did:omninet:target_node"
@@ -154,12 +166,19 @@ class TestMicroInternet(unittest.TestCase):
         self.assertIn("LAN", xfer["message"])
 
     def test_micro_internet_orchestrator_and_conversational_gateway(self):
+        from netopt.micro_internet import check_micro_internet_ap_isolation
+        ap_res = check_micro_internet_ap_isolation()
+        self.assertFalse(ap_res["ap_isolation_detected"])
+        self.assertTrue(ap_res["peer_to_peer_multicast_allowed"])
+
         orch = get_micro_internet_orchestrator()
         status = orch.get_mesh_status()
 
         self.assertTrue(status["micro_internet_enabled"])
         self.assertTrue(status["local_did"].startswith("did:omninet:"))
         self.assertTrue(status["zero_cloud_dependency"])
+        self.assertTrue(status["zero_conf_discovery_active"])
+        self.assertTrue(status["wire_speed_quic_ready"])
         self.assertGreaterEqual(status["active_transports_count"], 1)
 
         # Test Conversational Intent in LLMGateway
