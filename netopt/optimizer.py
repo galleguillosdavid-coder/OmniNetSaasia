@@ -277,6 +277,7 @@ class NetworkOptimizer:
             actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
             actions.append("Activar Wi-Fi 7 Preamble Puncturing para evasión dinámica de interferencias en canales de 160/320 MHz")
             actions.append("Habilitar Wi-Fi 7 rTWT (Restricted Target Wake Time) para períodos de servicio sin contención")
+            actions.append("Optimizar Receive Segment Coalescing (RSC) en Wi-Fi para entrega inmediata de paquetes sin jitter")
             actions.append("Optimizar conmutación sin pérdidas Multipath QUIC (MPQUIC) para interfaces multi-homed")
             actions.append("Activar TCP Fast Open (TFO / RFC 7413) para envío de datos 0-RTT en paquetes SYN")
             actions.append("Activar TCP HyStart++ (RFC 9406) y algoritmo CUBIC contra bufferbloat en arranque")

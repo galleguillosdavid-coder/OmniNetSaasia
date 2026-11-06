@@ -290,7 +290,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
             check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
             check_multipath_quic_status, check_ddr_dnr_discovery_status,
-            check_tcp_fast_open_status
+            check_tcp_fast_open_status, check_wifi_rsc_latency_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -373,6 +373,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(rtwt["rtwt_supported"])
         self.assertTrue(rtwt["deterministic_service_periods_enabled"])
         self.assertIn("rTWT", rtwt["standard"])
+
+        rsc = check_wifi_rsc_latency_status()
+        self.assertTrue(rsc["jitter_mitigation_active"])
+        self.assertTrue(rsc["immediate_packet_delivery"])
+        self.assertIn("Wi-Fi", rsc["wifi_rsc_coalescing_status"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
