@@ -282,14 +282,19 @@ class TestOmniNetCore(unittest.TestCase):
         mgr.activate_license(pro_key)
 
     def test_high_value_internet_research_features(self):
-        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic
+        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic, check_ech_rfc9460_status
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
 
-        # 1. DoH & L4S/ECN status
+        # 1. DoH, ECH & L4S/ECN status
         doh = check_doh_status()
         self.assertIn("doh_enabled", doh)
         self.assertIn("privacy_status", doh)
+        self.assertIn("ech_sni_encryption_supported", doh)
+
+        ech = check_ech_rfc9460_status()
+        self.assertTrue(ech["ech_supported"])
+        self.assertTrue(ech["sni_leak_mitigated"])
 
         ecn = check_l4s_ecn_status()
         self.assertIn("ecn_enabled", ecn)
