@@ -294,7 +294,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status,
             check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
-            check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status
+            check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status,
+            check_wifi_fast_roaming_kvr_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -428,6 +429,14 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(dualq["classic_cubic_queue_protected"])
         self.assertEqual(dualq["target_delay_ms"], 5.0)
         self.assertIn("RFC 9332", dualq["standard"])
+
+        kvr = check_wifi_fast_roaming_kvr_status()
+        self.assertTrue(kvr["fast_bss_transition_80211r_supported"])
+        self.assertTrue(kvr["neighbor_reports_80211k_active"])
+        self.assertTrue(kvr["bss_transition_mgmt_80211v_active"])
+        self.assertTrue(kvr["opportunistic_key_caching_okc_ready"])
+        self.assertLessEqual(kvr["roaming_handoff_delay_ms"], 50.0)
+        self.assertIn("802.11k/v/r", kvr["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

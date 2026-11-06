@@ -264,6 +264,12 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
   - **rTWT:** Reserva ventanas de tiempo exclusivas y sin colisiones para transmisiones críticas como videollamadas y juegos.
   - **eMLSR:** Escucha simultáneamente en las frecuencias de 5 GHz y 6 GHz con una sola radio y cambia de banda en 32 microsegundos ante la primera señal de interferencia.
 
+### Fast Roaming Wi-Fi: IEEE 802.11k/v/r y OKC (Cero Cortes al Desplazarse)
+* **Funcionamiento:**
+  - **802.11k (Neighbor Reports):** Elimina el escaneo a ciegas de canales solicitando al router la lista de antenas y nodos mesh cercanos.
+  - **802.11v (BSS Transition Management):** Asiste a la tarjeta de red para desvincularse de antenas lejanas lentas y pasar suavemente a frecuencias más rápidas y desocupadas.
+  - **802.11r (Fast Transition) y OKC:** Pre-autentica la conexión con el nuevo nodo antes de soltar el actual, reduciendo el cambio de antena de varios segundos a menos de 50 milisegundos sin congelar llamadas ni desconectar videojuegos.
+
 ---
 
 ## 7. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
@@ -313,6 +319,7 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-20** | Reversión Automática | Rollback Snapshot Engine | Vuelta atrás instantánea si una optimización no supera el test | ACTIVO Y VERIFICADO |
 | **CAP-21** | DualQ Coupled AQM | RFC 9332 / DualPI2 | Aislamiento de colas L4S ECT(1) y protección CUBIC a 5ms | ACTIVO Y VERIFICADO |
 | **CAP-22** | Zero-Conf Mesh Beacon | mDNS / DNS-SD RFC 6762 | Baliza de anuncio local 224.0.0.251:5353 sin nube | ACTIVO Y VERIFICADO |
+| **CAP-23** | Fast Roaming Wi-Fi | IEEE 802.11k/v/r & OKC | Conmutación mesh en <50ms evitando caídas en movimiento | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*
