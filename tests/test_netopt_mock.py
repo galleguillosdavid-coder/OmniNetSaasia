@@ -296,7 +296,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
             check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status,
             check_wifi_fast_roaming_kvr_status, check_wmm_dscp_qos_prioritization_status,
-            check_duplicate_default_gateways_status
+            check_duplicate_default_gateways_status, check_gateway_mac_pinning_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -464,6 +464,22 @@ class TestOmniNetCore(unittest.TestCase):
         rep_actions = repair_test.execute_triage_repair("L3_DUPLICATE_GATEWAY_CONFLICT", execute=False)
         self.assertGreaterEqual(len(rep_actions), 2)
         self.assertTrue(all(a.is_dry_run for a in rep_actions))
+
+        # Gateway MAC Pinning (Zero-Trust Anti-Spoofing)
+        pin_stat = check_gateway_mac_pinning_status()
+        self.assertIn("gateway_ip", pin_stat)
+        self.assertIn("entry_type", pin_stat)
+        self.assertIn("is_pinned", pin_stat)
+        self.assertTrue(pin_stat["pinning_command_supported"])
+
+        pin_act = hal_test.pin_gateway_mac("Wi-Fi", "192.168.1.1", "74:24:9F:36:D4:77", execute=False)
+        self.assertTrue(pin_act.is_dry_run)
+        self.assertIn("add neighbors", pin_act.command)
+        self.assertIn("74-24-9F-36-D4-77", pin_act.command)
+
+        unpin_act = hal_test.unpin_gateway_mac("Wi-Fi", "192.168.1.1", execute=False)
+        self.assertTrue(unpin_act.is_dry_run)
+        self.assertIn("delete neighbors", unpin_act.command)
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

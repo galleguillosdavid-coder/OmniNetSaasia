@@ -166,6 +166,14 @@ class NetworkHAL(abc.ABC):
         """Prunes stale or duplicate 0.0.0.0/0 default routes leaving only the reachable primary gateway."""
         return []
 
+    def pin_gateway_mac(self, interface_name: str, gateway_ip: str, gateway_mac: str, execute: bool = False) -> AgentActionLog:
+        """Pins default gateway MAC statically in OS ARP neighbor table to block ARP spoofing."""
+        return AgentActionLog(command="noop", is_dry_run=True)
+
+    def unpin_gateway_mac(self, interface_name: str, gateway_ip: str, execute: bool = False) -> AgentActionLog:
+        """Releases static gateway MAC neighbor binding back to dynamic resolution."""
+        return AgentActionLog(command="noop", is_dry_run=True)
+
 
 class WindowsHAL(NetworkHAL):
     """Windows implementation utilizing netsh, PowerShell and WMI/IPHelper abstractions."""
@@ -335,6 +343,26 @@ class WindowsHAL(NetworkHAL):
         log.description = "Prune duplicate/stale 0.0.0.0/0 default gateways from Windows 11 24H2 routing table"
         logs.append(log)
         return logs
+
+    def pin_gateway_mac(self, interface_name: str, gateway_ip: str, gateway_mac: str, execute: bool = False) -> AgentActionLog:
+        """
+        Binds gateway IP statically to legitimate hardware MAC address using netsh neighbor table,
+        blocking Gratuitous ARP Poisoning and Man-in-the-Middle eavesdropping.
+        """
+        clean_mac = gateway_mac.replace(":", "-").upper()
+        cmd = ["netsh", "interface", "ipv4", "add", "neighbors", f'"{interface_name}"', gateway_ip, clean_mac]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.OPTIMIZATION
+        log.description = f"Pin default gateway {gateway_ip} to hardware MAC {clean_mac} on {interface_name} (Zero-Trust Anti-Spoofing)"
+        return log
+
+    def unpin_gateway_mac(self, interface_name: str, gateway_ip: str, execute: bool = False) -> AgentActionLog:
+        """Removes static gateway MAC binding to restore dynamic DHCP roaming."""
+        cmd = ["netsh", "interface", "ipv4", "delete", "neighbors", f'"{interface_name}"', gateway_ip]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.REPAIR
+        log.description = f"Unpin static gateway {gateway_ip} on {interface_name} to restore dynamic roaming"
+        return log
 
 
 class LinuxHAL(NetworkHAL):

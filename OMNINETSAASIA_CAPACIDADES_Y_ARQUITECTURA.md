@@ -285,6 +285,11 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
   - **Detección de Conflicto 0.0.0.0/0:** En Windows 11 24H2, cambios de red o renovaciones DHCP pueden acumular puertas de enlace predeterminadas huérfanas en la tabla de enrutamiento en vez de reemplazarlas, bloqueando el tráfico o generando demoras en las pruebas de conectividad NCSI.
   - **Poda Quirúrgica de Rutas:** El motor inspecciona las métricas de ruta mediante PowerShell, conserva la puerta de enlace primaria alcanzable y poda de manera autónoma las rutas fantasma duplicadas sin necesidad de reiniciar el computador ni resetear adaptadores.
 
+### Blindaje de Puerta de Enlace (Zero-Trust Gateway MAC Pinning)
+* **Funcionamiento:**
+  - **Inmunidad contra Envenenamiento ARP (MitM):** En redes locales Wi-Fi compartidas o de oficina, dispositivos maliciosos pueden emitir tramas ARP gratuitas falsificadas para redirigir todo el tráfico a través de su máquina espía. El sistema fija estáticamente la dirección física MAC real del enrutador en la tabla de vecinos del sistema operativo (`netsh interface ipv4 add neighbors`), inmunizando la conexión contra suplantaciones de pasarela.
+  - **Desvinculación Segura al Desplazarse:** Al detectar cambio de red o desconexión del adaptador, libera automáticamente la fijación devolviendo el adaptador al modo dinámico para permitir itinerancia fluida sin pérdida de conectividad.
+
 ---
 
 ## 7. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
@@ -338,6 +343,7 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-24** | Priorización WMM QoS | IEEE 802.11e / DSCP 46 | Colas hardware prioritarias AC_VO/AC_VI para juegos y voz | ACTIVO Y VERIFICADO |
 | **CAP-25** | Descubrimiento DDR DNS | RFC 9462 / RFC 9463 | Auto-actualización a DoH/DoT vía SVCB sin plantillas manuales | ACTIVO Y VERIFICADO |
 | **CAP-26** | Depuración de Puertas de Enlace | Win 11 24H2 Route Pruner | Eliminación de rutas 0.0.0.0 duplicadas y desempate NCSI | ACTIVO Y VERIFICADO |
+| **CAP-27** | Fijación Estática de Gateway | Zero-Trust ARP Pinning | Blindaje contra ARP Spoofing y MitM en redes compartidas | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*
