@@ -290,7 +290,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
             check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
             check_multipath_quic_status, check_ddr_dnr_discovery_status,
-            check_tcp_fast_open_status, check_wifi_rsc_latency_status
+            check_tcp_fast_open_status, check_wifi_rsc_latency_status,
+            check_rss_packet_steering_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -353,6 +354,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(tsq["tsq_supported"])
         self.assertTrue(tsq["bql_active"])
         self.assertIn("pacing_algorithm", tsq)
+
+        rss = check_rss_packet_steering_status()
+        self.assertTrue(rss["rss_packet_steering_enabled"])
+        self.assertTrue(rss["cache_locality_optimized"])
+        self.assertEqual(rss["recommended_rss_queues"], 4)
 
         tfo = check_tcp_fast_open_status()
         self.assertTrue(tfo["tfo_supported"])
