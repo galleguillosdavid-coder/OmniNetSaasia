@@ -280,9 +280,11 @@ class NetworkOptimizer:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_low_latency=1"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.core.default_qdisc=fq"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
+            self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_congestion_control=bbr"], execute=execute)
             actions.append("Activar TCP ECN y flag tcp_low_latency en kernel Linux")
             actions.append("Activar Fair Queueing (fq) para control de flujo y pacing")
             actions.append("Activar sondeo de MTU PLPMTUD en kernel Linux (tcp_mtu_probing=1 / RFC 4821)")
+            actions.append("Activar algoritmo TCP BBRv3 / BBR para modelado de ancho de banda y RTT mínimo")
         else:
             self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=execute)
             actions.append("Desactivar delayed_ack para interactividad en tiempo real")
