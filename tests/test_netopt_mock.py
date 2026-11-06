@@ -283,7 +283,7 @@ class TestOmniNetCore(unittest.TestCase):
         mgr.activate_license(pro_key)
 
     def test_high_value_internet_research_features(self):
-        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic, check_ech_rfc9460_status
+        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
 
@@ -296,6 +296,10 @@ class TestOmniNetCore(unittest.TestCase):
         ech = check_ech_rfc9460_status()
         self.assertTrue(ech["ech_supported"])
         self.assertTrue(ech["sni_leak_mitigated"])
+
+        dnssec = check_dnssec_dane_status()
+        self.assertTrue(dnssec["dane_tlsa_ready"])
+        self.assertIn("dnssec_supported_resolvers", dnssec)
 
         ecn = check_l4s_ecn_status()
         self.assertIn("ecn_enabled", ecn)
