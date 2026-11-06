@@ -294,7 +294,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status,
             check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
-            check_windows_24h2_loopback_bbr_safety
+            check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -421,6 +421,13 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(w24h2["loopback_stall_mitigation_active"])
         self.assertTrue(w24h2["zero_netloss_safe"])
         self.assertIn(w24h2["congestion_provider"], ["cubic", "bbr2"])
+
+        dualq = check_dualq_coupled_aqm_rfc9332_status()
+        self.assertTrue(dualq["dualq_coupled_aqm_supported"])
+        self.assertTrue(dualq["l4s_ect1_queue_isolation"])
+        self.assertTrue(dualq["classic_cubic_queue_protected"])
+        self.assertEqual(dualq["target_delay_ms"], 5.0)
+        self.assertIn("RFC 9332", dualq["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

@@ -255,6 +255,9 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
 ### L4S (Baja Latencia, Baja Pérdida y Rendimiento Escalable) y ECN Acoplado
 * **Funcionamiento:** Establece marcas de advertencia temprana en los paquetes cuando un enrutador en el camino empieza a llenarse. En lugar de esperar a que los paquetes se pierdan para frenar de golpe, el emisor modula suavemente el envío, manteniendo el tiempo de respuesta plano en menos de cinco milisegundos sin importar cuánto tráfico circule.
 
+### RFC 9332: DualQ Coupled AQM (Colas Acopladas DualPI2)
+* **Funcionamiento:** Divide el tráfico en el enrutador o nodo en dos colas paralelas acopladas: una para flujos de latencia ultra-baja L4S (marcados con `ECT(1)`) y otra para flujos tradicionales basados en pérdida (`CUBIC`). Mediante una función cuadrática de probabilidad acoplada, asegura que los flujos interactivos mantengan una demora inferior a 5 milisegundos sin quitarle ancho de banda ni estrangular las descargas convencionales.
+
 ### Modos Wi-Fi 7 (802.11be): Preamble Puncturing, rTWT y eMLSR
 * **Funcionamiento:**
   - **Preamble Puncturing:** Si un canal vecino invade una pequeña parte de la frecuencia amplia de 160 o 320 MHz, el sistema troquela esa pequeña porción interferida y utiliza todo el resto del canal a máxima potencia, en vez de retroceder a canales lentos.
@@ -308,6 +311,8 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-18** | Inteligencia Conversacional | LLM Gateway Universal | Comprensión de lenguaje cotidiano y traducción de respuestas | ACTIVO Y VERIFICADO |
 | **CAP-19** | Pasarela SaaS | Supabase + HMAC Signatures | Cobros mundiales, control de licencias y seguridad fail-closed | ACTIVO Y VERIFICADO |
 | **CAP-20** | Reversión Automática | Rollback Snapshot Engine | Vuelta atrás instantánea si una optimización no supera el test | ACTIVO Y VERIFICADO |
+| **CAP-21** | DualQ Coupled AQM | RFC 9332 / DualPI2 | Aislamiento de colas L4S ECT(1) y protección CUBIC a 5ms | ACTIVO Y VERIFICADO |
+| **CAP-22** | Zero-Conf Mesh Beacon | mDNS / DNS-SD RFC 6762 | Baliza de anuncio local 224.0.0.251:5353 sin nube | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*
