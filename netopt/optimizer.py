@@ -267,6 +267,7 @@ class NetworkOptimizer:
             self.hal.run_cmd(reg_pmtubh, execute=execute)
             self.hal.run_cmd(reg_dnsleak, execute=execute)
             self.hal.run_cmd(["netsh", "int", "tcp", "set", "supplemental", "template=custom", "congestionprovider=cubic"], execute=execute)
+            self.hal.run_cmd(["netsh", "int", "tcp", "set", "supplemental", "template=custom", "fastopen=enabled"], execute=execute)
             actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
             actions.append("Liberar 100% del ancho de banda reservado por Windows QoS (NonBestEffortLimit=0)")
             actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
@@ -277,6 +278,7 @@ class NetworkOptimizer:
             actions.append("Activar Wi-Fi 7 Preamble Puncturing para evasión dinámica de interferencias en canales de 160/320 MHz")
             actions.append("Habilitar Wi-Fi 7 rTWT (Restricted Target Wake Time) para períodos de servicio sin contención")
             actions.append("Optimizar conmutación sin pérdidas Multipath QUIC (MPQUIC) para interfaces multi-homed")
+            actions.append("Activar TCP Fast Open (TFO / RFC 7413) para envío de datos 0-RTT en paquetes SYN")
             actions.append("Activar TCP HyStart++ (RFC 9406) y algoritmo CUBIC contra bufferbloat en arranque")
             actions.append("Habilitar retroalimentación L4S/AccECN acoplada para colas DualPI2 AQM de sub-milisegundo")
 
@@ -286,10 +288,12 @@ class NetworkOptimizer:
             self.hal.run_cmd(["sysctl", "-w", "net.core.default_qdisc=fq"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_congestion_control=bbr"], execute=execute)
+            self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_fastopen=3"], execute=execute)
             actions.append("Activar TCP ECN y flag tcp_low_latency en kernel Linux")
             actions.append("Activar Fair Queueing (fq) para control de flujo y pacing")
             actions.append("Activar sondeo de MTU PLPMTUD en kernel Linux (tcp_mtu_probing=1 / RFC 4821)")
             actions.append("Activar algoritmo TCP BBRv3 / BBR para modelado de ancho de banda y RTT mínimo")
+            actions.append("Activar TCP Fast Open cliente/servidor (tcp_fastopen=3 / RFC 7413)")
         else:
             self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=execute)
             actions.append("Desactivar delayed_ack para interactividad en tiempo real")

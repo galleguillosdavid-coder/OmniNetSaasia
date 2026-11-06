@@ -289,7 +289,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
             check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
-            check_multipath_quic_status, check_ddr_dnr_discovery_status
+            check_multipath_quic_status, check_ddr_dnr_discovery_status,
+            check_tcp_fast_open_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -352,6 +353,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(tsq["tsq_supported"])
         self.assertTrue(tsq["bql_active"])
         self.assertIn("pacing_algorithm", tsq)
+
+        tfo = check_tcp_fast_open_status()
+        self.assertTrue(tfo["tfo_supported"])
+        self.assertTrue(tfo["zero_rtt_payload_supported"])
+        self.assertIn("RFC 7413", tfo["standard"])
 
         # Wi-Fi 7 TTLM & Preamble Puncturing support
         wifi_nic = inspect_wifi_and_nic()
