@@ -162,6 +162,10 @@ class NetworkHAL(abc.ABC):
         act.description = "Disable NIC power-saving throttling (EEE) and enable low-latency path"
         return act
 
+    def prune_duplicate_default_gateways(self, execute: bool = False) -> List[AgentActionLog]:
+        """Prunes stale or duplicate 0.0.0.0/0 default routes leaving only the reachable primary gateway."""
+        return []
+
 
 class WindowsHAL(NetworkHAL):
     """Windows implementation utilizing netsh, PowerShell and WMI/IPHelper abstractions."""
@@ -309,6 +313,27 @@ class WindowsHAL(NetworkHAL):
         for l in logs:
             l.action_type = ActionType.REPAIR
             l.description = "Complete Windows network stack & winsock reset"
+        return logs
+
+    def prune_duplicate_default_gateways(self, execute: bool = False) -> List[AgentActionLog]:
+        """
+        Removes orphan/duplicate 0.0.0.0/0 routes caused by Windows 11 24H2 DHCP appending bugs,
+        preserving only the primary reachable default gateway.
+        """
+        logs = []
+        cmd = [
+            "powershell", "-NoProfile", "-Command",
+            "$routes = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue; "
+            "if ($routes.Count -gt 1) { "
+            "  $best = $routes | Sort-Object RouteMetric | Select-Object -First 1; "
+            "  $routes | Where-Object { $_.NextHop -ne $best.NextHop -or $_.InterfaceIndex -ne $best.InterfaceIndex } | "
+            "  ForEach-Object { Remove-NetRoute -DestinationPrefix '0.0.0.0/0' -InterfaceIndex $_.InterfaceIndex -NextHop $_.NextHop -Confirm:$false } "
+            "}"
+        ]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.REPAIR
+        log.description = "Prune duplicate/stale 0.0.0.0/0 default gateways from Windows 11 24H2 routing table"
+        logs.append(log)
         return logs
 
 

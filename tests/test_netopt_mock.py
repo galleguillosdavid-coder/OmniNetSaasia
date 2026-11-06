@@ -295,7 +295,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
             check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status,
-            check_wifi_fast_roaming_kvr_status, check_wmm_dscp_qos_prioritization_status
+            check_wifi_fast_roaming_kvr_status, check_wmm_dscp_qos_prioritization_status,
+            check_duplicate_default_gateways_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -445,6 +446,24 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertEqual(wmm["video_gaming_category_ac_vi"]["dscp"], 34)
         self.assertTrue(wmm["airtime_starvation_prevented"])
         self.assertIn("802.11e WMM", wmm["standard"])
+
+        dup_gw = check_duplicate_default_gateways_status()
+        self.assertIn("has_duplicate_gateways", dup_gw)
+        self.assertIn("default_routes_count", dup_gw)
+        self.assertIn("active_gateway", dup_gw)
+        self.assertTrue(dup_gw["auto_pruning_supported"])
+        self.assertIn("Depurador de Rutas", dup_gw["summary"])
+
+        hal_test = WindowsHAL(dry_run=True)
+        prune_actions = hal_test.prune_duplicate_default_gateways(execute=False)
+        self.assertGreater(len(prune_actions), 0)
+        self.assertTrue(all(a.is_dry_run for a in prune_actions))
+        self.assertIn("0.0.0.0/0", prune_actions[0].command)
+
+        repair_test = NetworkRepairEngine(hal=hal_test)
+        rep_actions = repair_test.execute_triage_repair("L3_DUPLICATE_GATEWAY_CONFLICT", execute=False)
+        self.assertGreaterEqual(len(rep_actions), 2)
+        self.assertTrue(all(a.is_dry_run for a in rep_actions))
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

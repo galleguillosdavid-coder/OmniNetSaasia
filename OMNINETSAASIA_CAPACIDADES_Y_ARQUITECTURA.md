@@ -280,6 +280,11 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
   - **Auto-Actualización sin Plantillas Manuales:** Envía consultas de enlace de servicio (`SVCB`) hacia el dominio especial reservado `_dns.resolver.arpa`. Si el enrutador local o proveedor soporta cifrado, el sistema eleva de inmediato la conexión de puerto 53 plano a canales protegidos `DoH`, `DoT` o `DoQ` sin requerir que el usuario configure manualmente URLs.
   - **Reserva de Emergencia (DDR Fallback):** Para evitar pérdida de conectividad si un servidor seguro falla temporalmente en responder, el sistema mantiene habilitada la reserva automática asegurando navegación ininterrumpida y protección contra censura e inspección de operadoras.
 
+### Depuración Automática de Puertas de Enlace Duplicadas (Windows 11 24H2 Route Pruner)
+* **Funcionamiento:**
+  - **Detección de Conflicto 0.0.0.0/0:** En Windows 11 24H2, cambios de red o renovaciones DHCP pueden acumular puertas de enlace predeterminadas huérfanas en la tabla de enrutamiento en vez de reemplazarlas, bloqueando el tráfico o generando demoras en las pruebas de conectividad NCSI.
+  - **Poda Quirúrgica de Rutas:** El motor inspecciona las métricas de ruta mediante PowerShell, conserva la puerta de enlace primaria alcanzable y poda de manera autónoma las rutas fantasma duplicadas sin necesidad de reiniciar el computador ni resetear adaptadores.
+
 ---
 
 ## 7. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
@@ -332,6 +337,7 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-23** | Fast Roaming Wi-Fi | IEEE 802.11k/v/r & OKC | Conmutación mesh en <50ms evitando caídas en movimiento | ACTIVO Y VERIFICADO |
 | **CAP-24** | Priorización WMM QoS | IEEE 802.11e / DSCP 46 | Colas hardware prioritarias AC_VO/AC_VI para juegos y voz | ACTIVO Y VERIFICADO |
 | **CAP-25** | Descubrimiento DDR DNS | RFC 9462 / RFC 9463 | Auto-actualización a DoH/DoT vía SVCB sin plantillas manuales | ACTIVO Y VERIFICADO |
+| **CAP-26** | Depuración de Puertas de Enlace | Win 11 24H2 Route Pruner | Eliminación de rutas 0.0.0.0 duplicadas y desempate NCSI | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*

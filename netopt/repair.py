@@ -19,7 +19,8 @@ from .diagnostics import (
     run_full_diagnostics,
     tcp_ping,
     measure_target_metrics,
-    query_dns_resolver_latency
+    query_dns_resolver_latency,
+    check_duplicate_default_gateways_status
 )
 
 
@@ -52,6 +53,11 @@ class NetworkRepairEngine:
 
         # Check Layer 3 & 4: Internet vs DNS
         if not diag.internet_reachable:
+            # Check for Windows 11 24H2 duplicate default gateway conflict before full reset
+            dup_status = check_duplicate_default_gateways_status()
+            if dup_status.get("has_duplicate_gateways"):
+                logs.append("Conflicto de enrutamiento detectado: Múltiples puertas de enlace 0.0.0.0/0 en Windows 11 24H2.")
+                return "L3_DUPLICATE_GATEWAY_CONFLICT", logs
             logs.append("Public IP reachability test failed (1.1.1.1 and 8.8.8.8 unreachable).")
             return "L3_ROUTING_OR_INTERNET_CUT", logs
 
@@ -95,6 +101,13 @@ class NetworkRepairEngine:
                     )
                     act_dns.description = f"Override broken DNS on {iface.name} with Cloudflare/Google/Quad9"
                     actions.append(act_dns)
+
+        elif failure_type == "L3_DUPLICATE_GATEWAY_CONFLICT":
+            # Action: Prune rogue/stale duplicate gateways and flush DNS
+            prune_logs = self.hal.prune_duplicate_default_gateways(execute=execute)
+            actions.extend(prune_logs)
+            act_flush = self.hal.flush_dns_cache(execute=execute)
+            actions.append(act_flush)
 
         elif failure_type in ["L3_ROUTING_OR_INTERNET_CUT", "L7_HIGH_LOSS_OR_DEGRADED"]:
             # Action: Soft reset of network stack
