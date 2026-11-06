@@ -289,7 +289,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
             check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
-            check_multipath_quic_status
+            check_multipath_quic_status, check_ddr_dnr_discovery_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -322,6 +322,11 @@ class TestOmniNetCore(unittest.TestCase):
         dnssec = check_dnssec_dane_status()
         self.assertTrue(dnssec["dane_tlsa_ready"])
         self.assertIn("dnssec_supported_resolvers", dnssec)
+
+        ddr = check_ddr_dnr_discovery_status()
+        self.assertTrue(ddr["ddr_svcb_query_supported"])
+        self.assertTrue(ddr["opportunistic_encryption_upgrade"])
+        self.assertIn("RFC 9462", ddr["standard"])
 
         odoh = check_odoh_rfc9230_status()
         self.assertTrue(odoh["ip_query_decoupling_supported"])

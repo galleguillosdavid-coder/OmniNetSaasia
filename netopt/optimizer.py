@@ -272,6 +272,7 @@ class NetworkOptimizer:
             actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
             actions.append("Activar mitigación de agujeros negros de MTU (EnablePMTUBHDetect=1 / RFC 4821)")
             actions.append("Prevenir fugas de DNS desactivando Smart Multi-Homed Name Resolution (DisableSmartNameResolution=1)")
+            actions.append("Habilitar actualización dinámica a DNS cifrado mediante DDR (RFC 9462) y DNR (RFC 9463)")
             actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
             actions.append("Activar Wi-Fi 7 Preamble Puncturing para evasión dinámica de interferencias en canales de 160/320 MHz")
             actions.append("Habilitar Wi-Fi 7 rTWT (Restricted Target Wake Time) para períodos de servicio sin contención")
