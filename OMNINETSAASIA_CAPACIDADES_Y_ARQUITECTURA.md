@@ -275,6 +275,11 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
   - **Colas Hardware AC_VO y AC_VI:** Asigna a los paquetes de voz y videojuegos las categorías de acceso físico de máxima prioridad en la antena de radio (`AC_VO` y `AC_VI`) con ventanas mínimas de contención (`CWmin=3` y `AIFSN=2`).
   - **Mapeo DSCP 46 (Expedited Forwarding):** Marca el tráfico crítico en la Capa 3 de red con etiquetas DSCP 46 / 34, asegurando que cuando otros dispositivos o procesos inicien descargas masivas en la red, las llamadas y partidas en tiempo real obtengan acceso preferente al aire inalámbrico sin sufrir asfixia ni aumentos de latencia por contención.
 
+### Descubrimiento Automático de DNS Cifrado: DDR (RFC 9462) y DNR (RFC 9463)
+* **Funcionamiento:**
+  - **Auto-Actualización sin Plantillas Manuales:** Envía consultas de enlace de servicio (`SVCB`) hacia el dominio especial reservado `_dns.resolver.arpa`. Si el enrutador local o proveedor soporta cifrado, el sistema eleva de inmediato la conexión de puerto 53 plano a canales protegidos `DoH`, `DoT` o `DoQ` sin requerir que el usuario configure manualmente URLs.
+  - **Reserva de Emergencia (DDR Fallback):** Para evitar pérdida de conectividad si un servidor seguro falla temporalmente en responder, el sistema mantiene habilitada la reserva automática asegurando navegación ininterrumpida y protección contra censura e inspección de operadoras.
+
 ---
 
 ## 7. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
@@ -326,6 +331,7 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 | **CAP-22** | Zero-Conf Mesh Beacon | mDNS / DNS-SD RFC 6762 | Baliza de anuncio local 224.0.0.251:5353 sin nube | ACTIVO Y VERIFICADO |
 | **CAP-23** | Fast Roaming Wi-Fi | IEEE 802.11k/v/r & OKC | Conmutación mesh en <50ms evitando caídas en movimiento | ACTIVO Y VERIFICADO |
 | **CAP-24** | Priorización WMM QoS | IEEE 802.11e / DSCP 46 | Colas hardware prioritarias AC_VO/AC_VI para juegos y voz | ACTIVO Y VERIFICADO |
+| **CAP-25** | Descubrimiento DDR DNS | RFC 9462 / RFC 9463 | Auto-actualización a DoH/DoT vía SVCB sin plantillas manuales | ACTIVO Y VERIFICADO |
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*
