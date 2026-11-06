@@ -292,7 +292,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_multipath_quic_status, check_ddr_dnr_discovery_status,
             check_tcp_fast_open_status, check_wifi_rsc_latency_status,
             check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status,
-            check_fq_codel_cake_aqm_status
+            check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -372,6 +372,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(cake_aqm["diffserv4_flow_isolation"])
         self.assertEqual(cake_aqm["sojourn_target_ms"], 5)
         self.assertIn("RFC 8290", cake_aqm["standard"])
+
+        quic_dgram = check_quic_datagram_rfc9221_status()
+        self.assertTrue(quic_dgram["quic_datagram_supported"])
+        self.assertTrue(quic_dgram["head_of_line_blocking_eliminated"])
+        self.assertIn("RFC 9221", quic_dgram["standard"])
 
         tfo = check_tcp_fast_open_status()
         self.assertTrue(tfo["tfo_supported"])

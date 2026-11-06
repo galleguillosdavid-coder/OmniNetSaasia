@@ -286,6 +286,7 @@ class NetworkOptimizer:
             actions.append("Activar RACK-TLP (RFC 8985) y PRR (RFC 6937) para mitigación de pérdidas sin caídas RTO")
             actions.append("Habilitar retroalimentación L4S/AccECN acoplada para colas DualPI2 AQM de sub-milisegundo")
             actions.append("Alinear señalización DiffServ4 con routers CAKE / FQ-CoDel (RFC 8290) para ping plano bajo descargas")
+            actions.append("Habilitar extensión QUIC Datagram (RFC 9221) y WebTransport para eliminar Head-of-Line blocking en juegos")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)
