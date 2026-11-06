@@ -65,6 +65,31 @@ class RollbackManager:
         except Exception:
             return 0
 
+    def list_snapshots(self) -> List[Dict[str, Any]]:
+        """Lists metadata of all available snapshots on disk."""
+        if not os.path.exists(SNAPSHOT_DIR):
+            return []
+        snapshots = []
+        try:
+            for f in os.listdir(SNAPSHOT_DIR):
+                if f.endswith(".json"):
+                    p = os.path.join(SNAPSHOT_DIR, f)
+                    try:
+                        with open(p, "r", encoding="utf-8") as fp:
+                            data = json.load(fp)
+                            snapshots.append({
+                                "snapshot_id": data.get("snapshot_id", f[:-5]),
+                                "timestamp": data.get("timestamp", os.path.getmtime(p)),
+                                "description": data.get("description", "Snapshot"),
+                                "platform": data.get("platform", "unknown")
+                            })
+                    except Exception:
+                        pass
+            snapshots.sort(key=lambda s: s.get("timestamp", 0), reverse=True)
+        except Exception:
+            pass
+        return snapshots
+
     def capture_snapshot(self, description: str = "Pre-optimization state") -> SnapshotState:
         """Captures current network configuration state into a persistent snapshot with auto-pruning."""
         snapshot_id = f"snap_{int(time.time())}_{uuid.uuid4().hex[:6]}"

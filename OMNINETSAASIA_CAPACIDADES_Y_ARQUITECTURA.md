@@ -25,7 +25,9 @@ Su arquitectura funciona bajo el principio inviolable de **Cero Pérdida Neta (Z
 
 ---
 
-## 3. LAS 10 ESPECIALIDADES DEL ECOSISTEMA OMNINET
+## 3. EL ECOSISTEMA EXPANDIDO DE OMNINET: PILARES Y ESPECIALIDADES INTEGRADAS
+
+OmniNet ha evolucionado mucho más allá de un sistema básico de diez herramientas aisladas. Constituye un ecosistema operativo integral y modular donde cada subsistema se conecta a la misma tubería de telemetría y seguridad. A continuación se detallan las especialidades operativas que lo componen:
 
 ### Especialidad 1: Redes y Conexión (OmniNet Core)
 * **Estado:** ACTIVO Y VERIFICADO
@@ -117,9 +119,88 @@ Su arquitectura funciona bajo el principio inviolable de **Cero Pérdida Neta (Z
   - **Cifrado Punto a Punto:** Aplica cifrado de grado bancario a la copia antes de que toque cualquier soporte de almacenamiento externo o carpeta de destino. Solo el titular del equipo con su clave puede descifrar la información.
   - **Inmunidad:** Las copias quedan aisladas en formato de solo lectura estructurada para que ningún virus o software de rescate pueda alterarlas o borrarlas.
 
+### Especialidad 11: Micro Internet y Malla Cooperativa P2P
+* **Estado:** ACTIVO Y VERIFICADO
+* **Misión:** Comunicar dispositivos en el hogar, la oficina o una red comunitaria directamente entre sí, permitiendo transferencias multimedia y colaboración local a velocidad gigabit sin pasar por la nube externa ni consumir ancho de banda de internet.
+* **Motor Interno:** Motor nativo descentralizado basado en identidades criptográficas (DID), resolución dinámica de dispositivos y transporte multipath.
+* **Funcionamiento:**
+  - **Identidad sin IP Fija:** Asigna a cada dispositivo una identidad criptográfica permanente e independiente de la dirección IP asignada por el router.
+  - **Intercambio Directo Wire-Speed:** Conecta computadores y dispositivos punto a punto a través de la red local para intercambiar archivos pesados y transmisiones en alta definición a la máxima velocidad del cable o Wi-Fi (hasta miles de megabits por segundo) con cero costo de servidores externos.
+  - **Redundancia Cooperativa:** Permite que nodos autorizados colaboren como pasarelas de respaldo o repetidores si el enrutador principal sufre caídas de señal.
+
+### Especialidad 12: Guardián de Cero Pérdida Neta y Reversión Invariable (Zero NetLoss)
+* **Estado:** ACTIVO Y VERIFICADO
+* **Misión:** Garantizar matemáticamente que ninguna acción de optimización, mantenimiento o reparación provoque degradación, cortes o inestabilidad en el equipo o la red.
+* **Motor Interno:** Motor de instantáneas atómicas de estado y puerta de verificación post-acción.
+* **Funcionamiento:**
+  - **Instantánea Previa Obligatoria:** Registra de manera exacta el valor de cada parámetro de red, clave del registro o estado de servicio antes de aplicar cualquier modificación.
+  - **Puerta de Verificación Post-Cambio:** Evalúa inmediatamente la respuesta del sistema tras la acción; si la latencia aumenta, se pierden paquetes o el servicio se comporta peor que en la línea base, activa de forma autónoma una reversión en milisegundos al estado exacto previo.
+
 ---
 
-## 4. MICRO INTERNET: LA RED COOPERATIVA LOCAL DESCENTRALIZADA
+## 4. ¿CÓMO OPERA EL AGENTE IA TODO ESTE ECOSISTEMA? (ARQUITECTURA COGNITIVA Y DE CONTROL)
+
+Una de las preguntas fundamentales de la ingeniería de OmniNet es: **¿cómo es que el Agente sabe operar semejante cantidad de módulos complejos sin confundirse ni romper el sistema?**
+
+El Agente no ejecuta comandos al azar ni depende de instrucciones rígidas manuales. Opera mediante una **arquitectura cognitiva de cinco capas de control**:
+
+```
+[ Usuario en Lenguaje Cotidiano ]
+                |
+                v
+1. Capa Semántica: Intent Dispatcher & LLM Gateway
+   (Traduce necesidades humanas a intenciones técnicas tipadas)
+                |
+                v
+2. Capa de Diagnóstico Jerárquico: Triage por Capas OSI (L1 a L7 + HW + SO)
+   (Descubre la causa raíz real antes de tocar cualquier configuración)
+                |
+                v
+3. Capa de Herramientas Estructuradas: Protocolo MCP (Tools Manifest)
+   (Catálogo declarativo con precondiciones, parámetros y salidas JSON)
+                |
+                v
+4. Capa de Invariante de Seguridad: Zero NetLoss Execution Gate
+   (Instantánea previa -> Ejecución segura -> Verificación -> Auto-Rollback)
+                |
+                v
+5. Capa de Memoria y Doble Cadencia Operativa:
+   - OmniNet Centinela: Reacción continua en tiempo real ante eventos.
+   - Agente IA (40 min): Investigación web, auditoría y evolución de código.
+```
+
+### Capa 1: Comprensión Semántica del Lenguaje Cotidiano (LLM Gateway)
+El agente no espera que el usuario conozca términos como "MTU", "BBR", "FQ-CoDel" o "DISM". Si el usuario dice: *"mi juego se congela cuando descargo algo"*, el agente analiza semánticamente la frase y reconoce de inmediato un síntoma clásico de bufferbloat y contención en la cola de red. Si el usuario dice: *"el computador tarda una eternidad en encender"*, el agente activa el subsistema de análisis de programas de inicio y tareas programadas. Esta traducción convierte problemas humanos en intenciones técnicas estructuradas.
+
+### Capa 2: Árbol de Diagnóstico Jerárquico y Triage por Capas
+El agente sigue un protocolo estricto de diagnóstico de abajo hacia arriba (Bottom-Up Triage). Sabe que no tiene sentido intentar optimizar el DNS (Capa 7) si el cable de red o la señal Wi-Fi física (Capa 1/2) está desconectada; ni tiene sentido acelerar programas en el sistema operativo si el procesador está a 95°C bajo estrangulamiento térmico por falta de ventilación. El agente ejecuta un orden de verificación:
+1. **Física y Enlace (L1/L2):** ¿Hay cable conectado o señal Wi-Fi suficiente? ¿Responde la puerta de enlace del router?
+2. **Red y Transporte (L3/L4):** ¿Hay salida a internet? ¿Cuál es la ruta MTU sin fragmentación? ¿Cómo se comportan el ping y la fluctuación (jitter)?
+3. **Servicios y Resolución (L5/L7):** ¿Responden los servidores DNS Anycast? ¿Está el cifrado DoH/DoQ activo?
+4. **Hardware y Sensores:** ¿Hay calor excesivo, fallas de ventilación o saturación de memoria RAM?
+5. **Sistema Operativo y Procesos:** ¿Hay archivos del sistema dañados o programas parásitos consumiendo el disco?
+
+### Capa 3: Catálogo de Herramientas Declarativas (Protocolo MCP y Esquemas JSON)
+El agente sabe qué funciones invocar porque cada capacidad está empaquetada como una **herramienta declarativa tipada**. Cada herramienta declara de forma estricta:
+- Cuáles son sus argumentos obligatorios y opcionales.
+- Qué condiciones de seguridad exige (por ejemplo, si requiere permisos de administrador).
+- Su interruptor de simulación (`execute=False`), lo que permite que el agente primero proyecte el plan de acción sin tocar nada hasta que esté verificado.
+
+### Capa 4: Invariante Inviolable de Seguridad Zero NetLoss
+Para operar con total autonomía sin requerir confirmación destructiva constante del usuario, el agente obedece la regla de Cero Pérdida Neta. Cuando decide ejecutar un cambio:
+1. Toma una instantánea inmutable del estado actual.
+2. Aplica la configuración en modo controlado.
+3. Evalúa de inmediato si la red o el equipo responden mejor.
+4. Si la métrica post-acción es inferior a la línea base previa, el agente revierte el cambio de forma automática en milisegundos y registra la anomalía para no repetir esa vía de acción.
+
+### Capa 5: Memoria Operacional y Doble Cadencia Autónoma
+El agente y el software OmniNet se dividen el trabajo en dos ritmos complementarios:
+- **El Centinela Continuo de OmniNet:** El software instalado en el equipo monitorea continuamente el tráfico y el estado del hardware, aplicando reparaciones en el momento exacto en que ocurre una anomalía sin esperar intervalos rígidos.
+- **El Ciclo de Auto-Mejora del Agente (Cada 40 Minutos):** En un segundo plano programado, el agente IA consulta internet sobre nuevos estándares (L4S, URO, Wi-Fi 7), revisa el código fuente del software, ejecuta la suite de pruebas unitarias para certificar cero regresiones y actualiza sus propias heurísticas y prompts para que el sistema aprenda y evolucione día a día.
+
+---
+
+## 5. MICRO INTERNET: LA RED COOPERATIVA LOCAL DESCENTRALIZADA
 
 Micro Internet es la capacidad de OmniNetSaasia que permite que dos o más dispositivos dentro del hogar, la oficina o una red comunitaria hablen directamente entre sí de forma autónoma, sin depender de los servidores de internet externos ni de gigantes tecnológicos en la nube. 
 
@@ -159,7 +240,7 @@ Los usuarios aprovechan esta capacidad para transmitirse multimedia de alta defi
 
 ---
 
-## 5. OPTIMIZACIÓN AVANZADA DE TRANSPORTE Y KERNEL
+## 6. OPTIMIZACIÓN AVANZADA DE TRANSPORTE Y KERNEL
 
 OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo sobre tecnologías de conectividad moderna:
 
@@ -182,7 +263,7 @@ OmniNetSaasia incorpora afinamiento a nivel del núcleo del sistema operativo so
 
 ---
 
-## 6. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
+## 7. INTERFAZ EN LENGUAJE SENCILLO E INTELIGENCIA ARTIFICIAL
 
 OmniNetSaasia cuenta con una puerta de enlace conversacional diseñada para democratizar el control del computador:
 - **Traducción Universal:** Elimina siglas crípticas y códigos de error. El usuario puede expresarse libremente en español cotidiano solicitando limpiar espacio, buscar lentitud o revisar virus.
@@ -191,7 +272,7 @@ OmniNetSaasia cuenta con una puerta de enlace conversacional diseñada para demo
 
 ---
 
-## 7. SEGURIDAD SAAS, LICENCIAMIENTO CRIPTOGRÁFICO Y NUBE
+## 8. SEGURIDAD SAAS, LICENCIAMIENTO CRIPTOGRÁFICO Y NUBE
 
 La plataforma integra una capa de monetización y gestión centralizada para usuarios individuales, profesionales y familias:
 - **Licenciamiento Criptográfico:** Cada clave de licencia contiene una firma matemática de 128 bits calculada con secretos que impiden la generación de claves falsas o adulteradas.
@@ -201,7 +282,7 @@ La plataforma integra una capa de monetización y gestión centralizada para usu
 
 ---
 
-## 8. REGISTRO MATRICIAL DE CAPACIDADES Y EXTENSIÓN PARA IA
+## 9. REGISTRO MATRICIAL DE CAPACIDADES Y EXTENSIÓN PARA IA
 
 A continuación se presenta el registro tabular que resume todas las capacidades implementadas. Cuando una inteligencia artificial desarrolle o active una nueva capacidad en el proyecto, debe añadirla como una nueva fila en esta matriz y documentar su subsección correspondiente:
 
@@ -230,3 +311,4 @@ A continuación se presenta el registro tabular que resume todas las capacidades
 
 ---
 *Este documento se mantendrá permanentemente sincronizado con el código y servirá como guía autónoma para cualquier agente de inteligencia artificial que colabore en el proyecto.*
+

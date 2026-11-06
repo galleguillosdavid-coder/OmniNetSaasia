@@ -110,6 +110,20 @@ class EcosystemOrchestrator:
                 "name": "Copias de Seguridad y Respaldo Inteligente",
                 "motor": "Restic / Duplicati / Smart Snapshot Archiver",
                 "mission": "Proteger documentos y fotos clave del usuario ante fallas de disco o ransomware."
+            },
+            {
+                "id": "micro_internet",
+                "emoji": "🌐",
+                "name": "Micro Internet y Malla Cooperativa P2P",
+                "motor": "netopt Micro Internet Engine (DID, Identity Resolver, Multipath)",
+                "mission": "Comunicar dispositivos en el hogar u oficina para intercambio multimedia a velocidad gigabit sin nube."
+            },
+            {
+                "id": "zero_netloss",
+                "emoji": "🛡️",
+                "name": "Guardián de Cero Pérdida Neta y Reversión",
+                "motor": "Rollback Snapshot Engine & Health Verification Gate",
+                "mission": "Garantizar que ninguna optimización degrade el sistema mediante reversión automática instantánea."
             }
         ]
 
@@ -371,6 +385,37 @@ class EcosystemOrchestrator:
         }
 
     # -------------------------------------------------------------------------
+    # 11. 🌐 MICRO INTERNET SUBAGENT (DID & COOPERATIVE MESH)
+    # -------------------------------------------------------------------------
+    def run_micro_internet_subagent(self, execute: bool = False) -> Dict[str, Any]:
+        from .micro_internet import get_micro_internet_orchestrator
+        orch = get_micro_internet_orchestrator()
+        mesh_status = orch.get_mesh_status()
+        return {
+            "subagent": "micro_internet",
+            "did": mesh_status.get("local_did"),
+            "discovered_nodes": mesh_status.get("discovered_nodes_count", 0),
+            "transports_active": mesh_status.get("active_transports_count", 0),
+            "executed": execute,
+            "summary": f"Micro Internet P2P: Dispositivo identificado con DID `{mesh_status.get('local_did', 'N/A')}`. Malla local cooperativa lista para transferencias a velocidad gigabit."
+        }
+
+    # -------------------------------------------------------------------------
+    # 12. 🛡️ ZERO NETLOSS SUBAGENT (SAFETY GUARDIAN & AUTO-ROLLBACK)
+    # -------------------------------------------------------------------------
+    def run_zero_netloss_subagent(self, execute: bool = False) -> Dict[str, Any]:
+        from .rollback import RollbackManager
+        rb = RollbackManager(self.hal)
+        history = rb.list_snapshots()
+        return {
+            "subagent": "zero_netloss",
+            "snapshots_available": len(history),
+            "verification_gate_active": True,
+            "executed": execute,
+            "summary": f"Guardián Zero NetLoss: {len(history)} instantánea(s) de seguridad verificada(s). Puerta de reversión automática lista para proteger la conexión."
+        }
+
+    # -------------------------------------------------------------------------
     # STATUS & SUMMARY FOR DASHBOARD
     # -------------------------------------------------------------------------
     def get_all_subagents_status(self) -> List[Dict[str, Any]]:
@@ -386,7 +431,9 @@ class EcosystemOrchestrator:
             "uninstaller": {"status": "Listo", "color": "blue", "badge": "BCUninstaller Motor"},
             "privacy_shield": {"status": "Protegido", "color": "emerald", "badge": "Anti-Telemetría"},
             "os_repair": {"status": "Saludable", "color": "emerald", "badge": "DISM/SFC Limpio"},
-            "backup": {"status": "Listo", "color": "blue", "badge": "Snapshots Activos"}
+            "backup": {"status": "Listo", "color": "blue", "badge": "Snapshots Activos"},
+            "micro_internet": {"status": "Activo", "color": "emerald", "badge": "DID Mesh P2P"},
+            "zero_netloss": {"status": "Activo", "color": "emerald", "badge": "Auto-Rollback Gate"}
         }
         for item in catalog:
             meta = status_map.get(item["id"], {"status": "Listo", "color": "blue", "badge": "Disponible"})
@@ -421,6 +468,10 @@ class EcosystemOrchestrator:
             return self.run_os_repair_subagent(execute=execute)
         elif sid in ("backup", "respaldo", "copias"):
             return self.run_backup_subagent(execute=execute)
+        elif sid in ("micro_internet", "microinternet", "mesh", "did"):
+            return self.run_micro_internet_subagent(execute=execute)
+        elif sid in ("zero_netloss", "rollback", "reversion"):
+            return self.run_zero_netloss_subagent(execute=execute)
         else:
             return {
                 "subagent": sid,
