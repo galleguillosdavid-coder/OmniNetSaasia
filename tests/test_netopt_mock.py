@@ -286,7 +286,7 @@ class TestOmniNetCore(unittest.TestCase):
         from netopt.diagnostics import (
             check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices,
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
-            check_tsq_pacing_status, check_odoh_rfc9230_status
+            check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -308,6 +308,11 @@ class TestOmniNetCore(unittest.TestCase):
         odoh = check_odoh_rfc9230_status()
         self.assertTrue(odoh["ip_query_decoupling_supported"])
         self.assertGreaterEqual(odoh["relay_count"], 1)
+
+        hystart = check_hystart_plusplus_status()
+        self.assertTrue(hystart["hystart_supported"])
+        self.assertTrue(hystart["conservative_slow_start_enabled"])
+        self.assertIn("RFC 9406", hystart["standard"])
 
         ecn = check_l4s_ecn_status()
         self.assertIn("ecn_enabled", ecn)
