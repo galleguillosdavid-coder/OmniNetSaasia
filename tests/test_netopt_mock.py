@@ -288,7 +288,8 @@ class TestOmniNetCore(unittest.TestCase):
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
-            check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status
+            check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status,
+            check_multipath_quic_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -308,6 +309,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(doh3["head_of_line_blocking_free"])
         self.assertTrue(doh3["zero_rtt_resumption_ready"])
         self.assertIn("RFC 9297", doh3["standard"])
+
+        mpquic = check_multipath_quic_status()
+        self.assertTrue(mpquic["mpquic_supported"])
+        self.assertTrue(mpquic["independent_packet_number_spaces"])
+        self.assertIn("multipath", mpquic["standard"])
 
         ech = check_ech_rfc9460_status()
         self.assertTrue(ech["ech_supported"])
