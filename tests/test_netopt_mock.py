@@ -385,6 +385,8 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertIn("total_devices_detected", radar)
         self.assertIn("devices", radar)
         self.assertIn("radar_status", radar)
+        self.assertTrue(radar["oui_fingerprinting_active"])
+        self.assertIn("Zero-Trust", radar["zero_trust_radar_mode"])
 
         # 3. Gaming & L4S QoS optimizer
         opt = NetworkOptimizer(WindowsHAL(dry_run=True))

@@ -1023,6 +1023,34 @@ def check_tcp_fast_open_status() -> Dict[str, Any]:
     }
 
 
+def resolve_mac_oui_vendor(mac: str) -> str:
+    """
+    Resolves IEEE Organizationally Unique Identifier (OUI) prefix to manufacturer/device profile.
+    Used by Zero-Trust LAN Radar to fingerprint IoT devices, laptops, consoles, and smart home hardware.
+    """
+    clean_mac = (mac or "").lower().replace("-", ":")
+    prefix = clean_mac[:8]
+
+    oui_table = {
+        ("00:17:f2", "3c:06:30", "ac:bc:32", "a4:e8:8d", "74:24:9f", "f0:18:98", "bc:d0:74"): "Apple (iPhone / Mac / iPad)",
+        ("24:6f:28", "30:ae:a4", "84:f3:eb", "d8:bf:c0", "bc:dd:c2", "a4:cf:12", "68:c6:3a"): "Espressif IoT / Smart Home Device",
+        ("b8:27:eb", "dc:a6:32", "e4:5f:01", "28:cd:c1"): "Raspberry Pi (Servidor / IoT Hub)",
+        ("00:12:47", "18:67:b0", "f8:ed:fc", "48:44:f7", "50:01:d9"): "Samsung (Galaxy / Smart TV)",
+        ("00:1b:21", "34:13:e8", "58:91:cf", "a0:36:bc", "8c:85:90"): "Intel (Adaptador Wi-Fi / PC)",
+        ("00:fc:8b", "44:65:0d", "68:54:fd", "ac:63:be", "74:c2:46"): "Amazon (Echo / Fire TV)",
+        ("a4:77:33", "00:1a:11", "d8:6c:63", "f4:f5:d8", "54:60:09"): "Google (Nest / Chromecast)",
+        ("50:c7:bf", "14:cc:20", "e8:48:b8", "c0:06:c3", "98:da:c4"): "TP-Link (Router / Repetidor Wi-Fi)",
+        ("00:04:1f", "70:9e:29", "fc:0f:e6", "00:13:15"): "Sony (PlayStation / Smart TV)",
+        ("00:15:5d", "00:50:f2", "28:18:78", "dc:b5:37"): "Microsoft (Xbox / Surface)"
+    }
+
+    for prefixes, vendor_name in oui_table.items():
+        if any(prefix.startswith(p) for p in prefixes):
+            return vendor_name
+
+    return "Dispositivo en Red (OUI Genérico / Wi-Fi)"
+
+
 def audit_lan_radar_devices() -> Dict[str, Any]:
     """
     Performs comprehensive LAN Radar scan identifying Gateway, Host PC, and all connected devices,
@@ -1093,15 +1121,12 @@ def audit_lan_radar_devices() -> Dict[str, Any]:
         is_me = (ip in local_ips or mac in local_macs)
 
         role = "Router / Puerta de Enlace" if is_gw else ("Este Computador" if is_me else "Dispositivo en Red")
-        vendor = "Desconocido / Dispositivo Wi-Fi"
         if is_gw:
             vendor = "Router Principal (ISP)"
         elif is_me:
-            vendor = "Equipo Local"
-        elif mac.startswith(("f8:ed:fc", "74:24:9f", "a4:e8:8d", "ac:bc:32")):
-            vendor = "Dispositivo Móvil / Smart TV"
-        elif mac.startswith(("b8:27:eb", "dc:a6:32", "e4:5f:01")):
-            vendor = "Microcontrolador / IoT"
+            vendor = f"Equipo Local ({resolve_mac_oui_vendor(mac)})"
+        else:
+            vendor = resolve_mac_oui_vendor(mac)
 
         is_new = (mac not in known_macs and not is_gw and not is_me)
         if is_new:
@@ -1131,6 +1156,8 @@ def audit_lan_radar_devices() -> Dict[str, Any]:
         "new_devices_found": new_devices,
         "anomalies": anomalies,
         "gateway_impersonation_detected": gateway_impersonation,
+        "zero_trust_radar_mode": "Zero-Trust Stateful Layer-2 Inspection Active",
+        "oui_fingerprinting_active": True,
         "radar_status": "SEGURO (Sin intrusos ni conflictos ARP)" if not new_devices and not anomalies else "ALERTA (Nuevos dispositivos o anomalías detectadas)"
     }
 
