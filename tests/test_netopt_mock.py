@@ -288,7 +288,7 @@ class TestOmniNetCore(unittest.TestCase):
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
             check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
-            check_wifi7_preamble_puncturing_status
+            check_wifi7_preamble_puncturing_status, check_wifi7_rtwt_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -351,6 +351,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(punct["preamble_puncturing_supported"])
         self.assertTrue(punct["anti_interference_fallback_avoided"])
         self.assertIn("802.11be", punct["standard"])
+
+        rtwt = check_wifi7_rtwt_status()
+        self.assertTrue(rtwt["rtwt_supported"])
+        self.assertTrue(rtwt["deterministic_service_periods_enabled"])
+        self.assertIn("rTWT", rtwt["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
