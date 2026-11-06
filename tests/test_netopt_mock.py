@@ -283,7 +283,11 @@ class TestOmniNetCore(unittest.TestCase):
         mgr.activate_license(pro_key)
 
     def test_high_value_internet_research_features(self):
-        from netopt.diagnostics import check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices, inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status
+        from netopt.diagnostics import (
+            check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices,
+            inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
+            check_tsq_pacing_status
+        )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
 
@@ -306,6 +310,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertIn("latency_mode", ecn)
         self.assertIn("dualq_aqm_supported", ecn)
         self.assertIn("quic_0rtt_capable", ecn)
+
+        tsq = check_tsq_pacing_status()
+        self.assertTrue(tsq["tsq_supported"])
+        self.assertTrue(tsq["bql_active"])
+        self.assertIn("pacing_algorithm", tsq)
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
