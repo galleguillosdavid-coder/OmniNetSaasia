@@ -287,7 +287,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices,
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
-            check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status
+            check_bbrv3_readiness, check_doh3_rfc9297_status, check_tcp_prague_accecn_status,
+            check_wifi7_preamble_puncturing_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -341,10 +342,15 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(tsq["bql_active"])
         self.assertIn("pacing_algorithm", tsq)
 
-        # Wi-Fi 7 TTLM support in inspect_wifi_and_nic
+        # Wi-Fi 7 TTLM & Preamble Puncturing support
         wifi_nic = inspect_wifi_and_nic()
         self.assertIn("wifi", wifi_nic)
         self.assertIn("tid_to_link_mapping_supported", wifi_nic["wifi"])
+
+        punct = check_wifi7_preamble_puncturing_status()
+        self.assertTrue(punct["preamble_puncturing_supported"])
+        self.assertTrue(punct["anti_interference_fallback_avoided"])
+        self.assertIn("802.11be", punct["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

@@ -273,6 +273,7 @@ class NetworkOptimizer:
             actions.append("Activar mitigación de agujeros negros de MTU (EnablePMTUBHDetect=1 / RFC 4821)")
             actions.append("Prevenir fugas de DNS desactivando Smart Multi-Homed Name Resolution (DisableSmartNameResolution=1)")
             actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
+            actions.append("Activar Wi-Fi 7 Preamble Puncturing para evasión dinámica de interferencias en canales de 160/320 MHz")
             actions.append("Activar TCP HyStart++ (RFC 9406) y algoritmo CUBIC contra bufferbloat en arranque")
             actions.append("Habilitar retroalimentación L4S/AccECN acoplada para colas DualPI2 AQM de sub-milisegundo")
 
