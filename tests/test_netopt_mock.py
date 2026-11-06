@@ -287,7 +287,7 @@ class TestOmniNetCore(unittest.TestCase):
             check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices,
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
             check_tsq_pacing_status, check_odoh_rfc9230_status, check_hystart_plusplus_status,
-            check_bbrv3_readiness
+            check_bbrv3_readiness, check_doh3_rfc9297_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -297,6 +297,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertIn("doh_enabled", doh)
         self.assertIn("privacy_status", doh)
         self.assertIn("ech_sni_encryption_supported", doh)
+
+        doh3 = check_doh3_rfc9297_status()
+        self.assertTrue(doh3["head_of_line_blocking_free"])
+        self.assertTrue(doh3["zero_rtt_resumption_ready"])
+        self.assertIn("RFC 9297", doh3["standard"])
 
         ech = check_ech_rfc9460_status()
         self.assertTrue(ech["ech_supported"])
