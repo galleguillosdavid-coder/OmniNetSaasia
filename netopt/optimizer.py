@@ -274,6 +274,7 @@ class NetworkOptimizer:
             actions.append("Prevenir fugas de DNS desactivando Smart Multi-Homed Name Resolution (DisableSmartNameResolution=1)")
             actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
             actions.append("Activar TCP HyStart++ (RFC 9406) y algoritmo CUBIC contra bufferbloat en arranque")
+            actions.append("Habilitar retroalimentación L4S/AccECN acoplada para colas DualPI2 AQM de sub-milisegundo")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)
