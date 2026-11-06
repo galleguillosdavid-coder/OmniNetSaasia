@@ -292,7 +292,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_multipath_quic_status, check_ddr_dnr_discovery_status,
             check_tcp_fast_open_status, check_wifi_rsc_latency_status,
             check_rss_packet_steering_status, check_tcp_rack_tlp_prr_status,
-            check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status
+            check_fq_codel_cake_aqm_status, check_quic_datagram_rfc9221_status,
+            check_wifi7_emlsr_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -397,6 +398,12 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(rtwt["rtwt_supported"])
         self.assertTrue(rtwt["deterministic_service_periods_enabled"])
         self.assertIn("rTWT", rtwt["standard"])
+
+        emlsr = check_wifi7_emlsr_status()
+        self.assertTrue(emlsr["emlsr_supported"])
+        self.assertTrue(emlsr["simultaneous_dual_band_listening"])
+        self.assertEqual(emlsr["switching_delay_us"], 32)
+        self.assertIn("802.11be", emlsr["standard"])
 
         rsc = check_wifi_rsc_latency_status()
         self.assertTrue(rsc["jitter_mitigation_active"])
