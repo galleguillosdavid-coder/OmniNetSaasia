@@ -29,3 +29,4 @@ def get_hermes_engine() -> HermesSelfImprovementEngine:
     if _engine_instance is None:
         _engine_instance = HermesSelfImprovementEngine()
     return _engine_instance
+

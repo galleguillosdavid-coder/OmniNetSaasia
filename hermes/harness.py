@@ -193,3 +193,4 @@ class HermesAgentHarness:
             duration_ms=duration_ms,
             model_used=self.config.model
         )
+
