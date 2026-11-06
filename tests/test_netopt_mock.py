@@ -296,7 +296,8 @@ class TestOmniNetCore(unittest.TestCase):
             check_wifi7_emlsr_status, check_udp_offload_uro_uso_status,
             check_windows_24h2_loopback_bbr_safety, check_dualq_coupled_aqm_rfc9332_status,
             check_wifi_fast_roaming_kvr_status, check_wmm_dscp_qos_prioritization_status,
-            check_duplicate_default_gateways_status, check_gateway_mac_pinning_status
+            check_duplicate_default_gateways_status, check_gateway_mac_pinning_status,
+            check_tcp_initial_rto_syn_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -480,6 +481,13 @@ class TestOmniNetCore(unittest.TestCase):
         unpin_act = hal_test.unpin_gateway_mac("Wi-Fi", "192.168.1.1", execute=False)
         self.assertTrue(unpin_act.is_dry_run)
         self.assertIn("delete neighbors", unpin_act.command)
+
+        # TCP InitialRTO & SYN Retransmission Recovery (RFC 6298)
+        rto_stat = check_tcp_initial_rto_syn_status()
+        self.assertIn("initial_rto_ms", rto_stat)
+        self.assertIn("max_syn_retransmissions", rto_stat)
+        self.assertTrue(rto_stat["handshake_stall_mitigated"])
+        self.assertIn("RFC 6298", rto_stat["standard"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()

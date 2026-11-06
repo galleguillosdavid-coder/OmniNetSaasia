@@ -83,6 +83,18 @@ class NetworkOptimizer:
                 command="netsh int tcp set global dca=enabled",
                 is_dry_run=self.hal.dry_run
             ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Tune TCP InitialRTO to 2000ms for fast handshake recovery on packet loss (RFC 6298)",
+                command="netsh int tcp set global initialrto=2000",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Set Max SYN Retransmissions to 2 to eliminate prolonged hangs on dead endpoints",
+                command="netsh int tcp set global maxsynretransmissions=2",
+                is_dry_run=self.hal.dry_run
+            ))
 
         elif plat == PlatformType.LINUX:
             reasons.append("Tuning Linux kernel TCP stack: BBR congestion control, FQ pacing, TCP Fast Open, and buffer expansion.")
@@ -183,7 +195,9 @@ class NetworkOptimizer:
                 self.hal.set_tcp_parameters({
                     "autotuninglevel": "normal",
                     "rss": "enabled",
-                    "rsc": "enabled"
+                    "rsc": "enabled",
+                    "initialrto": "2000",
+                    "maxsynretransmissions": "2"
                 }, execute=True)
             elif plat == PlatformType.LINUX:
                 self.hal.set_tcp_parameters({
