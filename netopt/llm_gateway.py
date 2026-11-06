@@ -25,6 +25,7 @@ from .diagnostics import (
     inspect_wifi_and_nic,
     audit_lan_radar_devices,
     check_doh_status,
+    check_odoh_rfc9230_status,
     measure_bandwidth_speed,
     measure_target_metrics
 )
@@ -603,23 +604,25 @@ class LLMGateway:
             })
 
         # ------------------------------------------------------------------
-        # INTENT 2E: MAXIMUM PRIVACY & ENCRYPTED DNS (DoH)
+        # INTENT 2E: MAXIMUM PRIVACY & ENCRYPTED DNS (DoH / ODoH)
         # ------------------------------------------------------------------
         elif any(w in msg_lower for w in [
-            "privacidad", "doh", "cifrar dns", "dns cifrado", "espionaje", "seguridad web", "navegacion privada"
+            "privacidad", "doh", "odoh", "oblivious", "cifrar dns", "dns cifrado", "espionaje", "seguridad web", "navegacion privada"
         ]):
             executed_tool = "network_doh_privacy"
             hal = get_hal(dry_run=False)
             doh_logs = hal.enable_encrypted_dns_doh(execute=True)
             status_data = check_doh_status()
+            odoh_data = check_odoh_rfc9230_status()
             tool_output = {
                 "doh_status": status_data,
+                "odoh_status": odoh_data,
                 "actions": [l.description for l in doh_logs]
             }
             backend_trace.append({
                 "step": "DOH_PRIVACY",
                 "command": "hal.enable_encrypted_dns_doh(execute=True)",
-                "output": f"DoH Activo={status_data.get('doh_enabled')} | {status_data.get('privacy_status')}",
+                "output": f"DoH Activo={status_data.get('doh_enabled')} | ODoH Relays={odoh_data.get('relay_count')} | {status_data.get('privacy_status')}",
                 "status": "SUCCESS",
                 "duration_ms": 80.0
             })

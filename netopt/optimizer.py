@@ -271,6 +271,7 @@ class NetworkOptimizer:
             actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
             actions.append("Activar mitigación de agujeros negros de MTU (EnablePMTUBHDetect=1 / RFC 4821)")
             actions.append("Prevenir fugas de DNS desactivando Smart Multi-Homed Name Resolution (DisableSmartNameResolution=1)")
+            actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
 
         elif plat == PlatformType.LINUX:
             self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=1"], execute=execute)

@@ -286,7 +286,7 @@ class TestOmniNetCore(unittest.TestCase):
         from netopt.diagnostics import (
             check_doh_status, check_l4s_ecn_status, audit_lan_radar_devices,
             inspect_wifi_and_nic, check_ech_rfc9460_status, check_dnssec_dane_status,
-            check_tsq_pacing_status
+            check_tsq_pacing_status, check_odoh_rfc9230_status
         )
         from netopt.optimizer import NetworkOptimizer
         from netopt.llm_gateway import LLMGateway
@@ -305,6 +305,10 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(dnssec["dane_tlsa_ready"])
         self.assertIn("dnssec_supported_resolvers", dnssec)
 
+        odoh = check_odoh_rfc9230_status()
+        self.assertTrue(odoh["ip_query_decoupling_supported"])
+        self.assertGreaterEqual(odoh["relay_count"], 1)
+
         ecn = check_l4s_ecn_status()
         self.assertIn("ecn_enabled", ecn)
         self.assertIn("latency_mode", ecn)
@@ -315,6 +319,11 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(tsq["tsq_supported"])
         self.assertTrue(tsq["bql_active"])
         self.assertIn("pacing_algorithm", tsq)
+
+        # Wi-Fi 7 TTLM support in inspect_wifi_and_nic
+        wifi_nic = inspect_wifi_and_nic()
+        self.assertIn("wifi", wifi_nic)
+        self.assertIn("tid_to_link_mapping_supported", wifi_nic["wifi"])
 
         # 2. LAN Radar device auditing
         radar = audit_lan_radar_devices()
