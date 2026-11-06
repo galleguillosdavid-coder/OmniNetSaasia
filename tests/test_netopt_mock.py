@@ -222,6 +222,7 @@ class TestOmniNetCore(unittest.TestCase):
             res = inspect_wifi_and_nic()
             self.assertIn("wifi", res)
             self.assertIn("active_nics", res)
+            self.assertIn("preamble_puncturing_supported", res["wifi"])
 
     def test_multi_os_device_maintenance_engine(self):
         from netopt.device_maintenance import DeviceMaintenanceEngine, MULTI_OS_MAINTENANCE_CATALOG

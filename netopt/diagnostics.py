@@ -515,6 +515,14 @@ def inspect_wifi_and_nic() -> Dict[str, Any]:
     if any(w in rad for w in ["802.11be", "wifi 7", "wi-fi 7"]):
         wifi_info["is_wifi_7"] = True
         wifi_info["mlo_capable"] = True
+        wifi_info["preamble_puncturing_supported"] = True
+        wifi_info["emlsr_mode"] = "Enhanced Multi-Link Single Radio (Active)"
+        wifi_info["max_channel_width_mhz"] = 320
+    else:
+        wifi_info["is_wifi_7"] = False
+        wifi_info["mlo_capable"] = False
+        wifi_info["preamble_puncturing_supported"] = False
+        wifi_info["max_channel_width_mhz"] = 160 if "ax" in rad else 80
 
     return {
         "platform": plat.value,
