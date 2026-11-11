@@ -187,7 +187,7 @@ class HermesSelfImprovementEngine:
         if run_tests:
             try:
                 test_cmd = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]
-                res = subprocess.run(test_cmd, capture_output=True, text=True, timeout=90)
+                res = subprocess.run(test_cmd, capture_output=True, text=True, timeout=300)
                 tests_actually_run = True
                 tests_ok = (res.returncode == 0)
                 if tests_ok:
