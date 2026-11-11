@@ -115,6 +115,24 @@ class TestFastAPIApp(unittest.TestCase):
         self.assertIn("/api/optimize", paths)
         self.assertIn("/api/device/maintain", paths)
 
+    def test_repair_endpoint_dry_run(self):
+        resp = self.client.post("/api/repair", json={"execute": False})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertFalse(data["applied"])
+        self.assertIn("failure_type", data)
+        self.assertIn("triage_logs", data)
+        self.assertIn("actions", data)
+
+    def test_rollback_endpoint_dry_run(self):
+        resp = self.client.post("/api/rollback", json={"snapshot_id": "test_snap_001", "execute": False})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["snapshot_id"], "test_snap_001")
+        self.assertFalse(data["applied"])
+        self.assertIn("logs", data)
+
+
 
 
 
