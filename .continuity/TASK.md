@@ -1,7 +1,7 @@
 # Tarea activa
 
 ## Objetivo observable
-Ciclo 61: Ejecución y cumplimiento integral del mandato de adopción de bibliotecas maduras (`docs/MIGRACION_BIBLIOTECAS.md` y `docs/Auditorias/3.md` §245-285): migración completa de la REST API hacia FastAPI y Uvicorn (`netopt/fastapi_app.py` y `main.py`) con preservación 100% de contratos HTTP y esquemas Pydantic v2, creación de suite de pruebas en `tests/test_fastapi_app.py`, elevando la suite general a 136/136 tests unitarios aprobados al 100%, servidor FastAPI/Uvicorn activo en puerto 8877 (`task-2630`) y temporizador de 40 min en curso (`task-2483`).
+Ciclo 63: Documentar y formalizar la directiva de auto-propuesta y ejecución de tareas propias en el ciclo autónomo (`AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `README.md`): el agente no solo inspecciona pasivamente el computador anfitrión, sino que evalúa de forma global el proyecto y formula, propone y ejecuta tareas de ingeniería según la ocasión lo demande, garantizando 100% tests aprobados (136/136 OK) y manteniendo activo el servidor FastAPI y el ciclo de 40 minutos.
 
 ## Contexto que se debe consultar
 - `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`

@@ -31,13 +31,12 @@
   - El agente mantiene activo un flujo programado cada 40 minutos (`DurationSeconds=2400` mediante la herramienta `schedule`).
   - Misión de cada ciclo de 40 min sin paradigmas dogmáticos:
     1. **Rotación y Revisión Multimódulo**: Recorrer y analizar sistemáticamente distintas áreas del código (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `.agents/`, `memory/`, `docs/`).
-    2. **Armonización Documental Continua**: Auditar y alinear la documentación viva contra la realidad técnica ejecutable (código, APIs, tests y dependencias), garantizando una única fuente de verdad epistemológica.
-    3. **Investigación Tecnológica Abierta en Internet**: Exploración de transportes modernos (L4S, BBRv3, DoQ, ECH, Wi-Fi 7 MLO, MASQUE) y bibliotecas maduras probadas (`docs/Auditorias/3.md`).
-    4. **Sustitución Progresiva por Bibliotecas Maduras**: Reducción de código artesanal innecesario mediante adaptadores limpios (Pydantic, httpx, psutil, cryptography, fastapi).
-    5. **Verificación Inviolable de Cero Regresiones**: Comprobación estricta de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
-    6. **Informe Breve y Conciso al Usuario**: Máximo 3-5 líneas directas.
-    4. Auto-evolución continua de prompts, heurísticas y capacidades del software SaaS.
-    5. Informe breve y conciso al usuario (máximo 3-4 líneas).
+    2. **Iniciativa y Auto-Propuesta de Tareas Propias (Superando la Mera Inspección Pasiva)**: El ciclo autónomo no se restringe a revisar pasivamente el computador anfitrión; el agente debe evaluar permanentemente el proyecto y **formular, proponer y ejecutar de manera autónoma sus propias tareas de ingeniería** (refactorizaciones, robustecimiento de pruebas, nuevas características, arquitectura y optimizaciones) según la ocasión y el estado técnico lo requieran.
+    3. **Armonización Documental Continua**: Auditar y alinear la documentación viva contra la realidad técnica ejecutable (código, APIs, tests y dependencias), garantizando una única fuente de verdad epistemológica.
+    4. **Investigación Tecnológica Abierta en Internet**: Exploración de transportes modernos (L4S, BBRv3, DoQ, ECH, Wi-Fi 7 MLO, MASQUE) y bibliotecas maduras probadas (`docs/Auditorias/3.md`).
+    5. **Sustitución Progresiva por Bibliotecas Maduras**: Reducción de código artesanal innecesario mediante adaptadores limpios (Pydantic, httpx, psutil, cryptography, fastapi).
+    6. **Verificación Inviolable de Cero Regresiones**: Comprobación estricta de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
+    7. **Informe Breve y Conciso al Usuario**: Máximo 3-5 líneas directas.
 
 - **B. Ciclos Autónomos del Software Creado (OmniNet):**
   - El software OmniNet **no depende de un intervalo rígido externo**: opera de forma continua y autónoma, ejecutando tareas y ciclos de optimización, mantenimiento y autorreparación **cada vez que sea necesario** sobre cualquiera de sus 10 subsistemas (Redes, Antivirus, Limpieza BleachBit, Drivers SDIO, Temperatura, Arranque, Desinstalación limpia, Privacidad/Anti-telemetría, Reparación OS y Respaldo).

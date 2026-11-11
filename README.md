@@ -136,8 +136,21 @@ Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estric
 ├── .continuity/                    # Capa de continuidad externa persistente (PROJECT, STATE, DECISIONS, TASK)
 ├── netopt/                         # Núcleo de red, diagnósticos L1-L7 y subsistemas
 ├── cloud_server/                   # Proxy SaaS y cliente Supabase
-└── tests/                          # 135 Pruebas unitarias automatizadas (100% aprobadas)
+└── tests/                          # 136 Pruebas unitarias automatizadas (100% aprobadas)
 ```
+
+---
+
+## 🔄 Ciclos Autónomos del Agente y del Software OmniNet
+
+El proyecto opera bajo un modelo de doble ciclo inteligente:
+1. **Ciclo Autónomo del Agente IA (Cada 40 Minutos):**
+   - **Auto-Propuesta de Tareas Propias:** El agente no se limita a una simple revisión pasiva del computador anfitrión. Evalúa permanentemente el repositorio, detecta cuellos de botella técnicos y **propone y ejecuta autónomamente sus propias tareas de ingeniería** (refactorizaciones, pruebas, optimizaciones o adopción de bibliotecas) según la ocasión lo demande.
+   - **Rotación Multimódulo y Armonización Documental:** Explora sistemáticamente todos los módulos (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `docs/`) manteniendo coherencia técnica y epistemológica absoluta.
+   - **Compuerta de Cero Regresiones:** Verificación del 100% de la suite de pruebas unitarias (136/136 OK) antes de cada entrega.
+
+2. **Ciclo Autónomo del Software Creado (OmniNet):**
+   - Opera de forma continua por demanda y eventos del sistema operativo, monitorizando y manteniendo los 10 subsistemas del ecosistema bajo la salvaguarda de Zero NetLoss.
 
 ---
 

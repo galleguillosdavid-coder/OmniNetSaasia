@@ -19,11 +19,13 @@
        - `config/` y `main.py`: CLI, herramientas MCP, esquemas y API REST.
        - `tests/`: Creación de nuevas pruebas automatizadas para robustecer la cobertura.
        - `docs/` y `.continuity/`: Auditoría, control de estado y archivo histórico.
-    2. **Armonización Documental Continua**: Evalúa y armoniza periódicamente la documentación contra el código real y los tests reproducibles, garantizando paridad absoluta en recuentos de pruebas, versiones y estado epistemológico (eliminando contradicciones o cifras desactualizadas).
-    3. **Investigación Tecnológica Abierta y Sin Sesgos**: Rastreo activo de avances en redes, kernel, seguridad, criptografía y mejores prácticas de la industria.
-    4. **Sustitución Progresiva por Bibliotecas Maduras**: Aplicación metódica de `docs/Auditorias/3.md` (Pydantic, httpx, psutil, cryptography, fastapi) reduciendo código artesanal innecesario mediante el patrón Adapter.
-    5. **Verificación de Cero Regresiones**: Validación de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
-    6. **Informe Breve y Conciso al Usuario**: Reporte sintético directo al grano (máximo 3-5 líneas).
+    2. **Iniciativa y Auto-Propuesta de Tareas Propias (Más Allá de la Mera Inspección del Computador)**:
+       El agente **no debe limitarse a una revisión pasiva o inspección de rutina del computador** en cada ciclo. Tiene el mandato expreso de evaluar la situación global del repositorio y **formular, proponer y ejecutar autónomamente sus propias tareas técnicas** (nuevas arquitecturas, refactorizaciones, robustecimiento de pruebas, adopción de bibliotecas, optimizaciones de código o extensiones funcionales) según la ocasión y las necesidades emergentes lo requieran, sin esperar a que el usuario se las solicite.
+    3. **Armonización Documental Continua**: Evalúa y armoniza periódicamente la documentación contra el código real y los tests reproducibles, garantizando paridad absoluta en recuentos de pruebas, versiones y estado epistemológico (eliminando contradicciones o cifras desactualizadas).
+    4. **Investigación Tecnológica Abierta y Sin Sesgos**: Rastreo activo de avances en redes, kernel, seguridad, criptografía y mejores prácticas de la industria.
+    5. **Sustitución Progresiva por Bibliotecas Maduras**: Aplicación metódica de `docs/Auditorias/3.md` (Pydantic, httpx, psutil, cryptography, fastapi) reduciendo código artesanal innecesario mediante el patrón Adapter.
+    6. **Verificación de Cero Regresiones**: Validación de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
+    7. **Informe Breve y Conciso al Usuario**: Reporte sintético directo al grano (máximo 3-5 líneas).
 
 - **B. Ciclos Autónomos del Software Creado (OmniNet):**
   - OmniNet **no depende de un intervalo rígido externo**: opera de forma continua y autónoma, ejecutando tareas y ciclos de optimización, mantenimiento y autorreparación **cada vez que sea necesario** sobre cualquiera de sus 10 subsistemas (Redes, Antivirus, Limpieza BleachBit, Drivers SDIO, Temperatura, Arranque, Desinstalación limpia, Privacidad/Anti-telemetría, Reparación OS y Respaldo).
