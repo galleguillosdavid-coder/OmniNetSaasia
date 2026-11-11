@@ -1,5 +1,12 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-10 — Ciclo 58: Adopción de `HttpClientAdapter` en `netopt/licensing.py` (125 Tests OK)
+- **Objetivo:** Sustitución de `urllib.request` en `netopt/licensing.py` por `HttpClientAdapter` (`httpx`) para validación de licencias en la nube con fallback resiliente, creación de test unitario en `tests/test_mature_adapters.py`, elevando la suite general a 125 tests aprobados al 100% en 133.3s. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 125/125 tests en la suite general en 133.3s.
+- **Commit / Ref:** Ciclo 58 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_mature_adapters.py -v` (6/6 OK) y `python -m unittest discover -s tests -v` (125/125 OK).
+- **Pendientes:** Rotación hacia FastAPI y preparación de esquema de firmas asimétricas Ed25519.
+
 ## 2026-11-10 — Ciclo 57: Integración Multimódulo de Adaptadores HTTP y Validación Pydantic v2 (124 Tests OK)
 - **Objetivo:** Integración del adaptador `HttpClientAdapter` (`httpx`) en `netopt/llm_gateway.py` y `cloud_server/proxy_server.py`, y validación tipada estricta con Pydantic v2 en `main.py` (`OmniNetAPIHandler`: `ChatRequest`, `OptimizeRequest`, `SubagentRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`); suite general ampliada a 124 tests aprobados al 100% en 121.7s. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
 - **Resultado:** APROBADO al 100%. 2 tests nuevos y 124/124 tests en la suite general en 121.7s.

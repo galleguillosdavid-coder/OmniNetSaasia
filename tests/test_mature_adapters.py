@@ -53,6 +53,19 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(data.get("valid"))
         self.assertEqual(data.get("plan"), "pro")
 
+    @patch("netopt.adapters.HttpClientAdapter.post_json")
+    def test_license_manager_activate_license_uses_http_adapter(self, mock_post):
+        from netopt.licensing import LicenseManager
+        mock_post.return_value = (200, {"valid": True, "plan": "pro"})
+
+        lm = LicenseManager()
+        lm.state["cloud_proxy_url"] = "http://mock-cloud.omninet.ai"
+        res = lm.activate_license("OMNI-PRO-1234-5678-ABCD1234ABCD1234ABCD1234ABCD1234", "user@test.com")
+
+        mock_post.assert_called_once()
+        self.assertTrue(res["success"])
+        self.assertEqual(res["plan"], "pro")
+
 
 if __name__ == "__main__":
     unittest.main()

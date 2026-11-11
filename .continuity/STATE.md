@@ -1,17 +1,17 @@
 # Estado comprobado
 
-Última actualización: 2026-11-10T22:50:00-03:00
-Commit validado: Ciclo 57 validado en suite de 124 tests
+Última actualización: 2026-11-10T23:05:00-03:00
+Commit validado: Ciclo 58 validado en suite de 125 tests
 
 ## Funciona y tiene evidencia
-- Suite de pruebas unitarias — 124/124 tests aprobados al 100% (`python -m unittest discover -s tests -v` en 121.7s)
-- Adaptadores de Bibliotecas Maduras (`netopt/adapters.py`) — `SystemResourceAdapter` (`psutil`: CPU, RAM, packet drops en NICs y procesos top consumidores de sockets de red) y `HttpClientAdapter` (`httpx`: pooling y comunicación HTTP resiliente) integrados en `netopt/llm_gateway.py` y `cloud_server/proxy_server.py`
+- Suite de pruebas unitarias — 125/125 tests aprobados al 100%
+- Adaptadores de Bibliotecas Maduras (`netopt/adapters.py`) — `SystemResourceAdapter` (`psutil`: CPU, RAM, packet drops en NICs y procesos top consumidores de sockets de red) y `HttpClientAdapter` (`httpx`: pooling y comunicación HTTP resiliente) integrados en `netopt/llm_gateway.py`, `cloud_server/proxy_server.py` y `netopt/licensing.py` (activación cloud con fallback)
 - Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`, `LicenseActivationRequest` y `TelemetryReport` integrados en los endpoints de `main.py`
 - Auditoría Técnica y Mandato de Bibliotecas Maduras — Completados e integrados en `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`
 - Seguridad AutoSentinel (OMNI-038) — Nace inactivo (`enabled=False`), HAL forzado a `dry_run=True` por defecto, reparaciones en vivo protegidas por `OMNINET_ALLOW_LIVE_AUTOREPAIR` y arranque automático eliminado de `start_api_server()`
 - Política Fail-Closed en Secretos (OMNI-039A) — `get_signing_secret()` en `netopt/licensing.py` no tiene secreto hardcodeado; en producción sin `OMNINET_LICENSE_SECRET` bloquea emisión y verificación, y en desarrollo emite alerta explícita
 - Servidor Web UI y API local — Escuchando activamente en `http://127.0.0.1:8877/` (HTTP 200 OK verificado)
-- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`: ping 32.13 ms, jitter 0.86 ms, packet loss 0%)
+- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`: ping 29.81 ms, jitter 0.37 ms, packet loss 0%)
 - Colector global de métricas de dispositivos — Endpoint `/v1/telemetry/report` en `cloud_server/proxy_server.py` comprobado
 - Colector de conversaciones y retroalimentación de IA — Almacenamiento local y cloud comprobado
 - Telemetría RFC 9743 (BCP 133 Congestion Guidelines) y RFC 9287 (Greasing the QUIC Bit 0x2ab2) — Comprobadas en `check_rfc9743_congestion_bcp133_and_rfc9287_quic_grease_status()`

@@ -16,6 +16,11 @@ import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional, Tuple
 
+try:
+    from .adapters import HttpClientAdapter
+except (ImportError, ValueError):
+    from netopt.adapters import HttpClientAdapter
+
 LICENSE_STATE_FILE = os.path.expanduser("~/.netopt_state/license_state.json")
 
 
@@ -206,14 +211,33 @@ class LicenseManager:
         # 1. Try Cloud Proxy validation if configured
         cloud_url = self.state.get("cloud_proxy_url", "").strip()
         if cloud_url:
+            act_url = f"{cloud_url.rstrip('/')}/v1/license/activate"
+            act_payload = {
+                "license_key": clean_key,
+                "device_id": self.device_id,
+                "email": email
+            }
+            if HttpClientAdapter.is_available():
+                status_code, cdata = HttpClientAdapter.post_json(act_url, act_payload, timeout_sec=8.0)
+                if status_code == 200 and isinstance(cdata, dict) and cdata.get("valid"):
+                    plan_unlocked = cdata.get("plan", "pro")
+                    self.state["plan"] = plan_unlocked
+                    self.state["license_key"] = clean_key
+                    self.state["email"] = email
+                    self.state["ai_queries_limit"] = PLAN_CATALOG[plan_unlocked]["monthly_ai_limit"]
+                    self.state["activated_at"] = time.time()
+                    self.save_state()
+                    return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
+                elif status_code in (401, 403) or (isinstance(cdata, dict) and cdata.get("valid") is False):
+                    return {
+                        "success": False,
+                        "plan": self.state.get("plan", "free"),
+                        "message": cdata.get("error") if isinstance(cdata, dict) else "Licencia rechazada por el servidor de activación."
+                    }
             try:
                 req = urllib.request.Request(
-                    f"{cloud_url.rstrip('/')}/v1/license/activate",
-                    data=json.dumps({
-                        "license_key": clean_key,
-                        "device_id": self.device_id,
-                        "email": email
-                    }).encode("utf-8"),
+                    act_url,
+                    data=json.dumps(act_payload).encode("utf-8"),
                     headers={"Content-Type": "application/json"},
                     method="POST"
                 )
