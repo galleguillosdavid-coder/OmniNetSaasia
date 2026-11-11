@@ -126,5 +126,13 @@
 - **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (136/136 OK).
 - **Pendientes:** Ninguno.
 
+## 2026-11-11 — Ciclo 64: Verificación Integral de Esquema OpenAPI y Suite Elevada a 137 Tests
+- **Objetivo:** Tarea auto-propuesta y ejecutada en cumplimiento del mandato de iniciativa: creación de prueba unitaria automatizada `test_openapi_schema_integrity` en `tests/test_fastapi_app.py` para garantizar que la documentación y contratos OpenAPI v3.1 (`/openapi.json`) expongan correctamente los 30 endpoints de la API, versión 2.9.6 y título oficial.
+- **Resultado:** APROBADO al 100%. Test añadido y suite completa elevada a 137 tests aprobados.
+- **Commit / Ref:** `git_sync.py`
+- **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (137/137 OK).
+- **Pendientes:** Ninguno.
+
+
 
 

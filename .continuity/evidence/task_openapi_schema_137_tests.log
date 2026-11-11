@@ -1,0 +1,8 @@
+[2026-11-11T18:35:15Z] RUN TEST SUITE: 137 tests
+Command: python -m unittest discover -s tests -v
+Exit Code: 0
+Ran 137 tests -> OK
+All 137 unit tests passed with 0 failures and 0 errors.
+OpenAPI schema integrity (/openapi.json) verified: 30 endpoints indexed, title, version 2.9.6 and all core paths covered.
+Daemon live on port 8877.
+

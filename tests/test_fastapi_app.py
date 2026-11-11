@@ -94,6 +94,21 @@ class TestFastAPIApp(unittest.TestCase):
         self.assertTrue(data.get("verified"))
         self.assertIn("actions_executed", data)
 
+    def test_openapi_schema_integrity(self):
+        resp = self.client.get("/openapi.json")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data.get("info", {}).get("title"), "OmniNet AI Agent Pro API")
+        self.assertEqual(data.get("info", {}).get("version"), "2.9.6")
+        paths = data.get("paths", {})
+        self.assertGreaterEqual(len(paths), 25)
+        self.assertIn("/health", paths)
+        self.assertIn("/api/subagents", paths)
+        self.assertIn("/api/chat", paths)
+        self.assertIn("/api/optimize", paths)
+        self.assertIn("/api/device/maintain", paths)
+
+
 
 
 if __name__ == "__main__":
