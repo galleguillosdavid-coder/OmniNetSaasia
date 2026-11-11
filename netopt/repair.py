@@ -73,6 +73,11 @@ class NetworkRepairEngine:
             logs.append("Public internet is reachable, but DNS name resolution is failing.")
             return "L4_DNS_FAILURE", logs
 
+        # Check Path MTU Black Hole (RFC 4821 PLPMTUD)
+        if diag.detected_pmtu and 0 < diag.detected_pmtu < 1400:
+            logs.append(f"Posible agujero negro de MTU detectado (Path MTU={diag.detected_pmtu} < 1400).")
+            return "L3_PMTU_BLACKHOLE", logs
+
         if diag.overall_health == HealthState.DEGRADED:
             logs.append("High packet loss or extreme jitter detected.")
             return "L7_HIGH_LOSS_OR_DEGRADED", logs
@@ -131,6 +136,23 @@ class NetworkRepairEngine:
             # Action: Prune rogue/stale duplicate gateways and flush DNS
             prune_logs = self.hal.prune_duplicate_default_gateways(execute=execute)
             actions.extend(prune_logs)
+            act_flush = self.hal.flush_dns_cache(execute=execute)
+            actions.append(act_flush)
+
+        elif failure_type == "L3_PMTU_BLACKHOLE":
+            # Action: Enable RFC 4821 PLPMTUD Black Hole Detection and flush DNS
+            plat = detect_platform()
+            if plat == PlatformType.WINDOWS:
+                act = self.hal.run_cmd([
+                    "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                    "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f"
+                ], execute=execute)
+                act.description = "Enable RFC 4821 PLPMTUD Black Hole Detection in Windows Registry"
+                actions.append(act)
+            elif plat == PlatformType.LINUX:
+                act = self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
+                act.description = "Enable RFC 4821 PLPMTUD in Linux kernel (tcp_mtu_probing=1)"
+                actions.append(act)
             act_flush = self.hal.flush_dns_cache(execute=execute)
             actions.append(act_flush)
 

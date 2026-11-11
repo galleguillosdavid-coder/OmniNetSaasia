@@ -215,6 +215,39 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
         self.assertEqual(pkg_version, "2.9.6")
         self.assertEqual(mcp_version, "2.9.6")
 
+    # T-23: Triage jerárquico L3_PMTU_BLACKHOLE y remediación RFC 4821
+    def test_t23_pmtu_blackhole_triage_and_remediation(self):
+        from netopt.repair import NetworkRepairEngine
+        from netopt.models import DiagnosticsReport, HealthState, PlatformType
+        from netopt.hal import WindowsHAL
+
+        mock_hal = WindowsHAL(dry_run=True)
+        repair = NetworkRepairEngine(hal=mock_hal)
+        blackhole_diag = DiagnosticsReport(
+            timestamp=1000.0,
+            platform=PlatformType.WINDOWS,
+            overall_health=HealthState.DEGRADED,
+            default_gateway="192.168.1.1",
+            gateway_reachable=True,
+            internet_reachable=True,
+            dns_resolving=True,
+            dns_benchmarks=[],
+            latency_metrics={},
+            detected_pmtu=1360,
+            bufferbloat_grade="C",
+            active_interface="Wi-Fi"
+        )
+        ft, logs = repair.diagnose_and_triage(diag=blackhole_diag)
+        self.assertEqual(ft, "L3_PMTU_BLACKHOLE")
+        self.assertTrue(any("1360" in l for l in logs))
+
+        acts = repair.execute_triage_repair(ft, execute=False)
+        self.assertGreaterEqual(len(acts), 2)
+        bh_act = [a for a in acts if "EnablePMTUBHDetect" in str(a.command or "")]
+        self.assertEqual(len(bh_act), 1)
+        self.assertIn("RFC 4821", bh_act[0].description)
+
+
 
 if __name__ == "__main__":
     unittest.main()

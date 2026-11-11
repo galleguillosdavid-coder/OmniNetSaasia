@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-11 — Ciclo 70: Triage Jerárquico de Agujeros Negros de MTU (RFC 4821 PLPMTUD) y Suite a 151 Tests (151 Tests OK)
+- **Objetivo:** Rotación técnica hacia `netopt/repair.py`: extensión del árbol de triage OSI con detección de `L3_PMTU_BLACKHOLE` (Path MTU constreñido < 1400) y remediación automatizada mediante activación de `EnablePMTUBHDetect=1` (Windows Registry) / `tcp_mtu_probing=1` (Linux sysctl) y flush de caché DNS. Nueva prueba `test_t23_pmtu_blackhole_triage_and_remediation` en `tests/test_audit_executive_remediation.py`, elevando la suite general a 151 tests unitarios aprobados al 100% en 145.1s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 151/151 tests aprobados en 145.1s.
+- **Commit / Ref:** Ciclo 70 validado.
+- **Pruebas ejecutadas:** `tests/test_audit_executive_remediation.py` (23/23 OK) y `python -m unittest discover -s tests -v` (151/151 OK).
+- **Pendientes:** Mantener activo daemon FastAPI y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-11 — Ciclo 69: Transferencia Binaria httpx en Medición de Ancho de Banda y Velocidad Edge (150 Tests OK)
 - **Objetivo:** Rotación técnica hacia `netopt/adapters.py` y `netopt/diagnostics.py`: incorporación de los métodos `get_bytes()` y `post_bytes()` en `HttpClientAdapter` (`httpx`), e integración en la función de medición de ancho de banda y velocidad edge (`measure_bandwidth_speed`) contra Cloudflare con fallback transparente a `urllib.request`. Pruebas unitarias en `tests/test_mature_adapters.py`, elevando la suite general a 150 tests unitarios aprobados al 100% en 150.2s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 2 tests nuevos y 150/150 tests aprobados en 150.2s.
