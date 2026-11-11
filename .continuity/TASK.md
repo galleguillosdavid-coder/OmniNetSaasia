@@ -1,7 +1,7 @@
 # Tarea activa
 
 ## Objetivo observable
-Ciclo 53: Cierre de OMNI-038 (aislamiento y fail-safe de AutoSentinel en `netopt/auto_trigger.py`, `main.py` y `tests/test_autosentinel_safety.py`), preservando 109/109 tests aprobados al 100%, con temporizador de 40 min renovado y a la espera de instrucciones para OMNI-039 (Ed25519 licensing).
+Ciclo 54: Consolidación de la auditoría técnica y mandato de adopción de bibliotecas maduras (`docs/Auditorias/2.md` y `docs/Auditorias/3.md`), con unificación de versión v2.9.6, suite en 110/110 tests aprobados al 100%, telemetría in situ del host validada y temporizador de 40 min renovado para Ciclo 55 (`task-2401`).
 
 ## Contexto que se debe consultar
 - `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`
@@ -9,14 +9,16 @@ Ciclo 53: Cierre de OMNI-038 (aislamiento y fail-safe de AutoSentinel en `netopt
 - `.continuity/STATE.md`
 - `.continuity/DECISIONS.md`
 - `PROJECT_STATE.md`
-- `mt.md`
+- `docs/Auditorias/2.md`
+- `docs/Auditorias/3.md`
 
 ## Criterios de aceptación
-- [x] OMNI-038 implementado estrictamente según directiva quirúrgica.
-- [x] Pruebas de seguridad `tests/test_autosentinel_safety.py` (2/2 OK).
-- [x] Suite completa aprobada al 100% (109/109 OK).
-- [x] Memoria `.continuity/` actualizada.
-- [x] Temporizador de ciclo autónomo renovado a 40 minutos (`task-2331`).
+- [x] OMNI-038 implementado y verificado (3 tests en `test_autosentinel_safety.py`).
+- [x] Política Fail-Closed y unificación de versión v2.9.6 verificadas.
+- [x] Suite completa aprobada al 100% (110/110 OK en 117.4s).
+- [x] Telemetría in situ del host confirmada (ping 39.14 ms, jitter 1.47 ms, pérdida 0%).
+- [x] Temporizador autónomo de 40 min renovado (`task-2401`).
+- [ ] Ejecución por fases del mandato de adopción de bibliotecas maduras (`docs/MIGRACION_BIBLIOTECAS.md`).
 - [ ] Implementación de OMNI-039 (Ed25519) tras recibir autorización e instrucciones detalladas.
 - [ ] Push dual a `origin` y `upstream-operador` una vez autorizado.
 - Comunicación concisa al usuario (máximo 3-5 líneas).

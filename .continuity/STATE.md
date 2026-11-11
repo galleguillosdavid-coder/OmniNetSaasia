@@ -1,15 +1,16 @@
 # Estado comprobado
 
-Última actualización: 2026-11-10T21:12:00-03:00
-Commit validado: 563e234 (OMNI-038 y auditorías 2 y 3 validados en suite de 110 tests)
+Última actualización: 2026-11-10T21:58:00-03:00
+Commit validado: 48941d4 (historial unificado y suite elevada a 117 tests con Pydantic v2)
 
 ## Funciona y tiene evidencia
-- Suite de pruebas unitarias — 110/110 tests aprobados al 100% (`python -m unittest discover -s tests -v` en 128.3s)
+- Suite de pruebas unitarias — 117/117 tests aprobados al 100% (`python -m unittest discover -s tests -v` en 118.4s)
+- Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `LicenseActivationRequest` y `TelemetryReport` (7 tests dedicados en `tests/test_pydantic_schemas.py`)
 - Auditoría Técnica y Mandato de Bibliotecas Maduras — Completados e integrados en `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`
 - Seguridad AutoSentinel (OMNI-038) — Nace inactivo (`enabled=False`), HAL forzado a `dry_run=True` por defecto, reparaciones en vivo protegidas por `OMNINET_ALLOW_LIVE_AUTOREPAIR` y arranque automático eliminado de `start_api_server()`
 - Política Fail-Closed en Secretos (OMNI-039A) — `get_signing_secret()` en `netopt/licensing.py` no tiene secreto hardcodeado; en producción sin `OMNINET_LICENSE_SECRET` bloquea emisión y verificación, y en desarrollo emite alerta explícita
 - Servidor Web UI y API local — Escuchando activamente en `http://127.0.0.1:8877/` (HTTP 200 OK verificado)
-- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`: ping 38.31 ms, jitter 2.25 ms, packet loss 0%)
+- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`: ping 39.14 ms, jitter 1.47 ms, packet loss 0%)
 - Colector global de métricas de dispositivos — Endpoint `/v1/telemetry/report` en `cloud_server/proxy_server.py` comprobado
 - Colector de conversaciones y retroalimentación de IA — Almacenamiento local y cloud comprobado
 - Telemetría RFC 9743 (BCP 133 Congestion Guidelines) y RFC 9287 (Greasing the QUIC Bit 0x2ab2) — Comprobadas en `check_rfc9743_congestion_bcp133_and_rfc9287_quic_grease_status()`

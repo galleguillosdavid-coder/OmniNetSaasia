@@ -1,5 +1,12 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-10 — Ciclo 55: Adopción de Esquemas Pydantic v2 en `netopt/schemas.py` (117 Tests OK)
+- **Objetivo:** Implementación de la Fase 1 del mandato de bibliotecas maduras (`docs/Auditorias/3.md` §7): creación de modelos tipados Pydantic v2 en `netopt/schemas.py` (`DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `LicenseActivationRequest`, `TelemetryReport`) y suite de pruebas en `tests/test_pydantic_schemas.py`; 117/117 tests aprobados al 100%.
+- **Resultado:** APROBADO al 100%. 7 tests nuevos y 117/117 tests en la suite general en 118.4s.
+- **Commit / Ref:** Ciclo 55 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_pydantic_schemas.py -v` (7/7 OK) y `python -m unittest discover -s tests -v` (117/117 OK).
+- **Pendientes:** Integración de los esquemas Pydantic en los handlers de `main.py` y sustitución de clientes HTTP por `httpx`.
+
 ## 2026-11-10 — Ciclo 54: Auditoría Técnica y Mandato de Bibliotecas Maduras (110 Tests OK)
 - **Objetivo:** Ejecución integral de las directivas de `docs/Auditorias/2.md` y `docs/Auditorias/3.md`: política Fail-Closed para secretos en `netopt/licensing.py`, resolución de discrepancia de pruebas en `README.md` (unificado a 110), validación de versión v2.9.6 y entrega de `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`.
 - **Resultado:** APROBADO al 100%. 110/110 tests pasando en 128.3s y compilación de sintaxis limpia (`compileall`).

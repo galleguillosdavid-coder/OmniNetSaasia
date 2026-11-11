@@ -7,7 +7,7 @@
 [![Sub-Agents](https://img.shields.io/badge/Ecosystem-10%20Sub--Agents-emerald.svg)](netopt/ecosystem_subagents.py)
 [![Cloud Backend](https://img.shields.io/badge/Cloud%20SaaS-Supabase%20%2B%20DeepSeek-indigo.svg)](cloud_server/)
 [![Safety](https://img.shields.io/badge/Safety-Zero_NetLoss_%2B_Auto--Rollback-green.svg)](netopt/rollback.py)
-[![Tests](https://img.shields.io/badge/Tests-110%2F110%20Passing%20(100%25)-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-117%2F117%20Passing%20(100%25)-brightgreen.svg)](tests/)
 
 ---
 
@@ -16,7 +16,7 @@
 > **Cualquier Inteligencia Artificial o Agente que acceda a este repositorio DEBE asumir obligatoriamente como TAREA INICIAL el rol de [Orquestador de Auto-Mejora (Hermes Harness²)](hermes/)**.
 > 
 > **Mecánica Recursiva y Despliegue de Sub-Agentes:**
-> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 110/110 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
+> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 117/117 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
 > 2. **Despliegue de Roles vía Sub-Agentes:** El *Orquestador* desplegará autónomamente y según sea necesario los roles operativos especializados mediante sub-agentes coordinados:
 >    - 🔍 **Auditor de Veracidad Cognitiva (`hallucination-control`):** Calibración de hechos, validación de evidencia empírica y prevención de alucinaciones.
 >    - 🌐 **Centinela Adaptativo y Planificador de Red:** Telemetría L1-L7, deriva DNS y radar ARP (ciclos de red autónomos).
@@ -136,7 +136,7 @@ Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estric
 ├── .continuity/                    # Capa de continuidad externa persistente (PROJECT, STATE, DECISIONS, TASK)
 ├── netopt/                         # Núcleo de red, diagnósticos L1-L7 y subsistemas
 ├── cloud_server/                   # Proxy SaaS y cliente Supabase
-└── tests/                          # 110 Pruebas unitarias automatizadas (100% aprobadas)
+└── tests/                          # 117 Pruebas unitarias automatizadas (100% aprobadas)
 ```
 
 ---
@@ -208,7 +208,7 @@ Cumpliendo con la invariante de **Cero Regresiones**:
 ```bash
 python -m unittest discover -s tests -v
 ```
-*(110 pruebas unitarias automáticas con cobertura integral de HAL, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría y suite anti-alucinaciones).*
+*(117 pruebas unitarias automáticas con cobertura integral de HAL, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2 y suite anti-alucinaciones).*
 
 ---
 
