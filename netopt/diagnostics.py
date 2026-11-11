@@ -1068,18 +1068,38 @@ def check_ech_rfc9460_status(domain: str = "crypto.cloudflare.com") -> Dict[str,
 
     try:
         url = f"https://cloudflare-dns.com/dns-query?name={domain}&type=HTTPS"
-        req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            dns_query_success = True
-            for ans in data.get("Answer", []):
-                if ans.get("type") == 65:
-                    https_rr_found = True
-                    rec_str = str(ans.get("data", ""))
-                    raw_record_data = rec_str[:120] + "..." if len(rec_str) > 120 else rec_str
-                    if "ech=" in rec_str:
-                        ech_param_present = True
-                        break
+
+        # Try mature HttpClientAdapter (httpx) first
+        try:
+            from .adapters import HttpClientAdapter
+            if HttpClientAdapter.is_available():
+                status, data = HttpClientAdapter.get_json(url, headers={"Accept": "application/dns-json"}, timeout_sec=3.0)
+                if status == 200 and isinstance(data, dict):
+                    dns_query_success = True
+                    for ans in data.get("Answer", []):
+                        if ans.get("type") == 65:
+                            https_rr_found = True
+                            rec_str = str(ans.get("data", ""))
+                            raw_record_data = rec_str[:120] + "..." if len(rec_str) > 120 else rec_str
+                            if "ech=" in rec_str:
+                                ech_param_present = True
+                                break
+        except Exception:
+            pass
+
+        if not dns_query_success:
+            req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                dns_query_success = True
+                for ans in data.get("Answer", []):
+                    if ans.get("type") == 65:
+                        https_rr_found = True
+                        rec_str = str(ans.get("data", ""))
+                        raw_record_data = rec_str[:120] + "..." if len(rec_str) > 120 else rec_str
+                        if "ech=" in rec_str:
+                            ech_param_present = True
+                            break
     except Exception:
         pass
 

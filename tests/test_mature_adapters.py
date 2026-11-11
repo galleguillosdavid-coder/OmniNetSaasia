@@ -122,6 +122,21 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(res["dispatched"])
         self.assertEqual(res["device_hash"], "a1b2c3d4e5f6")
 
+    @patch("netopt.adapters.HttpClientAdapter.get_json")
+    def test_check_ech_rfc9460_uses_http_adapter(self, mock_get):
+        from netopt.diagnostics import check_ech_rfc9460_status
+        mock_get.return_value = (200, {
+            "Answer": [
+                {"type": 65, "data": "1 . alpn=h2,h3 ech=AEX+DQBBJQA=="}
+            ]
+        })
+        res = check_ech_rfc9460_status(domain="crypto.cloudflare.com")
+        mock_get.assert_called_once()
+        self.assertTrue(res["ech_supported"])
+        self.assertTrue(res["https_rr_found"])
+        self.assertTrue(res["ech_param_present"])
+
+
 
 
 if __name__ == "__main__":

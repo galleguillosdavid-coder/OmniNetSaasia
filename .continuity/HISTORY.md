@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-11 — Ciclo 68: Adopción de `HttpClientAdapter` en DoH/ECH Diagnostics (148 Tests OK)
+- **Objetivo:** Rotación técnica hacia `netopt/diagnostics.py`: integración de `HttpClientAdapter` (`httpx`) en la verificación de ECH y registros RFC 9460 HTTPS RR Type 65 (`check_ech_rfc9460_status`) con fallback resiliente a `urllib.request`. Nueva prueba unitaria `test_check_ech_rfc9460_uses_http_adapter` en `tests/test_mature_adapters.py`, elevando la suite general a 148 tests aprobados al 100% en 143.2s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 148/148 tests aprobados en 143.2s.
+- **Commit / Ref:** Ciclo 68 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_mature_adapters.py` (11/11 OK) y `python -m unittest discover -s tests -v` (148/148 OK).
+- **Pendientes:** Mantener activo daemon FastAPI y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-11 — Ciclo 67: Telemetría Global httpx y Auditoría de Almacenamiento en Hermes (147 Tests OK)
 - **Objetivo:** Rotación técnica hacia `netopt/telemetry.py` y `hermes/`: sustitución de `urllib.request` por `HttpClientAdapter` (`httpx`) en `dispatch_global_device_telemetry()`, integración de `disk_telemetry` (`psutil`) en la herramienta `hermes_system_resource_audit` y heurística de objetivos de almacenamiento en `foresee.py`. Cobertura en `tests/test_mature_adapters.py` y `tests/test_hermes_cognitive.py`, elevando la suite general a 147 tests unitarios aprobados al 100%. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 147/147 tests aprobados en 152.8s.
