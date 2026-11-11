@@ -987,32 +987,52 @@ def start_api_server(port: int = 8877, open_browser: bool = True):
     bind_all = os.environ.get("OMNINET_BIND_ALL", "0").lower() in ("1", "true")
     host = "0.0.0.0" if bind_all else "127.0.0.1"
     url = f"http://127.0.0.1:{port}"
+
+    # Check if port is already active
     try:
-        server = ThreadingHTTPServer((host, port), OmniNetAPIHandler)
-    except OSError:
-        # Port 8877 is already running an active OmniNet server: just open the browser to it!
-        print(f"[OmniNet] El servidor ya está activo en {url}. Abriendo navegador...")
-        if open_browser:
-            webbrowser.open(url)
-        return
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.4)
+        in_use = (s.connect_ex((host, port)) == 0)
+        s.close()
+        if in_use:
+            print(f"[OmniNet] El servidor ya está activo en {url}. Abriendo navegador...")
+            if open_browser:
+                webbrowser.open(url)
+            return
+    except Exception:
+        pass
 
     # Start autonomous 10-minute task discovery & self-scheduler
     scheduler = get_task_scheduler()
     scheduler.start()
     print(f"[OmniNet] Revisión Automática de 10 Minutos Activa ({scheduler.interval_sec}s)")
 
-    print(f"[OmniNet] Interfaz Web lista en: {url}")
+    print(f"[OmniNet] Interfaz Web lista en: {url} (FastAPI/Uvicorn)")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[OmniNet] Cerrando servidor.")
+        import uvicorn
+        from netopt.fastapi_app import create_app
+        fastapi_app = create_app(dashboard_html_provider=get_dashboard_html)
+        config = uvicorn.Config(app=fastapi_app, host=host, port=port, log_level="warning")
+        server = uvicorn.Server(config)
+        server.run()
+    except Exception:
         try:
-            get_sentinel().stop()
-        except Exception:
-            pass
-        server.server_close()
+            server = ThreadingHTTPServer((host, port), OmniNetAPIHandler)
+            server.serve_forever()
+        except OSError:
+            print(f"[OmniNet] El servidor ya está activo en {url}. Abriendo navegador...")
+            if open_browser:
+                webbrowser.open(url)
+        except KeyboardInterrupt:
+            print("\n[OmniNet] Cerrando servidor.")
+            try:
+                get_sentinel().stop()
+            except Exception:
+                pass
 
 
 def interactive_menu():

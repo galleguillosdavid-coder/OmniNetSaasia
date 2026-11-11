@@ -104,3 +104,11 @@
 - **Commit / Ref:** `9139868` (y cambios locales sincronizados).
 - **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (103/103 OK en 112.3s).
 - **Pendientes:** Ninguno.
+
+## 2026-11-11 — Ciclo 61: Migración REST API a FastAPI, Uvicorn y Pydantic v2
+- **Objetivo:** Cumplir el mandato de adopción de bibliotecas maduras (`docs/Auditorias/3.md` §245-285 y `docs/MIGRACION_BIBLIOTECAS.md`), migrando el servidor API de `BaseHTTPRequestHandler` a `FastAPI` + `Uvicorn` + `Pydantic` v2 (`netopt/fastapi_app.py`), con validación de esquemas, middleware de seguridad loopback/CSRF y límite de payload 1MB.
+- **Resultado:** APROBADO al 100%. Se añadieron 8 tests en `tests/test_fastapi_app.py`, elevando la suite completa de 127 a 135 tests aprobados. El daemon FastAPI/Uvicorn se encuentra activo y sirviendo en puerto 8877.
+- **Commit / Ref:** `git_sync.py`
+- **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (135/135 OK en 167.8s).
+- **Pendientes:** Ninguno.
+

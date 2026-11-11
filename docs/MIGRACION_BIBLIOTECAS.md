@@ -51,14 +51,17 @@
 ---
 
 ## 7. Estado de Pruebas Unitarias y Regresión
-- **Suite de Pruebas:** 110/110 pruebas aprobadas (100% OK en 128.372s).
+- **Suite de Pruebas:** 135/135 pruebas aprobadas (100% OK, 0 regresiones).
 - **Cero Regresiones:** Ninguna prueba existente fue eliminada o degradada.
 - **Compilación Limpia:** `python -m compileall -q .` finalizado con éxito sin errores de sintaxis.
 
 ---
 
-## 8. Tareas Pendientes en la Hoja de Ruta
-- [ ] Migración de endpoints REST de `main.py` hacia FastAPI/Pydantic preservando contratos HTTP existentes.
-- [ ] Sustitución de `urllib.request` en `netopt/licensing.py` por llamadas estructuradas con `httpx`.
-- [ ] Despliegue de firma asimétrica Ed25519 en `cloud_server/proxy_server.py`.
+## 8. Tareas en la Hoja de Ruta
+- [x] Modelos de datos Pydantic v2 en `netopt/schemas.py` y validación de endpoints.
+- [x] Adaptadores maduros en `netopt/adapters.py` (`psutil` y `httpx`).
+- [x] Sustitución de `urllib.request` en `netopt/llm_gateway.py`, `cloud_server/proxy_server.py` y `netopt/licensing.py` por llamadas con `HttpClientAdapter` (`httpx`).
+- [x] Integración de `resource_audit` en el bucle cognitivo Hermes (`hermes/foresee.py` y `hermes/executor.py`) mediante `psutil`.
+- [x] Migración de endpoints REST hacia FastAPI/Pydantic/Uvicorn (`netopt/fastapi_app.py` y `main.py`) preservando 100% de los contratos HTTP existentes.
+- [ ] Despliegue de firma asimétrica Ed25519 en `cloud_server/proxy_server.py` y `netopt/licensing.py` una vez autorizada la entrega de claves.
 

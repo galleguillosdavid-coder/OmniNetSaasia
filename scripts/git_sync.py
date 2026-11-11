@@ -12,7 +12,7 @@ def run(cmd):
 
 if __name__ == "__main__":
     run("git add -A")
-    run("git commit -m \"feat: validacion Pydantic v2 en proxy server y suite ampliada (127 tests OK)\"")
+    run("git commit -m \"feat: migracion REST API a FastAPI y Uvicorn (135 tests OK)\"")
     run("git push origin main")
     run("git push upstream-operador main")
     print("ALL GIT COMMANDS COMPLETED SUCCESSFULLY.")
