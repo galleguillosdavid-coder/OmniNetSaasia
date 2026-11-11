@@ -1,5 +1,12 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-10 — Ciclo 56: Adaptadores de Bibliotecas Maduras `psutil` y `httpx` (122 Tests OK)
+- **Objetivo:** Implementación del patrón Adapter (`docs/Auditorias/3.md` §38) en `netopt/adapters.py` para telemetría profunda de hardware (`psutil`: CPU total y por núcleo, RAM, caídas de paquetes en NICs físicas y procesos que saturan sockets) y comunicación HTTP resiliente (`httpx`), probado mediante `tests/test_mature_adapters.py`; 122/122 tests aprobados al 100%. Armonización de directivas en `AGENTS.md` y `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` para ciclo global multimódulo continuo.
+- **Resultado:** APROBADO al 100%. 5 tests nuevos y 122/122 tests en la suite general en 140.2s.
+- **Commit / Ref:** Ciclo 56 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_mature_adapters.py -v` (5/5 OK) y `python -m unittest discover -s tests -v` (122/122 OK).
+- **Pendientes:** Continuar la rotación multimódulo hacia FastAPI y seguridad criptográfica asimétrica Ed25519.
+
 ## 2026-11-10 — Ciclo 55: Adopción de Esquemas Pydantic v2 en `netopt/schemas.py` (117 Tests OK)
 - **Objetivo:** Implementación de la Fase 1 del mandato de bibliotecas maduras (`docs/Auditorias/3.md` §7): creación de modelos tipados Pydantic v2 en `netopt/schemas.py` (`DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `LicenseActivationRequest`, `TelemetryReport`) y suite de pruebas en `tests/test_pydantic_schemas.py`; 117/117 tests aprobados al 100%.
 - **Resultado:** APROBADO al 100%. 7 tests nuevos y 117/117 tests en la suite general en 118.4s.

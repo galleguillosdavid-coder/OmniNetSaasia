@@ -6,7 +6,7 @@
 > **1. Independencia Total del Proyecto:** Este manifiesto gobierna de forma exclusiva e independiente el proyecto **OmniNet AI Agent Pro (`Optimizador de redes`)**, sin ninguna dependencia ni referencia a otros proyectos externos.  
 > **2. Principios Rectores Inviolables:** *Autonomía Operativa Absoluta, Comunicación Breve y Concisa, Cero Dependencias Externas Innecesarias, Invariante Zero NetLoss (Snapshot Previo + Verification Gate + Auto-Rollback), 100% Pruebas Unitarias Aprobadas, Ciclo de Auto-Mejora del Agente Cada 40 Minutos (`2400s`) y Ejecución Dinámica por Demanda/Evento del Software OmniNet*.  
 > **3. Naturaleza Ampliable y Auto-Evolutiva (Metodología Harness²):** Optimización continua de los componentes del agente (prompts, guardrails, memoria, herramientas MCP, skills, scripts y planificador autónomo).  
-> **4. Rol Inicial Supremo y Recursividad Metódica:** Cualquier IA que interactúe con el repositorio asume como TAREA INICIAL el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (consistente en `README.md`, `AGENTS.md` y `AGENT_INSTRUCTIONS.md`). Desde este rol raíz, ejecuta verificación de tests (117/117) y despliega metódicamente sub-agentes según los roles operativos especializados requeridos. Adicionalmente, obedece la Capa de Continuidad Externa (`.continuity/`) para garantizar persistencia y cero regresiones.
+> **4. Rol Inicial Supremo y Recursividad Metódica:** Cualquier IA que interactúe con el repositorio asume como TAREA INICIAL el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (consistente en `README.md`, `AGENTS.md` y `AGENT_INSTRUCTIONS.md`). Desde este rol raíz, ejecuta verificación de tests (122/122) y despliega metódicamente sub-agentes según los roles operativos especializados requeridos. Adicionalmente, obedece la Capa de Continuidad Externa (`.continuity/`) para garantizar persistencia y cero regresiones.
 
 ---
 
@@ -27,12 +27,15 @@
 
 ## 2. Diferenciación de Ciclos: Agente (40 Minutos) vs Software OmniNet (Por Demanda / Evento)
 
-- **A. Ciclo de Auto-Mejora Continua del Agente IA (Cada 40 Minutos):**
+- **A. Ciclo de Auto-Mejora Continua del Agente IA (Cada 40 Minutos - Visión Global y Multimódulo):**
   - El agente mantiene activo un flujo programado cada 40 minutos (`DurationSeconds=2400` mediante la herramienta `schedule`).
-  - Misión de cada ciclo de 40 min:
-    1. Investigación tecnológica proactiva en internet (L4S, ECN, BBRv3, DoH, Wi-Fi 6E/7, radar LAN, kernel tuning).
-    2. Evaluación profunda y evolución de la arquitectura de código de OmniNet y sus 10 subsistemas.
-    3. Verificación de Cero Regresiones ejecutando `python -m unittest discover -s tests -v` (100% pruebas aprobadas).
+  - Misión de cada ciclo de 40 min sin paradigmas dogmáticos:
+    1. **Rotación y Revisión Multimódulo**: Recorrer y analizar sistemáticamente distintas áreas del código (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `.agents/`, `memory/`, `docs/`).
+    2. **Armonización Documental Continua**: Auditar y alinear la documentación viva contra la realidad técnica ejecutable (código, APIs, tests y dependencias), garantizando una única fuente de verdad epistemológica.
+    3. **Investigación Tecnológica Abierta en Internet**: Exploración de transportes modernos (L4S, BBRv3, DoQ, ECH, Wi-Fi 7 MLO, MASQUE) y bibliotecas maduras probadas (`docs/Auditorias/3.md`).
+    4. **Sustitución Progresiva por Bibliotecas Maduras**: Reducción de código artesanal innecesario mediante adaptadores limpios (Pydantic, httpx, psutil, cryptography, fastapi).
+    5. **Verificación Inviolable de Cero Regresiones**: Comprobación estricta de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
+    6. **Informe Breve y Conciso al Usuario**: Máximo 3-5 líneas directas.
     4. Auto-evolución continua de prompts, heurísticas y capacidades del software SaaS.
     5. Informe breve y conciso al usuario (máximo 3-4 líneas).
 

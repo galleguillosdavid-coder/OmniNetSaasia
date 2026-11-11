@@ -1,10 +1,11 @@
 # Estado comprobado
 
-Última actualización: 2026-11-10T21:58:00-03:00
-Commit validado: 48941d4 (historial unificado y suite elevada a 117 tests con Pydantic v2)
+Última actualización: 2026-11-10T22:21:00-03:00
+Commit validado: 83c7151 -> próximo commit con 122 tests
 
 ## Funciona y tiene evidencia
-- Suite de pruebas unitarias — 117/117 tests aprobados al 100% (`python -m unittest discover -s tests -v` en 118.4s)
+- Suite de pruebas unitarias — 122/122 tests aprobados al 100% (`python -m unittest discover -s tests -v` en 140.2s)
+- Adaptadores de Bibliotecas Maduras (`netopt/adapters.py`) — `SystemResourceAdapter` (`psutil`: CPU, RAM, packet drops en NICs y procesos top consumidores de sockets de red) y `HttpClientAdapter` (`httpx`: pooling y comunicación HTTP resiliente) con 5 tests dedicados en `tests/test_mature_adapters.py`
 - Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `LicenseActivationRequest` y `TelemetryReport` (7 tests dedicados en `tests/test_pydantic_schemas.py`)
 - Auditoría Técnica y Mandato de Bibliotecas Maduras — Completados e integrados en `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`
 - Seguridad AutoSentinel (OMNI-038) — Nace inactivo (`enabled=False`), HAL forzado a `dry_run=True` por defecto, reparaciones en vivo protegidas por `OMNINET_ALLOW_LIVE_AUTOREPAIR` y arranque automático eliminado de `start_api_server()`
