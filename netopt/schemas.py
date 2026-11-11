@@ -84,10 +84,23 @@ class TelemetryReport(BaseModel):
 
     device_id: str = Field(..., min_length=4, max_length=64)
     timestamp: float = Field(default_factory=time.time)
-    overall_health: str = Field(default="healthy")
+    platform: Optional[str] = Field(default="windows")
+    overall_health: Optional[str] = Field(default="healthy")
     latency_ms: Optional[float] = Field(default=None)
+    avg_latency_ms: Optional[float] = Field(default=None)
     packet_loss_pct: Optional[float] = Field(default=0.0)
     jitter_ms: Optional[float] = Field(default=0.0)
     bufferbloat_grade: Optional[str] = Field(default="A")
+    active_interface: Optional[str] = Field(default=None)
     wifi_connected: Optional[bool] = Field(default=None)
+    is_wifi7: Optional[bool] = Field(default=False)
+    app_version: Optional[str] = Field(default="2.9.6")
+
+
+class CloudChatRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    license_key: str = Field(..., min_length=1, description="License key string")
+    device_id: str = Field(..., min_length=4, description="Device identifier")
+    messages: List[Dict[str, Any]] = Field(..., min_length=1, max_length=50, description="Chat messages array")
 

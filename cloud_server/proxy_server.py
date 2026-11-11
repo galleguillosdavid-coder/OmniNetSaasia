@@ -23,6 +23,7 @@ from typing import Dict, Any, List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from netopt.licensing import generate_signed_license_key, verify_signed_license_key, PLAN_CATALOG
 from netopt.adapters import HttpClientAdapter
+from netopt.schemas import LicenseActivationRequest, TelemetryReport, CloudChatRequest
 
 try:
     from .supabase_client import (
@@ -253,9 +254,14 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
 
         # 1. License Activation & Hardware ID Binding
         if self.path == "/v1/license/activate":
-            key = (data.get("license_key") or "").strip().upper()
-            dev_id = (data.get("device_id") or "UNKNOWN").strip()
-            email = (data.get("email") or "").strip()
+            try:
+                act_req = LicenseActivationRequest.model_validate(data)
+                key = act_req.license_key.strip().upper()
+                dev_id = (act_req.device_id or "UNKNOWN").strip()
+                email = (act_req.email or "").strip()
+            except Exception as e:
+                self.send_json(400, {"valid": False, "error": f"Datos de activación inválidos: {e}"})
+                return
 
             rec = None
             if is_supabase_configured():
@@ -321,25 +327,22 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
 
         # 2. Secure DeepSeek Proxy Endpoint (OMNI-004, OMNI-018, OMNI-022)
         elif self.path == "/v1/chat":
-            key = (data.get("license_key") or "").strip().upper()
-            dev_id = (data.get("device_id") or "").strip()
-            messages = data.get("messages", [])
-
-            if not key:
-                self.send_json(401, {"error": "Clave de licencia requerida para acceder al proxy IA."})
-                return
-
-            # OMNI-018: Rechazar device_id ausente o malformado
-            if not dev_id or len(dev_id) < 4:
-                self.send_json(400, {"error": "Identificador de dispositivo (device_id) válido requerido."})
-                return
-
-            # OMNI-022: Validación estricta de estructura y tamaño de mensajes
-            if not isinstance(messages, list) or len(messages) == 0:
-                self.send_json(400, {"error": "Lista de mensajes ('messages') requerida y no vacía."})
-                return
-            if len(messages) > 50:
-                self.send_json(400, {"error": "Límite de historial excedido (máximo 50 mensajes por consulta)."})
+            try:
+                chat_req = CloudChatRequest.model_validate(data)
+                key = chat_req.license_key.strip().upper()
+                dev_id = chat_req.device_id.strip()
+                messages = chat_req.messages
+            except Exception as e:
+                if not data.get("license_key"):
+                    self.send_json(401, {"error": "Clave de licencia requerida para acceder al proxy IA."})
+                elif not data.get("device_id") or len(str(data.get("device_id", "")).strip()) < 4:
+                    self.send_json(400, {"error": "Identificador de dispositivo (device_id) válido requerido."})
+                elif not isinstance(data.get("messages"), list) or len(data.get("messages", [])) == 0:
+                    self.send_json(400, {"error": "Lista de mensajes ('messages') requerida y no vacía."})
+                elif len(data.get("messages", [])) > 50:
+                    self.send_json(400, {"error": "Límite de historial excedido (máximo 50 mensajes por consulta)."})
+                else:
+                    self.send_json(400, {"error": f"Solicitud malformada: {e}"})
                 return
 
             rec = None
@@ -460,19 +463,24 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
 
         # 2.5 Colector Global de Métricas de Rendimiento de Dispositivos (Mundo)
         elif self.path == "/v1/telemetry/report":
-            anon_dev = hashlib.sha256(f"dev:{data.get('device_id', '')}".encode()).hexdigest()[:12] if data.get("device_id") else "ANON"
+            try:
+                telem_req = TelemetryReport.model_validate(data)
+            except Exception as e:
+                self.send_json(400, {"error": f"Payload de telemetría inválido: {e}"})
+                return
+            anon_dev = hashlib.sha256(f"dev:{telem_req.device_id}".encode()).hexdigest()[:12] if telem_req.device_id else "ANON"
             telemetry_entry = {
-                "timestamp": time.time(),
+                "timestamp": telem_req.timestamp,
                 "device_hash": anon_dev,
-                "platform": str(data.get("platform", "unknown")),
-                "avg_latency_ms": float(data.get("avg_latency_ms", 0.0)),
-                "jitter_ms": float(data.get("jitter_ms", 0.0)),
-                "packet_loss_pct": float(data.get("packet_loss_pct", 0.0)),
-                "bufferbloat_grade": str(data.get("bufferbloat_grade", "N/A")),
-                "active_interface": str(data.get("active_interface", "unknown")),
+                "platform": str(telem_req.platform or data.get("platform", "unknown")),
+                "avg_latency_ms": float(telem_req.avg_latency_ms if telem_req.avg_latency_ms is not None else (telem_req.latency_ms or 0.0)),
+                "jitter_ms": float(telem_req.jitter_ms or 0.0),
+                "packet_loss_pct": float(telem_req.packet_loss_pct or 0.0),
+                "bufferbloat_grade": str(telem_req.bufferbloat_grade or "N/A"),
+                "active_interface": str(telem_req.active_interface or data.get("active_interface", "unknown")),
                 "subagents_status": data.get("subagents_status", {}),
-                "is_wifi7": bool(data.get("is_wifi7", False)),
-                "app_version": str(data.get("app_version", "2.9.6"))
+                "is_wifi7": bool(telem_req.is_wifi7 or False),
+                "app_version": str(telem_req.app_version or "2.9.6")
             }
             append_global_telemetry(telemetry_entry)
             if is_supabase_configured():

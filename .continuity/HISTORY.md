@@ -1,5 +1,12 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-11 — Ciclo 60: Validación Pydantic v2 en Proxy Server Cloud (127 Tests OK)
+- **Objetivo:** Adopción de esquemas Pydantic v2 (`CloudChatRequest`, `TelemetryReport`, `LicenseActivationRequest`) en los endpoints del servidor proxy SaaS (`cloud_server/proxy_server.py`), creación de test unitario en `tests/test_pydantic_schemas.py`, elevando la suite general a 127 tests aprobados al 100% en 120.5s. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 127/127 tests en la suite general en 120.5s.
+- **Commit / Ref:** Ciclo 60 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_pydantic_schemas.py -v` (10/10 OK) y `python -m unittest discover -s tests -v` (127/127 OK).
+- **Pendientes:** Rotación hacia FastAPI y preparación de esquema de firmas asimétricas Ed25519.
+
 ## 2026-11-11 — Ciclo 59: Integración de `resource_audit` en Hermes Cognitive Loop (126 Tests OK)
 - **Objetivo:** Incorporación de la estrategia y herramienta `resource_audit` en el bucle cognitivo Hermes (`hermes/foresee.py` y `hermes/executor.py`) alimentada por `SystemResourceAdapter` (`psutil`) para evaluar presión de CPU/RAM y saturación de sockets, creación de test unitario en `tests/test_hermes_cognitive.py`, elevando la suite general a 126 tests aprobados al 100%. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 126/126 tests en la suite general.

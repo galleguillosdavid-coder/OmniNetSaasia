@@ -1,13 +1,14 @@
 # Estado comprobado
 
-Última actualización: 2026-11-11T08:15:00-03:00
-Commit validado: Ciclo 59 validado en suite de 126 tests
+Última actualización: 2026-11-11T08:55:00-03:00
+Commit validado: Ciclo 60 validado en suite de 127 tests
 
 ## Funciona y tiene evidencia
-- Suite de pruebas unitarias — 126/126 tests aprobados al 100%
+- Suite de pruebas unitarias — 127/127 tests aprobados al 100%
+- Validación Pydantic v2 en Servidor Proxy Cloud (`cloud_server/proxy_server.py`) — Validación tipada estricta para `/v1/license/activate`, `/v1/chat` (`CloudChatRequest`), y `/v1/telemetry/report` (`TelemetryReport`) con 10 tests dedicados en `tests/test_pydantic_schemas.py`
 - Arnés Hermes y Bucle Cognitivo (`hermes/foresee.py` y `hermes/executor.py`) — Integración de la herramienta y estrategia `resource_audit` conectada a `SystemResourceAdapter` (`psutil`) para evaluar presión de CPU/memoria y saturación de sockets de red (5 tests en `tests/test_hermes_cognitive.py`)
 - Adaptadores de Bibliotecas Maduras (`netopt/adapters.py`) — `SystemResourceAdapter` (`psutil`: CPU, RAM, packet drops en NICs y procesos top consumidores de sockets de red) y `HttpClientAdapter` (`httpx`: pooling y comunicación HTTP resiliente) integrados en `netopt/llm_gateway.py`, `cloud_server/proxy_server.py` y `netopt/licensing.py` (activación cloud con fallback)
-- Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`, `LicenseActivationRequest` y `TelemetryReport` integrados en los endpoints de `main.py`
+- Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `CloudChatRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`, `LicenseActivationRequest` y `TelemetryReport`
 - Auditoría Técnica y Mandato de Bibliotecas Maduras — Completados e integrados en `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`
 - Seguridad AutoSentinel (OMNI-038) — Nace inactivo (`enabled=False`), HAL forzado a `dry_run=True` por defecto, reparaciones en vivo protegidas por `OMNINET_ALLOW_LIVE_AUTOREPAIR` y arranque automático eliminado de `start_api_server()`
 - Política Fail-Closed en Secretos (OMNI-039A) — `get_signing_secret()` en `netopt/licensing.py` no tiene secreto hardcodeado; en producción sin `OMNINET_LICENSE_SECRET` bloquea emisión y verificación, y en desarrollo emite alerta explícita

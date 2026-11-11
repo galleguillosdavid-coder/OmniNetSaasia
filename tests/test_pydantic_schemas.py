@@ -9,7 +9,8 @@ from netopt.schemas import (
     TelemetryReport,
     RollbackRequest,
     RepairRequest,
-    SentinelToggleRequest
+    SentinelToggleRequest,
+    CloudChatRequest
 )
 from pydantic import ValidationError
 
@@ -87,11 +88,29 @@ class TestPydanticSchemas(unittest.TestCase):
             LicenseActivationRequest(license_key="")
 
     def test_telemetry_report_validation(self):
-        telem = TelemetryReport(device_id="PC-99887766", overall_health="degraded", latency_ms=45.2)
+        telem = TelemetryReport(device_id="PC-99887766", overall_health="degraded", latency_ms=45.2, avg_latency_ms=45.2)
         self.assertEqual(telem.device_id, "PC-99887766")
         self.assertEqual(telem.overall_health, "degraded")
         self.assertEqual(telem.latency_ms, 45.2)
+        self.assertEqual(telem.avg_latency_ms, 45.2)
         self.assertEqual(telem.bufferbloat_grade, "A")
+
+    def test_cloud_chat_request_validation(self):
+        req = CloudChatRequest(
+            license_key="OMNI-PRO-KEY",
+            device_id="PC-12345678",
+            messages=[{"role": "user", "content": "ping"}]
+        )
+        self.assertEqual(req.license_key, "OMNI-PRO-KEY")
+        self.assertEqual(len(req.messages), 1)
+
+        # Rejects empty messages list
+        with self.assertRaises(ValidationError):
+            CloudChatRequest(license_key="KEY", device_id="PC-1234", messages=[])
+
+        # Rejects short device_id
+        with self.assertRaises(ValidationError):
+            CloudChatRequest(license_key="KEY", device_id="ABC", messages=[{"role": "user", "content": "hi"}])
 
 
 if __name__ == "__main__":
