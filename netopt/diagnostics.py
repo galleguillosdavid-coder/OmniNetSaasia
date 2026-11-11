@@ -961,7 +961,7 @@ def check_dualq_coupled_aqm_rfc9332_status() -> Dict[str, Any]:
 def measure_bandwidth_speed() -> Dict[str, Any]:
     """
     Measures real live Download (Mbps), Upload (Mbps), and Ping/Jitter
-    against Cloudflare's global edge (__down / __up) using stdlib urllib.
+    against Cloudflare's global edge (__down / __up) using HttpClientAdapter (httpx) with urllib fallback.
     """
     import urllib.request
     lat = measure_target_metrics("1.1.1.1", count=2)
@@ -973,12 +973,28 @@ def measure_bandwidth_speed() -> Dict[str, Any]:
     # 1. Download test (5 MB payload from Cloudflare Speed edge)
     try:
         t0 = time.perf_counter()
-        req_dl = urllib.request.Request(
-            "https://speed.cloudflare.com/__down?bytes=5000000",
-            headers={"User-Agent": "OmniNetPro/2.0"}
-        )
-        with urllib.request.urlopen(req_dl, timeout=10) as resp:
-            data = resp.read()
+        data = b""
+        try:
+            from .adapters import HttpClientAdapter
+            if HttpClientAdapter.is_available():
+                code, data = HttpClientAdapter.get_bytes(
+                    "https://speed.cloudflare.com/__down?bytes=5000000",
+                    headers={"User-Agent": "OmniNetPro/2.0"},
+                    timeout_sec=10.0
+                )
+                if code != 200:
+                    data = b""
+        except Exception:
+            data = b""
+
+        if not data:
+            req_dl = urllib.request.Request(
+                "https://speed.cloudflare.com/__down?bytes=5000000",
+                headers={"User-Agent": "OmniNetPro/2.0"}
+            )
+            with urllib.request.urlopen(req_dl, timeout=10) as resp:
+                data = resp.read()
+
         raw_dl_duration = max(time.perf_counter() - t0, 0.001)
         dl_mbps = round((len(data) * 8) / (raw_dl_duration * 1_000_000), 2)
         dl_duration_s = round(raw_dl_duration, 3)
@@ -989,14 +1005,31 @@ def measure_bandwidth_speed() -> Dict[str, Any]:
     try:
         payload = b"0" * 1_000_000
         t1 = time.perf_counter()
-        req_ul = urllib.request.Request(
-            "https://speed.cloudflare.com/__up",
-            data=payload,
-            headers={"User-Agent": "OmniNetPro/2.0", "Content-Type": "application/octet-stream"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req_ul, timeout=10) as resp:
-            resp.read()
+        upload_ok = False
+        try:
+            from .adapters import HttpClientAdapter
+            if HttpClientAdapter.is_available():
+                code, _ = HttpClientAdapter.post_bytes(
+                    "https://speed.cloudflare.com/__up",
+                    content=payload,
+                    headers={"User-Agent": "OmniNetPro/2.0", "Content-Type": "application/octet-stream"},
+                    timeout_sec=10.0
+                )
+                if code == 200:
+                    upload_ok = True
+        except Exception:
+            upload_ok = False
+
+        if not upload_ok:
+            req_ul = urllib.request.Request(
+                "https://speed.cloudflare.com/__up",
+                data=payload,
+                headers={"User-Agent": "OmniNetPro/2.0", "Content-Type": "application/octet-stream"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req_ul, timeout=10) as resp:
+                resp.read()
+
         raw_ul_duration = max(time.perf_counter() - t1, 0.001)
         ul_mbps = round((len(payload) * 8) / (raw_ul_duration * 1_000_000), 2)
         ul_duration_s = round(raw_ul_duration, 3)

@@ -136,6 +136,50 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(res["https_rr_found"])
         self.assertTrue(res["ech_param_present"])
 
+    @patch("httpx.Client.get")
+    @patch("httpx.Client.post")
+    def test_httpx_adapter_get_and_post_bytes(self, mock_post, mock_get):
+        mock_resp_get = MagicMock()
+        mock_resp_get.status_code = 200
+        mock_resp_get.content = b"sample_binary_data"
+        mock_get.return_value = mock_resp_get
+
+        mock_resp_post = MagicMock()
+        mock_resp_post.status_code = 200
+        mock_resp_post.content = b"ack_bytes"
+        mock_post.return_value = mock_resp_post
+
+        code_g, data_g = HttpClientAdapter.get_bytes("https://speed.cloudflare.com/__down?bytes=100")
+        self.assertEqual(code_g, 200)
+        self.assertEqual(data_g, b"sample_binary_data")
+
+        code_p, data_p = HttpClientAdapter.post_bytes("https://speed.cloudflare.com/__up", b"0" * 100)
+        self.assertEqual(code_p, 200)
+        self.assertEqual(data_p, b"ack_bytes")
+
+    @patch("netopt.adapters.HttpClientAdapter.get_bytes")
+    @patch("netopt.adapters.HttpClientAdapter.post_bytes")
+    @patch("netopt.diagnostics.measure_target_metrics")
+    def test_measure_bandwidth_speed_uses_http_adapter(self, mock_metrics, mock_post_bytes, mock_get_bytes):
+        from netopt.diagnostics import measure_bandwidth_speed
+        mock_get_bytes.return_value = (200, b"1" * 1_000_000)
+        mock_post_bytes.return_value = (200, b"ack")
+        mock_lat = MagicMock()
+        mock_lat.avg_ms = 18.5
+        mock_lat.jitter_ms = 0.5
+        mock_lat.packet_loss_percent = 0.0
+        mock_metrics.return_value = mock_lat
+
+        res = measure_bandwidth_speed()
+        mock_get_bytes.assert_called_once()
+        mock_post_bytes.assert_called_once()
+        self.assertGreater(res["download_mbps"], 0.0)
+        self.assertGreater(res["upload_mbps"], 0.0)
+        self.assertEqual(res["ping_ms"], 18.5)
+        self.assertIn("Cloudflare", res["server"])
+
+
+
 
 
 

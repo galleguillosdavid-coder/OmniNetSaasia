@@ -14,7 +14,7 @@ for rel_path in files_to_update:
     if os.path.exists(rel_path):
         with open(rel_path, "r", encoding="utf-8") as f:
             content = f.read()
-        new_content = content.replace("147/147", "148/148").replace("147 tests", "148 tests").replace("147 Pruebas", "148 Pruebas").replace("147 pruebas", "148 pruebas")
+        new_content = content.replace("148/148", "150/150").replace("148 tests", "150 tests").replace("148 Pruebas", "150 Pruebas").replace("148 pruebas", "150 pruebas")
         if new_content != content:
             with open(rel_path, "w", encoding="utf-8") as f:
                 f.write(new_content)

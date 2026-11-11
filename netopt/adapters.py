@@ -289,5 +289,41 @@ class HttpClientAdapter:
         except Exception as e:
             return 500, {"error": str(e), "adapter": "httpx_adapter"}
 
+    @classmethod
+    def get_bytes(
+        cls,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout_sec: float = 10.0
+    ) -> Tuple[int, bytes]:
+        """Performs GET and returns raw binary bytes via httpx."""
+        try:
+            import httpx
+            h = headers or {}
+            with httpx.Client(timeout=timeout_sec) as client:
+                resp = client.get(url, headers=h)
+                return resp.status_code, resp.content
+        except Exception:
+            return 500, b""
+
+    @classmethod
+    def post_bytes(
+        cls,
+        url: str,
+        content: bytes,
+        headers: Optional[Dict[str, str]] = None,
+        timeout_sec: float = 10.0
+    ) -> Tuple[int, bytes]:
+        """Performs POST with raw binary content via httpx."""
+        try:
+            import httpx
+            h = headers or {}
+            with httpx.Client(timeout=timeout_sec) as client:
+                resp = client.post(url, content=content, headers=h)
+                return resp.status_code, resp.content
+        except Exception:
+            return 500, b""
+
+
 
 
