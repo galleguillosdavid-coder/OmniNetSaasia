@@ -36,6 +36,13 @@ class TestFastAPIApp(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("<!DOCTYPE html>", resp.text)
         self.assertIn("OmniNet", resp.text)
+        self.assertIn("Centro de Herramientas", resp.text)
+        self.assertIn("toolLanRadar", resp.text)
+        self.assertIn("toolWifiAudit", resp.text)
+        self.assertIn("toolDnsBench", resp.text)
+        self.assertIn("toolSocketsInspect", resp.text)
+        self.assertIn("toolTriageRepair", resp.text)
+
 
     def test_system_status_endpoint(self):
         resp = self.client.get("/api/status")
