@@ -63,6 +63,30 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(data.get("valid"))
         self.assertEqual(data.get("plan"), "pro")
 
+    @patch("httpx.Client.patch")
+    def test_httpx_adapter_patch_json_success(self, mock_patch):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"updated": True}
+        mock_patch.return_value = mock_resp
+
+        status, data = HttpClientAdapter.patch_json("http://cloud.omninet.ai/v1/license/devices", {"devices": ["dev-1"]})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("updated"))
+
+    @patch("httpx.Client.request")
+    def test_httpx_adapter_generic_request_json_success(self, mock_request):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [{"id": 1, "status": "active"}]
+        mock_request.return_value = mock_resp
+
+        status, data = HttpClientAdapter.request_json("GET", "http://cloud.omninet.ai/rest/v1/licenses", params={"limit": "1"})
+        self.assertEqual(status, 200)
+        self.assertIsInstance(data, list)
+        self.assertEqual(data[0]["status"], "active")
+
+
     @patch("netopt.adapters.HttpClientAdapter.post_json")
     def test_license_manager_activate_license_uses_http_adapter(self, mock_post):
         from netopt.licensing import LicenseManager

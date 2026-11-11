@@ -1,5 +1,34 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-11 — Ciclo 66: Rotación Multimódulo SaaS Cloud Server y Adaptador HTTP Ampliado (146 Tests OK)
+- **Objetivo:** Rotación técnica hacia `cloud_server/` y `netopt/adapters.py`: extensión de `HttpClientAdapter` con `patch_json` y `request_json` (`httpx`), integración con fallback en `cloud_server/supabase_client.py` (`_supabase_request`), y creación de la suite dedicada `tests/test_cloud_server.py` (6 pruebas) más 2 pruebas en `tests/test_mature_adapters.py`, elevando la suite general a 146 tests unitarios aprobados al 100%. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 8 tests nuevos y 146/146 tests aprobados en 154.7s.
+- **Commit / Ref:** Ciclo 66 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_cloud_server.py` (6/6 OK), `python -m unittest tests/test_mature_adapters.py` (9/9 OK) y `python -m unittest discover -s tests -v` (146/146 OK).
+- **Pendientes:** Mantener activo daemon FastAPI y ciclo 40 min de auto-mejora.
+
+## 2026-11-11 — Ciclo 65: Telemetría de Almacenamiento psutil y Sustitución en Mantenimiento de Dispositivos (138 Tests OK)
+- **Objetivo:** Extender `SystemResourceAdapter` (`netopt/adapters.py`) con `get_disk_telemetry()` vía `psutil.disk_usage` y `disk_io_counters`, e integrarlo en `DeviceMaintenanceEngine` (`netopt/device_maintenance.py`) sustituyendo parsing manual con fallback transparente. Agregar prueba unitaria `test_psutil_adapter_disk_telemetry` en `tests/test_mature_adapters.py`.
+- **Resultado:** APROBADO al 100%. 138/138 tests aprobados sin regresiones.
+- **Commit / Ref:** Ciclo 65 validado.
+
+## 2026-11-11 — Ciclo 64: Centro de Herramientas y Diagnósticos 1-Click en Dashboard Web (137 Tests OK)
+- **Objetivo:** Exponer en la interfaz web de inicio (`main.py` y `http://127.0.0.1:8877/`) el panel interactivo de herramientas con 6 acciones inmediatas (Radar LAN, Auditoría Wi-Fi, Benchmark DNS, Sockets/Puertos, Path MTU, Triage L1-L7) y enlace a `/docs`.
+- **Resultado:** APROBADO al 100%. Servidor recargado y probado con `/openapi.json` y `/`.
+
+## 2026-11-11 — Ciclo 63: Formalización del Mandato de Auto-Propuesta de Tareas Propias
+- **Objetivo:** Documentar en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `README.md` que el ciclo autónomo no se limita a inspeccionar el computador anfitrión, sino a evaluar globalmente el repositorio y proponer/ejecutar tareas de ingeniería de forma autónoma.
+- **Resultado:** APROBADO al 100%. Armonización completa y validación sin regresiones.
+
+## 2026-11-11 — Ciclo 62: Verificación de Paridad Documental y Depuración de Commits
+- **Objetivo:** Rebase y saneamiento de historial git, verificación de paridad epistemológica en conteo de pruebas y estado de memoria.
+- **Resultado:** APROBADO al 100%. 137/137 tests aprobados.
+
+## 2026-11-11 — Ciclo 61: Migración Completa REST hacia FastAPI/Uvicorn (137 Tests OK)
+- **Objetivo:** Migración completa de endpoints REST hacia FastAPI/Uvicorn (`netopt/fastapi_app.py` y `main.py`) con validación tipada estricta Pydantic v2 y nueva suite de 8 pruebas en `tests/test_fastapi_app.py`.
+- **Resultado:** APROBADO al 100%. 137/137 tests aprobados.
+
+
 ## 2026-11-11 — Ciclo 60: Validación Pydantic v2 en Proxy Server Cloud (127 Tests OK)
 - **Objetivo:** Adopción de esquemas Pydantic v2 (`CloudChatRequest`, `TelemetryReport`, `LicenseActivationRequest`) en los endpoints del servidor proxy SaaS (`cloud_server/proxy_server.py`), creación de test unitario en `tests/test_pydantic_schemas.py`, elevando la suite general a 127 tests aprobados al 100% en 120.5s. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 127/127 tests en la suite general en 120.5s.

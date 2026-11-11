@@ -80,7 +80,37 @@ def _supabase_request(
     sb_url = get_supabase_url()
     sb_key = get_supabase_key()
 
+    headers = {
+        "apikey": sb_key,
+        "Authorization": f"Bearer {sb_key}",
+        "Content-Type": "application/json",
+        "Prefer": prefer
+    }
+
     url = f"{sb_url}/rest/v1/{endpoint.lstrip('/')}"
+
+    # Mature Adapter: httpx via HttpClientAdapter when available
+    try:
+        from netopt.adapters import HttpClientAdapter
+        if HttpClientAdapter.is_available():
+            status, data = HttpClientAdapter.request_json(
+                method=method,
+                url=url,
+                payload=body,
+                headers=headers,
+                params=query_params,
+                timeout_sec=10.0
+            )
+            if 200 <= status < 300:
+                return data
+            if status >= 400:
+                print(f"[Supabase Client Error] {endpoint}: HTTP {status} {data}", flush=True)
+                return None
+            return data
+    except Exception:
+        pass
+
+    # Standard urllib fallback
     if query_params:
         url += "?" + urllib.parse.urlencode(query_params)
 
@@ -88,12 +118,7 @@ def _supabase_request(
     req = urllib.request.Request(
         url,
         data=data,
-        headers={
-            "apikey": sb_key,
-            "Authorization": f"Bearer {sb_key}",
-            "Content-Type": "application/json",
-            "Prefer": prefer
-        },
+        headers=headers,
         method=method
     )
 

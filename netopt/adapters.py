@@ -233,3 +233,61 @@ class HttpClientAdapter:
         except Exception as e:
             return 500, {"error": str(e), "adapter": "httpx_adapter"}
 
+    @classmethod
+    def patch_json(
+        cls,
+        url: str,
+        payload: Dict[str, Any],
+        headers: Optional[Dict[str, str]] = None,
+        timeout_sec: float = 8.0
+    ) -> Tuple[int, Dict[str, Any]]:
+        """Patches JSON payload and decodes response safely."""
+        try:
+            import httpx
+            h = {"Content-Type": "application/json"}
+            if headers:
+                h.update(headers)
+            with httpx.Client(timeout=timeout_sec) as client:
+                resp = client.patch(url, json=payload, headers=h)
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"text": resp.text}
+                return resp.status_code, data
+        except Exception as e:
+            return 500, {"error": str(e), "adapter": "httpx_adapter"}
+
+    @classmethod
+    def request_json(
+        cls,
+        method: str,
+        url: str,
+        payload: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        params: Optional[Dict[str, str]] = None,
+        timeout_sec: float = 8.0
+    ) -> Tuple[int, Any]:
+        """Generic JSON request supporting arbitrary HTTP methods (GET, POST, PATCH, DELETE)."""
+        try:
+            import httpx
+            h = {"Content-Type": "application/json"}
+            if headers:
+                h.update(headers)
+            with httpx.Client(timeout=timeout_sec) as client:
+                resp = client.request(
+                    method=method.upper(),
+                    url=url,
+                    json=payload if payload is not None else None,
+                    params=params,
+                    headers=h
+                )
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"text": resp.text} if resp.text else {}
+                return resp.status_code, data
+        except Exception as e:
+            return 500, {"error": str(e), "adapter": "httpx_adapter"}
+
+
+
