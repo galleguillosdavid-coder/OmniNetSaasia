@@ -22,6 +22,7 @@ from typing import Dict, Any, List, Optional
 from .models import PlatformType, AgentActionLog
 from .hal import detect_platform, get_hal, NetworkHAL
 from .rollback import RollbackManager
+from .adapters import SystemResourceAdapter
 
 
 # Complete multi-OS catalog of maintenance & fault-recovery commands
@@ -186,14 +187,21 @@ class DeviceMaintenanceEngine:
     def _inspect_storage_and_temp(self) -> Dict[str, Any]:
         """Checks disk usage and temporary directory accumulation across all OS."""
         root_path = os.path.abspath(os.sep)
-        try:
-            usage = shutil.disk_usage(root_path)
-            total_gb = round(usage.total / (1024 ** 3), 2)
-            used_gb = round(usage.used / (1024 ** 3), 2)
-            free_gb = round(usage.free / (1024 ** 3), 2)
-            used_pct = round((usage.used / max(usage.total, 1)) * 100.0, 1)
-        except Exception:
-            total_gb, used_gb, free_gb, used_pct = 0.0, 0.0, 0.0, 0.0
+        disk_telem = SystemResourceAdapter.get_disk_telemetry(root_path) if SystemResourceAdapter.is_available() else None
+        if disk_telem and disk_telem.get("available"):
+            total_gb = disk_telem["total_gb"]
+            used_gb = disk_telem["used_gb"]
+            free_gb = disk_telem["free_gb"]
+            used_pct = disk_telem["used_percent"]
+        else:
+            try:
+                usage = shutil.disk_usage(root_path)
+                total_gb = round(usage.total / (1024 ** 3), 2)
+                used_gb = round(usage.used / (1024 ** 3), 2)
+                free_gb = round(usage.free / (1024 ** 3), 2)
+                used_pct = round((usage.used / max(usage.total, 1)) * 100.0, 1)
+            except Exception:
+                total_gb, used_gb, free_gb, used_pct = 0.0, 0.0, 0.0, 0.0
 
         temp_dir = tempfile.gettempdir()
         temp_files_count = 0
@@ -240,7 +248,14 @@ class DeviceMaintenanceEngine:
         hung_or_zombies: List[str] = []
         faults: List[str] = []
 
-        if self.platform == PlatformType.WINDOWS:
+        if SystemResourceAdapter.is_available():
+            mem_telem = SystemResourceAdapter.get_cpu_and_memory_telemetry()
+            if mem_telem.get("available") and mem_telem.get("ram_total_mb", 0) > 0:
+                total_mb = float(mem_telem["ram_total_mb"])
+                avail_mb = float(mem_telem["ram_available_mb"])
+                used_pct = float(mem_telem["ram_percent"])
+
+        if total_mb == 0.0 and self.platform == PlatformType.WINDOWS:
             try:
                 class MEMORYSTATUSEX(ctypes.Structure):
                     _fields_ = [

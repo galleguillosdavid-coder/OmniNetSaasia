@@ -133,6 +133,14 @@
 - **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (137/137 OK).
 - **Pendientes:** Ninguno.
 
+## 2026-11-11 — Ciclo 65: Telemetría de Almacenamiento psutil y Sustitución en Mantenimiento de Dispositivos (138 Tests)
+- **Objetivo:** Tarea de ingeniería auto-propuesta: extender `SystemResourceAdapter` (`netopt/adapters.py`) con `get_disk_telemetry()` vía `psutil.disk_usage` y `disk_io_counters`, e integrarlo en `DeviceMaintenanceEngine` (`netopt/device_maintenance.py`) sustituyendo parsing manual con fallback transparente. Agregar prueba unitaria `test_psutil_adapter_disk_telemetry` en `tests/test_mature_adapters.py`, elevando la suite general a 138 tests.
+- **Resultado:** APROBADO al 100%. 138/138 tests aprobados sin regresiones.
+- **Commit / Ref:** `git_sync.py`
+- **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (138/138 OK).
+- **Pendientes:** Ninguno.
+
+
 
 
 

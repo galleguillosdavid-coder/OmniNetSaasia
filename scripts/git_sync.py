@@ -12,7 +12,7 @@ def run(cmd):
 
 if __name__ == "__main__":
     run("git add -A")
-    run("git commit -m \"feat: verificacion esquema OpenAPI y suite elevada a 137 tests (137 tests OK)\"")
+    run("git commit -m \"feat: integracion de Centro de Herramientas y diagnosticos al iniciar la app (138 tests OK)\"")
     run("git push origin main")
     run("git push upstream-operador main")
     print("ALL GIT COMMANDS COMPLETED SUCCESSFULLY.")

@@ -33,6 +33,16 @@ class TestMatureAdapters(unittest.TestCase):
             self.assertIn("open_sockets", proc)
             self.assertGreaterEqual(proc["open_sockets"], 1)
 
+    def test_psutil_adapter_disk_telemetry(self):
+        disk = SystemResourceAdapter.get_disk_telemetry()
+        self.assertTrue(disk["available"])
+        self.assertGreater(disk["total_gb"], 0)
+        self.assertGreaterEqual(disk["free_gb"], 0)
+        self.assertGreaterEqual(disk["used_percent"], 0.0)
+        self.assertIn("write_bytes", disk)
+        self.assertIn("read_bytes", disk)
+
+
     def test_httpx_adapter_availability_and_error_handling(self):
         self.assertTrue(HttpClientAdapter.is_available())
         # Call non-existent port on loopback to verify error handling without unhandled exceptions

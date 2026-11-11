@@ -59,6 +59,39 @@ class SystemResourceAdapter:
             }
 
     @classmethod
+    def get_disk_telemetry(cls, path: Optional[str] = None) -> Dict[str, Any]:
+        """Provides disk storage and physical I/O metrics via psutil."""
+        try:
+            import psutil
+            target_path = path or os.path.abspath(os.sep)
+            usage = psutil.disk_usage(target_path)
+            io = psutil.disk_io_counters()
+
+            return {
+                "available": True,
+                "path": target_path,
+                "total_gb": round(usage.total / (1024 ** 3), 2),
+                "used_gb": round(usage.used / (1024 ** 3), 2),
+                "free_gb": round(usage.free / (1024 ** 3), 2),
+                "used_percent": float(usage.percent),
+                "read_bytes": io.read_bytes if io else 0,
+                "write_bytes": io.write_bytes if io else 0,
+                "read_count": io.read_count if io else 0,
+                "write_count": io.write_count if io else 0
+            }
+        except Exception as e:
+            return {
+                "available": False,
+                "error": str(e),
+                "path": path or os.path.abspath(os.sep),
+                "total_gb": 0.0,
+                "used_gb": 0.0,
+                "free_gb": 0.0,
+                "used_percent": 0.0
+            }
+
+
+    @classmethod
     def get_interface_io_counters(cls) -> Dict[str, Any]:
         """Captures hardware byte transfer and packet drop counters across all NICs."""
         try:

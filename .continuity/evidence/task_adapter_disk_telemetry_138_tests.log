@@ -1,0 +1,8 @@
+[2026-11-11T18:56:47Z] RUN TEST SUITE: 138 tests
+Command: python -m unittest discover -s tests -v
+Exit Code: 0
+Ran 138 tests -> OK
+All 138 unit tests passed with 0 failures and 0 errors.
+SystemResourceAdapter disk and memory telemetry integrated with DeviceMaintenanceEngine (Fault Domains 1 & 2) with zero regressions.
+Daemon live on port 8877.
+
