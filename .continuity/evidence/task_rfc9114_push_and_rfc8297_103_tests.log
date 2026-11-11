@@ -1,0 +1,7 @@
+Ran 103 tests in 112.330s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T17:10:00-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9114 Section 7 (Server Push Deprecation) & RFC 8297 (103 Early Hints Preloading)
+

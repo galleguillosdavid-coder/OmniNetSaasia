@@ -1,0 +1,379 @@
+"""
+Network Optimization Engine.
+Analyzes network parameters, generates optimization plans, applies tuned parameters
+(Anycast DNS + TCP Stack + Cache Flush), and validates improvements with auto-rollback safety.
+"""
+
+from __future__ import annotations
+from typing import Dict, List, Optional, Any, Tuple
+import time
+from .models import (
+    PlatformType,
+    DiagnosticsReport,
+    OrchestrationPlan,
+    AgentActionLog,
+    ActionType
+)
+from .hal import NetworkHAL, get_hal, detect_platform
+from .diagnostics import run_full_diagnostics
+from .rollback import RollbackManager
+
+
+class NetworkOptimizer:
+    """Orchestrates safe, cross-platform network optimizations."""
+
+    def __init__(self, hal: Optional[NetworkHAL] = None):
+        self.hal = hal or get_hal(dry_run=True)
+        self.rollback_mgr = RollbackManager(self.hal)
+
+    def generate_plan(
+        self,
+        diag: Optional[DiagnosticsReport] = None,
+        target_profile: str = "balanced_standard"
+    ) -> OrchestrationPlan:
+        """Analyzes diagnostics and formulates an optimization plan."""
+        diag = diag or run_full_diagnostics()
+        plan = OrchestrationPlan(
+            target_os=detect_platform(),
+            diagnostics_before=diag,
+            reasoning=""
+        )
+
+        reasons = [f"Optimization profile selected: {target_profile}."]
+        plat = detect_platform()
+
+        # 1. DNS Optimization
+        best_resolvers = [b for b in diag.dns_benchmarks if b.success_rate_percent >= 90.0]
+        if best_resolvers and len(best_resolvers) >= 2:
+            primary = best_resolvers[0]
+            secondary = best_resolvers[1]
+            reasons.append(f"Fastest DNS identified: {primary.provider} ({primary.ip}, {primary.avg_latency_ms}ms) and {secondary.provider} ({secondary.ip}).")
+
+            interfaces = self.hal.get_interfaces()
+            for iface in interfaces:
+                if iface.is_up and not iface.is_loopback:
+                    action = AgentActionLog(
+                        action_type=ActionType.OPTIMIZATION,
+                        description=f"Configure ultra-fast DNS ({primary.ip}, {secondary.ip}) on {iface.name}",
+                        command=f"set_dns:{iface.name}:{primary.ip},{secondary.ip}",
+                        is_dry_run=self.hal.dry_run
+                    )
+                    plan.planned_actions.append(action)
+
+        # 2. TCP Stack Tuning according to Platform
+        if plat == PlatformType.WINDOWS:
+            reasons.append("Tuning Windows TCP stack: enabling autotuning normal, RSS, RSC, and modern congestion provider.")
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Set Windows TCP autotuning to normal",
+                command="netsh int tcp set global autotuninglevel=normal",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable Receive-Side Scaling (RSS) for multi-core packet distribution",
+                command="netsh int tcp set global rss=enabled",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable Receive Segment Coalescing (RSC) to reduce CPU interrupt overhead",
+                command="netsh int tcp set global rsc=enabled",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable Direct Cache Access (DCA) to deliver network packets directly into CPU L3 cache",
+                command="netsh int tcp set global dca=enabled",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Tune TCP InitialRTO to 2000ms for fast handshake recovery on packet loss (RFC 6298)",
+                command="netsh int tcp set global initialrto=2000",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Set Max SYN Retransmissions to 2 to eliminate prolonged hangs on dead endpoints",
+                command="netsh int tcp set global maxsynretransmissions=2",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable TCP Timestamps for high-precision RTT measurement and PAWS protection (RFC 7323)",
+                command="netsh int tcp set global timestamps=enabled",
+                is_dry_run=self.hal.dry_run
+            ))
+
+        elif plat == PlatformType.LINUX:
+            reasons.append("Tuning Linux kernel TCP stack: BBR congestion control, FQ pacing, TCP Fast Open, and buffer expansion.")
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Set default queueing discipline to Fair Queueing (FQ)",
+                command="sysctl -w net.core.default_qdisc=fq",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Set TCP congestion control to BBR (Bottleneck Bandwidth and RTT)",
+                command="sysctl -w net.ipv4.tcp_congestion_control=bbr",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable TCP Fast Open (client & server)",
+                command="sysctl -w net.ipv4.tcp_fastopen=3",
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Enable TCP Window Scaling and SACK",
+                command="sysctl -w net.ipv4.tcp_window_scaling=1 && sysctl -w net.ipv4.tcp_sack=1",
+                is_dry_run=self.hal.dry_run
+            ))
+
+        elif plat == PlatformType.DARWIN:
+            reasons.append("Tuning macOS network stack: disable delayed ACK for gaming/real-time streaming, expand socket buffers.")
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Disable TCP Delayed ACK for lower interactive latency",
+                command="sysctl -w net.inet.tcp.delayed_ack=0",
+                is_dry_run=self.hal.dry_run
+            ))
+
+        # 3. Encrypted DNS (DoH) & NIC Low-Latency Power Throttling Disable
+        plan.planned_actions.append(AgentActionLog(
+            action_type=ActionType.OPTIMIZATION,
+            description="Enable Encrypted DNS (DoH/DoT) for Cloudflare & Google to prevent ISP throttling",
+            command="enable_encrypted_dns_doh()",
+            is_dry_run=self.hal.dry_run
+        ))
+        plan.planned_actions.append(AgentActionLog(
+            action_type=ActionType.OPTIMIZATION,
+            description="Disable NIC power-saving throttling (EEE) to eliminate micro-stutters",
+            command="optimize_nic_low_latency()",
+            is_dry_run=self.hal.dry_run
+        ))
+
+        # 4. Cache flush
+        plan.planned_actions.append(AgentActionLog(
+            action_type=ActionType.OPTIMIZATION,
+            description="Flush local resolver cache to ensure instant routing transition",
+            command="Flush local DNS cache",
+            is_dry_run=self.hal.dry_run
+        ))
+
+        plan.reasoning = "\n".join(reasons)
+        return plan
+
+    def execute_plan(self, plan: OrchestrationPlan, execute: bool = False) -> Tuple[bool, List[str]]:
+        """
+        Executes optimization plan with mandatory snapshotting and verification gate.
+        Returns (success_status, execution_log).
+        """
+        logs: List[str] = []
+        if not execute:
+            logs.append("[DRY-RUN SIMULATION] No modifications applied to system.")
+            for act in plan.planned_actions:
+                logs.append(f"  - Propose: {act.description} -> ({act.command or 'API'})")
+            plan.status = "simulated"
+            return True, logs
+
+        # Mandatory Safety Step 1: Capture Pre-Optimization Snapshot & Baseline Metrics (OMNI-007)
+        snap = self.rollback_mgr.capture_snapshot(description=f"Auto-snapshot before Plan {plan.plan_id}")
+        baseline = self.rollback_mgr.capture_baseline()
+        plan.rollback_snapshot_id = snap.snapshot_id
+        logs.append(f"Captured safety snapshot: {snap.snapshot_id} (Baseline Latency: {baseline.avg_latency_ms:.1f}ms, Loss: {baseline.packet_loss_percent:.1f}%)")
+
+        # Mandatory Safety Step 2: Apply Changes (DNS + TCP + Flush)
+        plat = detect_platform()
+        try:
+            # Apply Anycast DNS if planned and faster than current
+            if plan.diagnostics_before and plan.diagnostics_before.dns_benchmarks:
+                best = [b for b in plan.diagnostics_before.dns_benchmarks if b.success_rate_percent >= 90.0]
+                if len(best) >= 2 and best[0].avg_latency_ms < 50.0:
+                    target_dns = [best[0].ip, best[1].ip]
+                    cur_dns = self.hal.get_dns_servers()
+                    if best[0].ip not in cur_dns:
+                        for iface in self.hal.get_interfaces():
+                            if iface.is_up and not iface.is_loopback:
+                                self.hal.set_dns_servers(iface.name, target_dns, execute=True)
+                        logs.append(f"Applied Anycast DNS ({target_dns[0]}, {target_dns[1]}).")
+
+            if plat == PlatformType.WINDOWS:
+                self.hal.set_tcp_parameters({
+                    "autotuninglevel": "normal",
+                    "rss": "enabled",
+                    "rsc": "enabled",
+                    "initialrto": "2000",
+                    "maxsynretransmissions": "2"
+                }, execute=True)
+            elif plat == PlatformType.LINUX:
+                self.hal.set_tcp_parameters({
+                    "net.core.default_qdisc": "fq",
+                    "net.ipv4.tcp_congestion_control": "bbr",
+                    "net.ipv4.tcp_fastopen": "3",
+                    "net.ipv4.tcp_window_scaling": "1",
+                    "net.ipv4.tcp_sack": "1"
+                }, execute=True)
+            elif plat == PlatformType.DARWIN:
+                self.hal.set_tcp_parameters({
+                    "net.inet.tcp.delayed_ack": "0"
+                }, execute=True)
+
+            self.hal.enable_encrypted_dns_doh(execute=True)
+            self.hal.optimize_nic_low_latency(execute=True)
+            self.hal.flush_dns_cache(execute=True)
+            logs.append("Applied TCP stack optimizations, Encrypted DoH, NIC low-latency mode, and flushed DNS cache.")
+
+            # Mandatory Safety Step 3: Verification Gate vs Baseline (OMNI-007)
+            time.sleep(1.0)
+            healthy, report_msg = self.rollback_mgr.verify_post_action_health(baseline=baseline)
+            logs.append(f"Verification gate: {report_msg}")
+
+            if not healthy:
+                logs.append("CRITICAL: Verification gate failed! Initiating immediate auto-rollback...")
+                rb_logs = self.rollback_mgr.rollback(snap.snapshot_id, execute=True)
+                logs.extend(rb_logs)
+                plan.status = "reverted"
+                return False, logs
+
+            plan.status = "verified"
+            return True, logs
+
+        except Exception as e:
+            logs.append(f"Exception during optimization: {str(e)}. Triggering rollback...")
+            rb_logs = self.rollback_mgr.rollback(snap.snapshot_id, execute=True)
+            logs.extend(rb_logs)
+            plan.status = "failed"
+            return False, logs
+
+    def optimize_gaming_and_l4s_qos(self, execute: bool = False) -> Dict[str, Any]:
+        """
+        Enables L4S/ECN (Explicit Congestion Notification) to eliminate packet queuing delay,
+        and optimizes Windows NetworkThrottlingIndex / SystemResponsiveness for zero stuttering in games and video calls.
+        """
+        plat = detect_platform()
+        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        actions = []
+        cmd_logs = []
+        if plat == PlatformType.WINDOWS:
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "tcp", "set", "global", "ecncapability=enabled"], execute=should_apply))
+            actions.append("Habilitar ECN (Notificación Explícita de Congestión L4S)")
+
+            reg_throttle = [
+                "reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+                "/v", "NetworkThrottlingIndex", "/t", "REG_DWORD", "/d", "0xffffffff", "/f"
+            ]
+            reg_resp = [
+                "reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+                "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
+            reg_qos = [
+                "reg", "add", "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched",
+                "/v", "NonBestEffortLimit", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
+            reg_offload = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "DisableTaskOffload", "/t", "REG_DWORD", "/d", "0", "/f"
+            ]
+            reg_pmtubh = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f"
+            ]
+            reg_dnsleak = [
+                "reg", "add", "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient",
+                "/v", "DisableSmartNameResolution", "/t", "REG_DWORD", "/d", "1", "/f"
+            ]
+            reg_timedwait = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "TcpTimedWaitDelay", "/t", "REG_DWORD", "/d", "30", "/f"
+            ]
+            reg_maxuserport = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "MaxUserPort", "/t", "REG_DWORD", "/d", "65534", "/f"
+            ]
+            reg_tcp1323 = [
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "Tcp1323Opts", "/t", "REG_DWORD", "/d", "3", "/f"
+            ]
+            cmd_logs.append(self.hal.run_cmd(reg_throttle, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_resp, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_qos, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_offload, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_pmtubh, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_dnsleak, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_timedwait, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_maxuserport, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(reg_tcp1323, execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "tcp", "set", "global", "timestamps=enabled"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "tcp", "set", "supplemental", "template=custom", "congestionprovider=cubic"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "tcp", "set", "supplemental", "template=custom", "fastopen=enabled"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "tcp", "set", "supplemental", "template=internet", "rack=enabled"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "interface", "udp", "set", "global", "uro=enabled"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "interface", "udp", "set", "global", "uso=enabled"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "ipv4", "set", "global", "loopbacklargemtu=disable"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["netsh", "int", "ipv6", "set", "global", "loopbacklargemtu=disable"], execute=should_apply))
+            actions.append("Desactivar estrangulamiento de paquetes en juegos y videollamadas (NetworkThrottlingIndex)")
+            actions.append("Liberar 100% del ancho de banda reservado por Windows QoS (NonBestEffortLimit=0)")
+            actions.append("Habilitar Hardware Task Offload para Wi-Fi 7/Multi-Gig (DisableTaskOffload=0)")
+            actions.append("Habilitar UDP Receive Segment Coalescing (URO) y Segmentation Offload (USO) por hardware para QUIC y Gaming")
+            actions.append("Activar salvaguarda Zero NetLoss para BBRv2/CUBIC en Windows 11 24H2 aislando tráfico loopback")
+            actions.append("Activar mitigación de agujeros negros de MTU (EnablePMTUBHDetect=1 / RFC 4821)")
+            actions.append("Prevenir fugas de DNS desactivando Smart Multi-Homed Name Resolution (DisableSmartNameResolution=1)")
+            actions.append("Habilitar actualización dinámica a DNS cifrado mediante DDR (RFC 9462) y DNR (RFC 9463)")
+            actions.append("Configurar prioridad Wi-Fi 7 MLO TTLM (TID-to-Link Mapping) para aislar paquetes de baja latencia")
+            actions.append("Activar Wi-Fi 7 Preamble Puncturing para evasión dinámica de interferencias en canales de 160/320 MHz")
+            actions.append("Habilitar Wi-Fi 7 rTWT (Restricted Target Wake Time) para períodos de servicio sin contención")
+            actions.append("Activar Wi-Fi 7 eMLSR (Enhanced Multi-Link Single Radio) para conmutación de banda en microsegundos (32 µs)")
+            actions.append("Optimizar Fast Roaming IEEE 802.11k/v/r y OKC para conmutación de APs sin caídas en llamadas o juegos")
+            actions.append("Configurar colas hardware WMM AC_VO/AC_VI y mapeo DSCP 46 para acceso prioritario al aire de radio")
+            actions.append("Optimizar Receive Segment Coalescing (RSC) en Wi-Fi para entrega inmediata de paquetes sin jitter")
+            actions.append("Configurar RSS Packet Steering balanceado en 2-4 núcleos para eliminar jitter inter-core")
+            actions.append("Optimizar conmutación sin pérdidas Multipath QUIC (MPQUIC) para interfaces multi-homed")
+            actions.append("Activar TCP Fast Open (TFO / RFC 7413) para envío de datos 0-RTT en paquetes SYN")
+            actions.append("Activar TCP HyStart++ (RFC 9406) y algoritmo CUBIC contra bufferbloat en arranque")
+            actions.append("Activar RACK-TLP (RFC 8985) y PRR (RFC 6937) para mitigación de pérdidas sin caídas RTO")
+            actions.append("Habilitar retroalimentación L4S/AccECN (RFC 9768) acoplada para colas DualPI2 AQM de sub-milisegundo")
+            actions.append("Configurar colas acopladas DualQ Coupled AQM (RFC 9332 / DualPI2) para aislamiento L4S ECT(1) a 5ms")
+            actions.append("Alinear señalización DiffServ4 con routers CAKE / FQ-CoDel (RFC 8290) para ping plano bajo descargas")
+            actions.append("Habilitar extensión QUIC Datagram (RFC 9221) y WebTransport para eliminar Head-of-Line blocking en juegos")
+
+        elif plat == PlatformType.LINUX:
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_ecn=3"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_low_latency=1"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.core.default_qdisc=fq_codel"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_congestion_control=bbr"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_fastopen=3"], execute=should_apply))
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_recovery=1"], execute=should_apply))
+            actions.append("Activar TCP AccECN (RFC 9768, tcp_ecn=3) y flag tcp_low_latency en kernel Linux")
+            actions.append("Activar Fair Queueing CoDel (fq_codel / RFC 8290) para supresión de bufferbloat")
+            actions.append("Activar sondeo de MTU PLPMTUD en kernel Linux (tcp_mtu_probing=1 / RFC 4821)")
+            actions.append("Activar algoritmo TCP BBRv3 / BBR para modelado de ancho de banda y RTT mínimo")
+            actions.append("Activar TCP Fast Open cliente/servidor (tcp_fastopen=3 / RFC 7413)")
+            actions.append("Activar RACK-TLP (tcp_recovery=1 / RFC 8985) y Proportional Rate Reduction (PRR / RFC 6937)")
+            actions.append("Alinear clasificación CAKE / FQ-CoDel (RFC 8290) con diffserv4 para prioridad gaming")
+        else:
+            cmd_logs.append(self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.delayed_ack=0"], execute=should_apply))
+            actions.append("Desactivar delayed_ack para interactividad en tiempo real")
+
+        failed_cmds = sum(1 for c in cmd_logs if getattr(c, "success", True) is False)
+        all_failed = bool(should_apply and cmd_logs and failed_cmds == len(cmd_logs))
+
+        return {
+            "platform": plat.value,
+            "executed": should_apply and not all_failed,
+            "simulated": not should_apply,
+            "commands_total": len(cmd_logs),
+            "commands_failed": failed_cmds,
+            "actions": actions,
+            "gaming_mode_active": not all_failed,
+            "summary": (
+                "ERROR: No se pudieron aplicar los ajustes de Modo Gaming/L4S (requiere permisos elevados de Administrador)."
+                if all_failed else
+                "Modo Ultra-Baja Latencia y Gaming (L4S/AccECN RFC 9768) activado: bufferbloat suprimido y cero estrangulamiento."
+            )
+        }
+

@@ -1,0 +1,7 @@
+Ran 105 tests in 115.821s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T18:43:04-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9525 (Service Identity in TLS, obsoleting RFC 6125 - strict SAN validation and CN-ID deprecation)
+

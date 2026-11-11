@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OmniNetAgentToolManifest",
+  "description": "Model-agnostic tool definitions for autonomous network optimization, repair, deep telemetry, and 10-minute self-scheduled maintenance across Windows, Linux, macOS, and BSD.",
+  "version": "2.9.6",
+  "tools": [
+    {
+      "name": "network_diagnose",
+      "description": "Performs a complete, non-destructive diagnostic sweep of network health: evaluates gateway reachability, public internet connectivity, DNS resolution, latency, RFC 3550 jitter, packet loss, PMTU, and bufferbloat grade.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "include_dns_benchmarks": {
+            "type": "boolean",
+            "description": "Whether to include latency benchmarks for major public DNS resolvers.",
+            "default": true
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_benchmark_dns",
+      "description": "Benchmarks major public Anycast DNS resolvers (Cloudflare, Google, Quad9, OpenDNS) and returns ranked latency and reliability statistics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of domain names to resolve during benchmark testing."
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_generate_optimization_plan",
+      "description": "Formulates an OS-tailored optimization plan (TCP stack parameters, congestion provider like BBR/Cubic, RSS, RSC, MTU, DNS selection) based on recent diagnostics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_profile": {
+            "type": "string",
+            "enum": ["low_latency_gaming", "high_throughput_streaming", "balanced_standard", "privacy_hardened"],
+            "description": "Optimization profile to prioritize.",
+            "default": "balanced_standard"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_execute_optimization",
+      "description": "Applies an optimization plan to the host operating system. MANDATORY SAFETY: Captures a rollback snapshot prior to applying any setting. Verifies post-change health; automatically reverts if degradation is detected.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "The plan ID returned by network_generate_optimization_plan."
+          },
+          "execute": {
+            "type": "boolean",
+            "description": "Set to true to apply changes to the operating system. If false, executes a simulated dry-run without system impact.",
+            "default": false
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_triage_repair",
+      "description": "Executes hierarchical failure triage (L1 physical to L7 transport) and applies targeted remediation actions (DHCP lease renew, DNS cache flush, socket release, route table reset).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "execute": {
+            "type": "boolean",
+            "description": "Set to true to apply repair operations. If false, simulates and returns proposed repair steps.",
+            "default": false
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_rollback",
+      "description": "Restores host network adapter and stack configuration to a previously recorded snapshot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "snapshot_id": {
+            "type": "string",
+            "description": "The unique snapshot ID to restore."
+          },
+          "execute": {
+            "type": "boolean",
+            "description": "Set to true to execute restoration on host system. If false, simulates rollback.",
+            "default": false
+          }
+        },
+        "required": ["snapshot_id"]
+      }
+    },
+    {
+      "name": "network_persistent_monitor",
+      "description": "Configures or samples the persistent background daemon for SLA drift monitoring and autonomous healing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "poll_interval_sec": {
+            "type": "integer",
+            "description": "Telemetry polling interval in seconds.",
+            "default": 60
+          },
+          "auto_heal": {
+            "type": "boolean",
+            "description": "Whether the background sentinel should autonomously apply healing repairs when SLA is breached.",
+            "default": false
+          },
+          "action": {
+            "type": "string",
+            "enum": ["sample_once", "start_loop", "status"],
+            "description": "Action to perform.",
+            "default": "sample_once"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_discover_and_schedule_tasks",
+      "description": "Proactively scans all network layers, discovers needed optimization/repair tasks, schedules and executes them under Zero NetLoss safety, and sets the 10-minute (600s) recurring autonomous schedule.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "execute": {
+            "type": "boolean",
+            "description": "Whether to execute discovered tasks on the host OS immediately (default true).",
+            "default": true
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_inspect_sockets",
+      "description": "Audits active TCP/UDP sockets, connection state counts (ESTABLISHED, TIME_WAIT, CLOSE_WAIT, SYN_SENT), top remote endpoints, and socket leak anomalies.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "network_discover_pmtu",
+      "description": "Performs binary-search DF-bit Path MTU discovery to determine exact maximum unfragmented packet size and optimal MTU.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "Target IP or host to probe PMTU against.",
+            "default": "1.1.1.1"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_audit_arp_lan",
+      "description": "Scans the local ARP neighbor cache and detects duplicate MAC addresses (ARP spoofing/conflict) or local L2 anomalies.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "network_inspect_wifi_nic",
+      "description": "Audits Layer-1 Wi-Fi radio quality (SSID, Signal %, Band 2.4/5GHz, Channel, RX/TX Mbps) and active physical NIC adapters.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "network_traceroute",
+      "description": "Runs a fast hop-by-hop traceroute and bufferbloat delta test to pinpoint exact ISP or tunnel bottlenecks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "Destination IP or hostname.",
+            "default": "1.1.1.1"
+          },
+          "max_hops": {
+            "type": "integer",
+            "description": "Maximum TTL hops to trace.",
+            "default": 8
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "network_speedtest",
+      "description": "Measures real HTTP/TLS Download Mbps, Upload Mbps, RTT and Jitter against Cloudflare Anycast Edge.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "device_full_maintenance",
+      "description": "Runs multi-OS full device maintenance and fault remediation (Storage/Temp cleanup, RAM/Process health, OS Integrity & Services, Network Stack & Ephemeral Ports, Power/NIC tuning, Hosts/Security audit) across Windows, Linux, macOS, and BSD.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "execute": {
+            "type": "boolean",
+            "description": "Set to true to execute maintenance routines with safety snapshot, false for dry-run.",
+            "default": false
+          }
+        },
+        "required": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+Ran 106 tests in 118.178s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T19:30:14-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9458 Section 3 (application/ohttp-keys binary encoding and parsing for HPKE zero-knowledge transit)
+

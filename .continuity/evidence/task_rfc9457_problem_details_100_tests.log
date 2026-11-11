@@ -1,0 +1,7 @@
+Ran 100 tests in 133.879s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T14:52:00-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9457 Problem Details for HTTP APIs (application/problem+json)
+

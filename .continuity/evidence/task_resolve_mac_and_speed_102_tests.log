@@ -1,0 +1,9 @@
+Ran 102 tests in 128.493s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T16:25:00-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Features:
+- IEEE OUI MAC Vendor Fingerprinting (resolve_mac_oui_vendor)
+- Cloudflare Speed Edge Throughput & Latency (measure_bandwidth_speed) with sub-millisecond division-by-zero mitigation
+

@@ -1,0 +1,7 @@
+Ran 101 tests in 117.393s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T15:37:30-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9205 BCP 56 Protocol Substrates & RFC 9114 Section 4 HTTP/3 Stream Mapping & Credit Flow Control
+

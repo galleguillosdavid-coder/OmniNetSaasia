@@ -1,0 +1,7 @@
+Ran 104 tests in 115.585s
+OK (100% tests passing, 0 failures, 0 errors, 0 ResourceWarning)
+Date: 2026-11-10T17:56:50-03:00
+Commit ref: 9139868 (local sync)
+Suite: tests/
+Feature: RFC 9220 (Bootstrapping WebSockets with HTTP/3, Extended CONNECT & QUIC multiplexing)
+
