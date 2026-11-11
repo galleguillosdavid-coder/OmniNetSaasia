@@ -78,6 +78,7 @@ class HermesExecutor:
         reg("hermes_prune_duplicate_gateways", "Poda rutas 0.0.0.0/0 duplicadas.", {}, self._tool_prune)
         reg("hermes_gaming_l4s_qos", "Modo juego: QoS DSCP + L4S/ECN.", {}, self._tool_gaming)
         reg("hermes_lan_radar", "Radar Zero-Trust de dispositivos LAN.", {}, self._tool_radar)
+        reg("hermes_system_resource_audit", "Auditoría de recursos del host (CPU, RAM, sockets).", {}, self._tool_resource_audit)
         reg("hermes_verify_health", "Verificación Zero NetLoss post-acción.", {}, self._tool_verify)
 
     def _do_exec(self) -> bool:
@@ -128,6 +129,25 @@ class HermesExecutor:
                 "devices": radar.get("total_devices_detected", 0),
                 "gateway_impersonation_detected": impersonation,
                 "anomalies": radar.get("anomalies", [])}
+
+    def _tool_resource_audit(self) -> Dict[str, Any]:
+        try:
+            from netopt.adapters import SystemResourceAdapter
+            telemetry = SystemResourceAdapter.get_cpu_and_memory_telemetry()
+            top_procs = SystemResourceAdapter.get_top_network_processes(limit=5)
+            io_counters = SystemResourceAdapter.get_interface_io_counters()
+            return {
+                "success": True,
+                "criterion_met": True,
+                "cpu_percent": telemetry.get("cpu_percent", 0.0),
+                "ram_total_mb": telemetry.get("ram_total_mb", 0),
+                "ram_available_mb": telemetry.get("ram_available_mb", 0),
+                "memory_pressure": bool(telemetry.get("memory_pressure", False)),
+                "top_processes_count": len(top_procs),
+                "interfaces_monitored": len(io_counters.get("interfaces", {}))
+            }
+        except Exception as e:
+            return {"success": False, "criterion_met": False, "error": str(e)}
 
     def _tool_verify(self) -> Dict[str, Any]:
         ok, msg = self.rollback_mgr.verify_post_action_health(baseline=self._ctx.get("baseline"))

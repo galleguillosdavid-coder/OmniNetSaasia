@@ -116,6 +116,11 @@ class ForeseePlanner:
                 "Auditoría Zero-Trust de dispositivos LAN solicitada.",
                 "Detectar intrusos y suplantación ARP del gateway.",
                 "gateway_impersonation_detected=False.")
+        if any(k in low for k in ("recurso", "memoria", "cpu", "ram", "proceso", "socket", "carga", "rendimiento")):
+            add("resource_audit", "hermes_system_resource_audit",
+                "Auditoría profunda de recursos del host (CPU, RAM, sockets) vía SystemResourceAdapter.",
+                "Identificar procesos que saturan sockets de red o causan presión sobre la memoria.",
+                "auditoría de recursos completada con éxito.")
         return cands
 
     # ------------------------------------------------------------------

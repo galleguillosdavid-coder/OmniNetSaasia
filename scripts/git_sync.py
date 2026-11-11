@@ -12,7 +12,7 @@ def run(cmd):
 
 if __name__ == "__main__":
     run("git add -A")
-    run("git commit -m \"feat: adopcion HttpClientAdapter en licensing y suite ampliada (125 tests OK)\"")
+    run("git commit -m \"feat: integracion resource_audit en bucle cognitivo Hermes (126 tests OK)\"")
     run("git push origin main")
     run("git push upstream-operador main")
     print("ALL GIT COMMANDS COMPLETED SUCCESSFULLY.")

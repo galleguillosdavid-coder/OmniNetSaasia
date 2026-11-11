@@ -135,6 +135,18 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertEqual(d["final_verdict"], "PASS")
         self.assertTrue(d["executed_for_real"])
 
+    def test_executor_system_resource_audit(self):
+        executor = HermesExecutor(WindowsHAL(dry_run=True))
+        self._stub_engines(executor)
+        plan = ForeseePlanner().foresee("revisar sockets y rendimiento de memoria", make_diag())
+        rep = executor.execute(plan, diag=make_diag(), execute=False)
+        step_res = [r for r in rep.step_results if r.strategy == "resource_audit"]
+        self.assertTrue(len(step_res) > 0)
+        self.assertEqual(step_res[0].status, SUCCEEDED)
+        self.assertTrue(step_res[0].criterion_met)
+        self.assertIn("cpu_percent", step_res[0].output)
+        self.assertIn("top_processes_count", step_res[0].output)
+
 
 if __name__ == "__main__":
     unittest.main()

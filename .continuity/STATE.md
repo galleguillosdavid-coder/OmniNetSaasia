@@ -1,10 +1,11 @@
 # Estado comprobado
 
-Última actualización: 2026-11-10T23:05:00-03:00
-Commit validado: Ciclo 58 validado en suite de 125 tests
+Última actualización: 2026-11-11T08:15:00-03:00
+Commit validado: Ciclo 59 validado en suite de 126 tests
 
 ## Funciona y tiene evidencia
-- Suite de pruebas unitarias — 125/125 tests aprobados al 100%
+- Suite de pruebas unitarias — 126/126 tests aprobados al 100%
+- Arnés Hermes y Bucle Cognitivo (`hermes/foresee.py` y `hermes/executor.py`) — Integración de la herramienta y estrategia `resource_audit` conectada a `SystemResourceAdapter` (`psutil`) para evaluar presión de CPU/memoria y saturación de sockets de red (5 tests en `tests/test_hermes_cognitive.py`)
 - Adaptadores de Bibliotecas Maduras (`netopt/adapters.py`) — `SystemResourceAdapter` (`psutil`: CPU, RAM, packet drops en NICs y procesos top consumidores de sockets de red) y `HttpClientAdapter` (`httpx`: pooling y comunicación HTTP resiliente) integrados en `netopt/llm_gateway.py`, `cloud_server/proxy_server.py` y `netopt/licensing.py` (activación cloud con fallback)
 - Modelos Pydantic v2 (`netopt/schemas.py`) — Validación tipada de entradas para `DeviceIdentity`, `HealthResponse`, `SubagentRequest`, `OptimizeRequest`, `ChatRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`, `LicenseActivationRequest` y `TelemetryReport` integrados en los endpoints de `main.py`
 - Auditoría Técnica y Mandato de Bibliotecas Maduras — Completados e integrados en `docs/AUDITORIA_TECNICA_2026-11-10.md`, `docs/BIBLIOTECAS_ADOPTADAS.md` y `docs/MIGRACION_BIBLIOTECAS.md`
