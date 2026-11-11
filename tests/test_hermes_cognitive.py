@@ -145,6 +145,8 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertEqual(step_res[0].status, SUCCEEDED)
         self.assertTrue(step_res[0].criterion_met)
         self.assertIn("cpu_percent", step_res[0].output)
+        self.assertIn("disk_free_gb", step_res[0].output)
+        self.assertIn("disk_used_percent", step_res[0].output)
         self.assertIn("top_processes_count", step_res[0].output)
 
 

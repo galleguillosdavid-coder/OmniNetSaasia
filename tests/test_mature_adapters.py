@@ -100,6 +100,29 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(res["success"])
         self.assertEqual(res["plan"], "pro")
 
+    @patch("netopt.adapters.HttpClientAdapter.post_json")
+    def test_dispatch_global_device_telemetry_uses_http_adapter(self, mock_post):
+        from netopt.telemetry import dispatch_global_device_telemetry
+        mock_post.return_value = (200, {"status": "telemetry_received", "device_hash": "a1b2c3d4e5f6"})
+
+        report = {
+            "device_id": "test-dev-01",
+            "platform": "windows",
+            "ping_avg_ms": 22.5,
+            "jitter_ms": 1.1,
+            "packet_loss_pct": 0.0,
+            "bufferbloat_grade": "A",
+            "wifi_band": "5 GHz",
+            "is_wifi7": False,
+            "app_version": "2.9.6"
+        }
+        res = dispatch_global_device_telemetry(report, collector_url="http://mock-cloud.omninet.ai")
+        mock_post.assert_called_once()
+        self.assertTrue(res["success"])
+        self.assertTrue(res["dispatched"])
+        self.assertEqual(res["device_hash"], "a1b2c3d4e5f6")
+
+
 
 if __name__ == "__main__":
     unittest.main()

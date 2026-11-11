@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-11 — Ciclo 67: Telemetría Global httpx y Auditoría de Almacenamiento en Hermes (147 Tests OK)
+- **Objetivo:** Rotación técnica hacia `netopt/telemetry.py` y `hermes/`: sustitución de `urllib.request` por `HttpClientAdapter` (`httpx`) en `dispatch_global_device_telemetry()`, integración de `disk_telemetry` (`psutil`) en la herramienta `hermes_system_resource_audit` y heurística de objetivos de almacenamiento en `foresee.py`. Cobertura en `tests/test_mature_adapters.py` y `tests/test_hermes_cognitive.py`, elevando la suite general a 147 tests unitarios aprobados al 100%. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 147/147 tests aprobados en 152.8s.
+- **Commit / Ref:** Ciclo 67 validado.
+- **Pruebas ejecutadas:** `python -m unittest tests/test_mature_adapters.py` (10/10 OK), `python -m unittest tests/test_hermes_cognitive.py` (5/5 OK) y `python -m unittest discover -s tests -v` (147/147 OK).
+- **Pendientes:** Mantener activo daemon FastAPI y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-11 — Ciclo 66: Rotación Multimódulo SaaS Cloud Server y Adaptador HTTP Ampliado (146 Tests OK)
 - **Objetivo:** Rotación técnica hacia `cloud_server/` y `netopt/adapters.py`: extensión de `HttpClientAdapter` con `patch_json` y `request_json` (`httpx`), integración con fallback en `cloud_server/supabase_client.py` (`_supabase_request`), y creación de la suite dedicada `tests/test_cloud_server.py` (6 pruebas) más 2 pruebas en `tests/test_mature_adapters.py`, elevando la suite general a 146 tests unitarios aprobados al 100%. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 8 tests nuevos y 146/146 tests aprobados en 154.7s.

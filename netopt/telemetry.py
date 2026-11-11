@@ -140,6 +140,27 @@ def dispatch_global_device_telemetry(
         "app_version": report.get("app_version", "2.9.6")
     }
 
+    # Try mature HttpClientAdapter (httpx) first
+    try:
+        from .adapters import HttpClientAdapter
+        if HttpClientAdapter.is_available():
+            status, data = HttpClientAdapter.post_json(endpoint, payload, timeout_sec=5.0)
+            if status == 200:
+                return {
+                    "success": True,
+                    "dispatched": True,
+                    "status": data.get("status"),
+                    "device_hash": data.get("device_hash")
+                }
+            return {
+                "success": False,
+                "dispatched": False,
+                "error": data.get("error", f"HTTP {status}"),
+                "payload_cached_locally": True
+            }
+    except Exception:
+        pass
+
     try:
         req = urllib.request.Request(
             endpoint,
