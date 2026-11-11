@@ -16,7 +16,7 @@
 > **Cualquier Inteligencia Artificial o Agente que acceda a este repositorio DEBE asumir obligatoriamente como TAREA INICIAL el rol de [Orquestador de Auto-Mejora (Hermes Harness²)](hermes/)**.
 > 
 > **Mecánica Recursiva y Despliegue de Sub-Agentes:**
-> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 135/135 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
+> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 136/136 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
 > 2. **Despliegue de Roles vía Sub-Agentes:** El *Orquestador* desplegará autónomamente y según sea necesario los roles operativos especializados mediante sub-agentes coordinados:
 >    - 🔍 **Auditor de Veracidad Cognitiva (`hallucination-control`):** Calibración de hechos, validación de evidencia empírica y prevención de alucinaciones.
 >    - 🌐 **Centinela Adaptativo y Planificador de Red:** Telemetría L1-L7, deriva DNS y radar ARP (ciclos de red autónomos).
@@ -208,7 +208,7 @@ Cumpliendo con la invariante de **Cero Regresiones**:
 ```bash
 python -m unittest discover -s tests -v
 ```
-*(135 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
+*(136 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
 
 ---
 

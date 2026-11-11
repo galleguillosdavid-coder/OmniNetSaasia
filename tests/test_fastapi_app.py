@@ -86,6 +86,15 @@ class TestFastAPIApp(unittest.TestCase):
         resp = self.client.post("/api/chat", json={"message": "test"}, headers=headers)
         self.assertEqual(resp.status_code, 413)
 
+    def test_device_maintain_endpoint_dry_run(self):
+        resp = self.client.post("/api/device/maintain", json={"execute": False})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertFalse(data.get("executed"))
+        self.assertTrue(data.get("verified"))
+        self.assertIn("actions_executed", data)
+
+
 
 if __name__ == "__main__":
     unittest.main()
