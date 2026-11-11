@@ -6,7 +6,10 @@ from netopt.schemas import (
     OptimizeRequest,
     ChatRequest,
     LicenseActivationRequest,
-    TelemetryReport
+    TelemetryReport,
+    RollbackRequest,
+    RepairRequest,
+    SentinelToggleRequest
 )
 from pydantic import ValidationError
 
@@ -47,12 +50,33 @@ class TestPydanticSchemas(unittest.TestCase):
         self.assertEqual(opt_gaming.profile, "gaming")
 
     def test_chat_request_validation(self):
-        chat = ChatRequest(message="¿Cómo optimizar mi Wi-Fi?", device_id="PC-12345678")
+        chat = ChatRequest(
+            message="¿Cómo optimizar mi Wi-Fi?",
+            device_id="PC-12345678",
+            history=[{"role": "user", "content": "Hola"}],
+            language_mode="simple"
+        )
         self.assertEqual(chat.message, "¿Cómo optimizar mi Wi-Fi?")
         self.assertEqual(chat.device_id, "PC-12345678")
+        self.assertEqual(len(chat.history), 1)
+        self.assertEqual(chat.language_mode, "simple")
 
         with self.assertRaises(ValidationError):
             ChatRequest(message="")
+
+    def test_rollback_and_repair_requests(self):
+        rb = RollbackRequest(snapshot_id="snap_2026", execute=True)
+        self.assertEqual(rb.snapshot_id, "snap_2026")
+        self.assertTrue(rb.execute)
+
+        rep = RepairRequest(execute=False)
+        self.assertFalse(rep.execute)
+
+    def test_sentinel_toggle_request(self):
+        toggle = SentinelToggleRequest(enabled=True)
+        self.assertTrue(toggle.enabled)
+        toggle_default = SentinelToggleRequest()
+        self.assertIsNone(toggle_default.enabled)
 
     def test_license_activation_request_validation(self):
         lic = LicenseActivationRequest(license_key="OMNI-PRO-TEST-1234-SIG")

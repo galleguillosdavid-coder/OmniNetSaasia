@@ -48,6 +48,27 @@ class ChatRequest(BaseModel):
     device_id: Optional[str] = Field(default=None, description="Client device identifier")
     conversation_id: Optional[str] = Field(default=None, description="Context conversation ID")
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    history: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Previous conversation messages")
+    language_mode: Optional[str] = Field(default="technical", description="Tone and detail: technical or simple")
+
+
+class RollbackRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    snapshot_id: str = Field(default="", description="Snapshot ID to revert to, empty string selects latest")
+    execute: bool = Field(default=False, description="Whether to apply rollback or simulate")
+
+
+class RepairRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    execute: bool = Field(default=False, description="Whether to apply triage repair actions")
+
+
+class SentinelToggleRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: Optional[bool] = Field(default=None, description="Enable or disable sentinel")
 
 
 class LicenseActivationRequest(BaseModel):

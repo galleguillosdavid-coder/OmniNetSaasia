@@ -22,6 +22,7 @@ from typing import Dict, Any, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from netopt.licensing import generate_signed_license_key, verify_signed_license_key, PLAN_CATALOG
+from netopt.adapters import HttpClientAdapter
 
 try:
     from .supabase_client import (
@@ -395,23 +396,34 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 return
 
             try:
-                req = urllib.request.Request(
-                    f"{DEEPSEEK_BASE_URL.rstrip('/')}/chat/completions",
-                    data=json.dumps({
-                        "model": "deepseek-chat",
-                        "messages": messages,
-                        "temperature": 0.2,
-                        "max_tokens": 350
-                    }).encode("utf-8"),
-                    headers={
-                        "Content-Type": "application/json; charset=utf-8",
-                        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
-                    },
-                    method="POST"
-                )
-                with urllib.request.urlopen(req, timeout=25) as resp:
-                    resp_data = json.loads(resp.read().decode("utf-8"))
-                    reply = resp_data["choices"][0]["message"]["content"]
+                endpoint = f"{DEEPSEEK_BASE_URL.rstrip('/')}/chat/completions"
+                payload = {
+                    "model": "deepseek-chat",
+                    "messages": messages,
+                    "temperature": 0.2,
+                    "max_tokens": 350
+                }
+                headers = {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
+                }
+
+                if HttpClientAdapter.is_available():
+                    status_code, resp_data = HttpClientAdapter.post_json(endpoint, payload, headers=headers, timeout_sec=25.0)
+                    if status_code == 200 and isinstance(resp_data, dict) and "choices" in resp_data:
+                        reply = resp_data["choices"][0]["message"]["content"]
+                    else:
+                        raise RuntimeError(f"HTTP upstream error {status_code}: {resp_data.get('error', resp_data)}")
+                else:
+                    req = urllib.request.Request(
+                        endpoint,
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers=headers,
+                        method="POST"
+                    )
+                    with urllib.request.urlopen(req, timeout=25) as resp:
+                        resp_data = json.loads(resp.read().decode("utf-8"))
+                        reply = resp_data["choices"][0]["message"]["content"]
 
                 # Deduct quota and record anonymized telemetry only after verified upstream response
                 rec["queries_count"] = cur_count + 1

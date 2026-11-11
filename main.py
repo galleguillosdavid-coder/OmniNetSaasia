@@ -62,6 +62,14 @@ from netopt.device_maintenance import DeviceMaintenanceEngine
 from netopt.licensing import get_license_manager
 from netopt.llm_gateway import LLMGateway, load_llm_config, save_llm_config
 from netopt.ecosystem_subagents import get_ecosystem_orchestrator
+from netopt.schemas import (
+    ChatRequest,
+    OptimizeRequest,
+    SubagentRequest,
+    RollbackRequest,
+    RepairRequest,
+    SentinelToggleRequest
+)
 from dataclasses import asdict
 
 
@@ -883,38 +891,47 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
         hal = get_hal(dry_run=not execute)
 
         if self.path == "/api/optimize":
+            req_model = OptimizeRequest.model_validate(payload)
             optimizer = NetworkOptimizer(hal)
             plan = optimizer.generate_plan()
-            success, logs = optimizer.execute_plan(plan, execute=execute)
+            success, logs = optimizer.execute_plan(plan, execute=req_model.execute)
             self.send_json(200, {
                 "plan_id": plan.plan_id,
                 "status": plan.status,
-                "applied": execute,
+                "applied": req_model.execute,
                 "success": success,
                 "logs": logs
             })
         elif self.path == "/api/repair":
+            req_model = RepairRequest.model_validate(payload)
             repair = NetworkRepairEngine(hal)
             failure_type, triage_logs = repair.diagnose_and_triage()
-            actions = repair.execute_triage_repair(failure_type, execute=execute)
+            actions = repair.execute_triage_repair(failure_type, execute=req_model.execute)
             self.send_json(200, {
                 "failure_type": failure_type,
                 "triage_logs": triage_logs,
-                "applied": execute,
+                "applied": req_model.execute,
                 "actions": [vars(a) for a in actions]
             })
         elif self.path == "/api/rollback":
-            snap_id = payload.get("snapshot_id", "")
+            req_model = RollbackRequest.model_validate(payload)
+            snap_id = req_model.snapshot_id
             mgr = RollbackManager(hal)
-            logs = mgr.rollback(snap_id, execute=execute)
+            logs = mgr.rollback(snap_id, execute=req_model.execute)
             ok = bool(logs) and not any(str(l).startswith("ERROR:") for l in logs)
-            self.send_json(200, {"snapshot_id": snap_id, "applied": execute and ok, "success": ok, "logs": logs})
+            self.send_json(200, {"snapshot_id": snap_id, "applied": req_model.execute and ok, "success": ok, "logs": logs})
         elif self.path == "/api/chat":
-            msg = payload.get("message", "")
-            history = payload.get("history", [])
-            language_mode = payload.get("language_mode", "technical")
+            try:
+                chat_req = ChatRequest.model_validate(payload)
+            except Exception as e:
+                self.send_json(422, {"error": "Invalid chat request schema", "detail": str(e)})
+                return
             gateway = LLMGateway()
-            res = gateway.chat(msg, history=history, language_mode=language_mode)
+            res = gateway.chat(
+                chat_req.message,
+                history=chat_req.history or [],
+                language_mode=chat_req.language_mode or "technical"
+            )
             self.send_json(200, res)
         elif self.path == "/api/llm/config":
             gateway = LLMGateway()
@@ -926,10 +943,8 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
             self.send_json(200, {"status": "saved", "config": safe_cfg})
         elif self.path == "/api/sentinel/toggle":
             sentinel = get_sentinel()
-            requested_enabled = payload.get(
-                "enabled",
-                not sentinel.enabled
-            )
+            toggle_req = SentinelToggleRequest.model_validate(payload)
+            requested_enabled = toggle_req.enabled if toggle_req.enabled is not None else not sentinel.enabled
             sentinel.enabled = bool(requested_enabled)
             if sentinel.enabled:
                 sentinel.start()
@@ -955,9 +970,9 @@ class OmniNetAPIHandler(BaseHTTPRequestHandler):
             res = maint.run_full_device_maintenance(execute=execute)
             self.send_json(200, res)
         elif self.path == "/api/subagents/run":
-            sid = payload.get("id", "")
+            sub_req = SubagentRequest.model_validate(payload)
             orch = get_ecosystem_orchestrator()
-            res = orch.execute_subagent_by_id(sid, execute=execute)
+            res = orch.execute_subagent_by_id(sub_req.id, execute=sub_req.execute)
             self.send_json(200, res)
         elif self.path == "/api/license/activate":
             lkey = payload.get("license_key", "")

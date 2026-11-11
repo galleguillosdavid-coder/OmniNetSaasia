@@ -39,6 +39,7 @@ from .device_maintenance import DeviceMaintenanceEngine
 from .licensing import get_license_manager
 from .software_catalog import find_matching_software, install_software_package, SOFTWARE_REGISTRY
 from .ecosystem_subagents import get_ecosystem_orchestrator
+from .adapters import HttpClientAdapter
 
 
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".netopt_state", "llm_config.json")
@@ -843,13 +844,33 @@ class LLMGateway:
                 }
 
                 endpoint = f"{base_url.rstrip('/')}/chat/completions"
+                auth_hdr = f"Bearer {api_key}" if api_key else "Bearer ollama"
+                headers = {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Authorization": auth_hdr
+                }
+
+                if HttpClientAdapter.is_available():
+                    status_code, resp_data = HttpClientAdapter.post_json(endpoint, req_body, headers=headers, timeout_sec=25.0)
+                    if status_code == 200 and isinstance(resp_data, dict) and "choices" in resp_data:
+                        answer = resp_data["choices"][0]["message"]["content"]
+                        self._record_conversation_feedback(user_message, answer, executed_tool, pending_followup)
+                        return {
+                            "reply": answer,
+                            "language_mode": lang,
+                            "model": model,
+                            "provider": provider,
+                            "executed_tool": executed_tool,
+                            "tool_output": tool_output,
+                            "backend_trace": backend_trace
+                        }
+                    elif status_code != 200:
+                        raise RuntimeError(f"HTTP upstream error {status_code}: {resp_data.get('error', resp_data)}")
+
                 req = urllib.request.Request(
                     endpoint,
                     data=json.dumps(req_body).encode("utf-8"),
-                    headers={
-                        "Content-Type": "application/json; charset=utf-8",
-                        "Authorization": f"Bearer {api_key}" if api_key else "Bearer ollama"
-                    },
+                    headers=headers,
                     method="POST"
                 )
 

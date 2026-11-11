@@ -1,5 +1,12 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-10 — Ciclo 57: Integración Multimódulo de Adaptadores HTTP y Validación Pydantic v2 (124 Tests OK)
+- **Objetivo:** Integración del adaptador `HttpClientAdapter` (`httpx`) en `netopt/llm_gateway.py` y `cloud_server/proxy_server.py`, y validación tipada estricta con Pydantic v2 en `main.py` (`OmniNetAPIHandler`: `ChatRequest`, `OptimizeRequest`, `SubagentRequest`, `RollbackRequest`, `RepairRequest`, `SentinelToggleRequest`); suite general ampliada a 124 tests aprobados al 100% en 121.7s. Armonización documental en `README.md`, `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `PROJECT_STATE.md`.
+- **Resultado:** APROBADO al 100%. 2 tests nuevos y 124/124 tests en la suite general en 121.7s.
+- **Commit / Ref:** Ciclo 57 validado.
+- **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (124/124 OK) y `python -m compileall -q .` (0 errores).
+- **Pendientes:** Rotación hacia FastAPI y migración de firma digital Ed25519.
+
 ## 2026-11-10 — Ciclo 56: Adaptadores de Bibliotecas Maduras `psutil` y `httpx` (122 Tests OK)
 - **Objetivo:** Implementación del patrón Adapter (`docs/Auditorias/3.md` §38) en `netopt/adapters.py` para telemetría profunda de hardware (`psutil`: CPU total y por núcleo, RAM, caídas de paquetes en NICs físicas y procesos que saturan sockets) y comunicación HTTP resiliente (`httpx`), probado mediante `tests/test_mature_adapters.py`; 122/122 tests aprobados al 100%. Armonización de directivas en `AGENTS.md` y `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` para ciclo global multimódulo continuo.
 - **Resultado:** APROBADO al 100%. 5 tests nuevos y 122/122 tests en la suite general en 140.2s.
