@@ -149,6 +149,45 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertIn("disk_used_percent", step_res[0].output)
         self.assertIn("top_processes_count", step_res[0].output)
 
+    def test_reflect_evaluator_history_limit_and_distillation(self):
+        from hermes.executor import ExecutionReport, StepResult
+        evaluator = ReflectEvaluator(memory=self.memory, history_limit=5)
+        plan = ForeseePlanner().foresee("juegos", make_diag())
+
+        step_results = [
+            StepResult(
+                step_id=s.step_id, strategy=s.strategy, tool=s.tool,
+                status=SUCCEEDED, duration_ms=10.0, output={}, criterion_met=True
+            )
+            for s in plan.steps
+        ]
+        report = ExecutionReport(plan_id=plan.plan_id, executed_for_real=True, step_results=step_results)
+
+        # Pre-seed consecutive failure in strategy
+        self.memory.state["reflections"] = {
+            "strategies": {"gaming_l4s_qos": {"success_count": 0, "failure_count": 3, "consecutive_failures": 3}},
+            "history": []
+        }
+
+        refl = evaluator.evaluate(plan, report, health_after="healthy")
+        self.assertEqual(refl.verdict, "PASS")
+        self.assertEqual(refl.score, 100)
+
+        # Verify consecutive failures reset to 0
+        stats = self.memory.state["reflections"]["strategies"]["gaming_l4s_qos"]
+        self.assertEqual(stats["consecutive_failures"], 0)
+        self.assertEqual(stats["success_count"], 1)
+
+        # Verify skill was distilled into memory
+        self.assertTrue(any(s.get("name") == "foresee_gaming_l4s_qos" for s in self.memory.state["learned_skills"]))
+
+        # Push 10 reflections to test history_limit=5
+        for _ in range(10):
+            evaluator.evaluate(plan, report, health_after="healthy")
+        self.assertLessEqual(len(self.memory.state["reflections"]["history"]), 5)
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
