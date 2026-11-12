@@ -80,6 +80,8 @@ class HermesExecutor:
         reg("hermes_lan_radar", "Radar Zero-Trust de dispositivos LAN.", {}, self._tool_radar)
         reg("hermes_system_resource_audit", "Auditoría de recursos del host (CPU, RAM, sockets).", {}, self._tool_resource_audit)
         reg("hermes_pqc_audit", "Auditoría de Criptografía Poscuántica (PQC TLS 1.3 / ML-KEM).", {}, self._tool_pqc_audit)
+        reg("hermes_encrypted_dns_discovery", "Autodescubrimiento de Resolvers Cifrados (RFC 9463 DDR & RFC 9540 DNR).", {}, self._tool_encrypted_dns_discovery)
+        reg("hermes_dns_error_reporting", "Auditoría de Reporte de Errores DNS (RFC 9578 DNER & RFC 8914 EDE).", {}, self._tool_dns_error_reporting)
         reg("hermes_verify_health", "Verificación Zero NetLoss post-acción.", {}, self._tool_verify)
 
     def _do_exec(self) -> bool:
@@ -168,6 +170,38 @@ class HermesExecutor:
                 "criterion_met": ok,
                 "active_pqc_algorithm": res.get("active_pqc_algorithm", "UNKNOWN"),
                 "pqc_client_hello_size_bytes": res.get("pqc_client_hello_size_bytes", 0),
+                "summary": res.get("summary", "")
+            }
+        except Exception as e:
+            return {"success": False, "criterion_met": False, "error": str(e)}
+
+    def _tool_encrypted_dns_discovery(self) -> Dict[str, Any]:
+        try:
+            from netopt.diagnostics import check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status
+            res = check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status()
+            ok = "RFC 9463" in str(res.get("standard_ddr", ""))
+            return {
+                "success": True,
+                "criterion_met": ok,
+                "standard_ddr": res.get("standard_ddr", ""),
+                "standard_dnr": res.get("standard_dnr", ""),
+                "tls_identity_verified": bool(res.get("tls_identity_verified", False)),
+                "summary": res.get("summary", "")
+            }
+        except Exception as e:
+            return {"success": False, "criterion_met": False, "error": str(e)}
+
+    def _tool_dns_error_reporting(self) -> Dict[str, Any]:
+        try:
+            from netopt.diagnostics import check_rfc9578_dner_and_rfc8914_extended_errors_status
+            res = check_rfc9578_dner_and_rfc8914_extended_errors_status()
+            ok = "RFC 9578" in str(res.get("standard_dner", ""))
+            return {
+                "success": True,
+                "criterion_met": ok,
+                "standard_dner": res.get("standard_dner", ""),
+                "standard_ede": res.get("standard_ede", ""),
+                "ede_diagnostics_active": bool(res.get("ede_diagnostics_active", False)),
                 "summary": res.get("summary", "")
             }
         except Exception as e:

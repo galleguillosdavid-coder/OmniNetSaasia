@@ -277,6 +277,35 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertTrue(pqc_result.criterion_met)
         self.assertEqual(pqc_result.output.get("active_pqc_algorithm"), "X25519MLKEM768")
 
+    def test_foresee_encrypted_dns_and_dner_goals_trigger_specialized_tools(self):
+        """Verifies DDR/DNR encrypted discovery and DNER/EDE error reporting in Foresee & Executor."""
+        planner = ForeseePlanner()
+        plan = planner.foresee("autodescubrimiento ddr dnr svcb y auditoria de errores dns dner ede", make_diag())
+        strategies = [s.strategy for s in plan.steps]
+        self.assertIn("encrypted_dns_discovery", strategies)
+        self.assertIn("dns_error_reporting", strategies)
+
+        step_ddr = [s for s in plan.steps if s.strategy == "encrypted_dns_discovery"][0]
+        self.assertEqual(step_ddr.tool, "hermes_encrypted_dns_discovery")
+        self.assertFalse(step_ddr.mutating)
+
+        step_dner = [s for s in plan.steps if s.strategy == "dns_error_reporting"][0]
+        self.assertEqual(step_dner.tool, "hermes_dns_error_reporting")
+        self.assertFalse(step_dner.mutating)
+
+        # Execute steps via HermesExecutor
+        executor = HermesExecutor(WindowsHAL(dry_run=True))
+        self._stub_engines(executor)
+        res = executor.execute(plan, diag=make_diag(), execute=False)
+
+        ddr_res = [r for r in res.step_results if r.strategy == "encrypted_dns_discovery"][0]
+        self.assertTrue(ddr_res.criterion_met)
+        self.assertIn("RFC 9463", ddr_res.output.get("standard_ddr", ""))
+
+        dner_res = [r for r in res.step_results if r.strategy == "dns_error_reporting"][0]
+        self.assertTrue(dner_res.criterion_met)
+        self.assertIn("RFC 9578", dner_res.output.get("standard_dner", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

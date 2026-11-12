@@ -127,6 +127,18 @@ class ForeseePlanner:
                 "Verificar compatibilidad con algoritmos híbridos X25519MLKEM768 y mitigación de descartes por middlebox.",
                 "pqc_hybrid_key_exchange_supported=True y fragilidad multisegmento mitigada.",
                 risk="LOW", mutating=False)
+        if any(k in low for k in ("ddr", "dnr", "svcb", "encrypted_dns", "cifrado", "dns_cifrado", "doh", "dot", "doq")):
+            add("encrypted_dns_discovery", "hermes_encrypted_dns_discovery",
+                "Autodescubrimiento proactivo de resolvers DNS cifrados vía SVCB (RFC 9463 DDR) y DHCP (RFC 9540 DNR).",
+                "Detectar endpoints DoH/DoT/DoQ locales autenticados y validar identidad TLS RFC 9525.",
+                "rfc9463_ddr_status y rfc9540_dnr_status evaluados con éxito.",
+                risk="LOW", mutating=False)
+        if any(k in low for k in ("dner", "ede", "dns_error", "extended_dns_error", "rfc9578", "rfc8914")):
+            add("dns_error_reporting", "hermes_dns_error_reporting",
+                "Auditoría preventiva de reporte estructurado de errores DNS (RFC 9578 DNER) y errores extendidos (RFC 8914 EDE).",
+                "Decodificar códigos EDE (DNSSEC Bogus, Prohibited, Blocked) y verificar señalización DNER para mitigar agujeros negros silenciosos.",
+                "dner_reporting_supported=True o mitigación de fallos silenciosos evaluada con éxito.",
+                risk="LOW", mutating=False)
         return cands
 
     # ------------------------------------------------------------------
