@@ -142,6 +142,28 @@ class TestFastAPIApp(unittest.TestCase):
         for t in data["tasks_executed"]:
             self.assertIn(t.get("status"), ("SIMULATED", "SCHEDULED"))
 
+    def test_sentinel_endpoints_contract_and_trigger(self):
+        # 1. GET /api/sentinel/status
+        resp_status = self.client.get("/api/sentinel/status")
+        self.assertEqual(resp_status.status_code, 200)
+        data = resp_status.json()
+        self.assertIn("enabled", data)
+        self.assertIn("running", data)
+        self.assertIn("latency_threshold_ms", data)
+
+        # 2. POST /api/sentinel/toggle (disable)
+        resp_toggle = self.client.post("/api/sentinel/toggle", json={"enabled": False})
+        self.assertEqual(resp_toggle.status_code, 200)
+        self.assertFalse(resp_toggle.json()["enabled"])
+
+        # 3. POST /api/sentinel/trigger
+        resp_trigger = self.client.post("/api/sentinel/trigger")
+        self.assertEqual(resp_trigger.status_code, 200)
+        t_data = resp_trigger.json()
+        self.assertTrue(t_data["triggered"])
+        self.assertIn("had_incident", t_data)
+        self.assertIn("status", t_data)
+
 
 
 

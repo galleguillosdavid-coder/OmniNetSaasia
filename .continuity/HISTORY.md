@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 85: Pruebas de Contrato y Disparador REST de Sentinel en FastAPI (166 Tests OK)
+- **Objetivo:** Rotación técnica hacia la interfaz REST `netopt/fastapi_app.py`: ampliación de cobertura de contratos con pruebas para `/api/sentinel/status`, `/api/sentinel/toggle` y `/api/sentinel/trigger` en `tests/test_fastapi_app.py`. Validación de activación/desactivación dinámica de centinela, inspección de incidentes registrados y ejecución reactiva segura. Suite general elevada a 166 tests unitarios aprobados al 100% en 172.2s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 166/166 tests aprobados en 172.2s.
+- **Commit / Ref:** Ciclo 85 validado.
+- **Pruebas ejecutadas:** `tests/test_fastapi_app.py` (14/14 OK) y `python -m unittest discover -s tests -v` (166/166 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 84: Diagnóstico de Network Slicing IETF (RFC 9543) y Partición NRP (165 Tests OK)
 - **Objetivo:** Ejecución continua del mandato de soluciones más allá de lo evidente e investigación tecnológica en internet: implementación en `netopt/diagnostics.py` de `check_rfc9543_ietf_network_slicing_and_nrp_status()` evaluando el marco arquitectónico de Network Slicing de IETF (RFC 9543, Marzo 2024). Incluye verificación de puntos de demarcación de servicio (SDPs), particiones de recursos de red (NRP), direccionamiento de tráfico DSCP-a-NRP, garantías deterministas de SLO/SLE e interoperabilidad con rebanado de transporte 5G y Segment Routing (SRv6/SR-MPLS). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 165 tests unitarios aprobados al 100% en 168.9s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 165/165 tests aprobados en 168.9s.
