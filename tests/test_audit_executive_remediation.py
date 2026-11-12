@@ -269,6 +269,21 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
         self.assertEqual(dev_tasks[0]["status"], "SIMULATED")
         self.assertIn("Mantenimiento OS", dev_tasks[0]["concise_result"])
 
+    def test_t25_autonomous_scheduler_discovers_and_dispatches_pqc_tls_audit(self):
+        from netopt.autonomous_scheduler import AutonomousTaskScheduler
+        from netopt.hal import WindowsHAL
+
+        sched = AutonomousTaskScheduler(hal=WindowsHAL(dry_run=True))
+        # Ensure pqc_tls_audited_generation is not set
+        sched.evolution["pqc_tls_audited_generation"] = -1
+        cycle = sched.discover_and_schedule_cycle(execute=False)
+
+        pqc_tasks = [t for t in cycle["tasks_executed"] if t["category"] == "PQC_TLS_AUDIT"]
+        self.assertGreaterEqual(len(pqc_tasks), 1)
+        self.assertIn("Criptografía Poscuántica", pqc_tasks[0]["title"])
+        self.assertIn("FIPS 203", pqc_tasks[0]["reason"])
+        self.assertEqual(pqc_tasks[0]["status"], "SIMULATED")
+        self.assertIn("PQC TLS 1.3 (X25519MLKEM768)", pqc_tasks[0]["concise_result"])
 
 
 if __name__ == "__main__":

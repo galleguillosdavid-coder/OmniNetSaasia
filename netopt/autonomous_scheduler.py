@@ -328,7 +328,20 @@ class AutonomousTaskScheduler:
                 status="SCHEDULED"
             ))
 
-        # 10. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
+        # 10. Check Post-Quantum TLS 1.3 Readiness & Oversized ClientHello Fragility
+        if self.evolution.get("pqc_tls_audited_generation") != self.evolution.get("generation", 1):
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="PQC_TLS_AUDIT",
+                priority="LOW",
+                title="Auditoría de Criptografía Poscuántica (PQC TLS 1.3 / ML-KEM) y tolerancia ClientHello",
+                reason="Verificación preventiva de algoritmos FIPS 203 y resiliencia ante fragmentación de handshake.",
+                status="SCHEDULED"
+            ))
+
+        # 11. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
         if not discovered:
             best_dns_str = f"{best_dns.provider} ({best_dns.avg_latency_ms}ms)" if best_dns else "OK"
             discovered.append(AutonomousNetworkTask(
@@ -452,6 +465,13 @@ class AutonomousTaskScheduler:
             elif task.category == "LAN_INTRUSION_RADAR":
                 r_res = audit_lan_radar_devices()
                 task.concise_result = f"Radar LAN: {r_res['total_devices_detected']} dispositivos activos ({r_res['radar_status']})."
+            elif task.category == "PQC_TLS_AUDIT":
+                from .diagnostics import check_pqc_hybrid_tls_and_oversize_hello_readiness_status
+                pqc_res = check_pqc_hybrid_tls_and_oversize_hello_readiness_status()
+                if do_exec and not is_dry_hal:
+                    self.evolution["pqc_tls_audited_generation"] = self.evolution.get("generation", 1)
+                    self._save_evolution()
+                task.concise_result = f"PQC TLS 1.3 ({pqc_res['active_pqc_algorithm']}): {pqc_res['summary'][:60]}..."
             else:
                 self.hal.flush_dns_cache(execute=do_exec)
                 task.concise_result = "Auditoría 10m sin anomalías; caché DNS refrescada."

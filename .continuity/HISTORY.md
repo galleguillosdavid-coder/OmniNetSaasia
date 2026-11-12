@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 90: Tarea Autónoma de Auditoría PQC TLS 1.3 en AutonomousTaskScheduler (171 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia el motor de descubrimiento de red `netopt/autonomous_scheduler.py`: integración de la categoría `PQC_TLS_AUDIT` en el ciclo autónomo de 10 minutos de `AutonomousTaskScheduler`. Detección preventiva periódica de preparación de criptografía poscuántica (FIPS 203 / ML-KEM-768), tolerancia a ClientHello multisegmento y mitigación de bloqueos por middleboxes obsoletos. Nueva prueba unitaria `test_t25_autonomous_scheduler_discovers_and_dispatches_pqc_tls_audit` en `tests/test_audit_executive_remediation.py`, elevando la suite general a 171 tests unitarios aprobados al 100% en 184.0s. Pruebas reales in situ (Ping: 25.83ms, Jitter: 0.06ms, DNS: 24.84ms, Sockets TCP: 160, UDP: 31, ARP: 2) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 171/171 tests aprobados en 184.0s.
+- **Commit / Ref:** Ciclo 90 validado.
+- **Pruebas ejecutadas:** `tests/test_audit_executive_remediation.py` (test_t25 OK) y `python -m unittest discover -s tests -v` (171/171 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y nuevo temporizador 40 min de auto-mejora (`task-4738`).
+
+
+
 ## 2026-11-12 — Ciclo 89: Diagnóstico de Criptografía Poscuántica (PQC TLS 1.3 / ML-KEM) y Fragilidad ClientHello (170 Tests OK)
 - **Objetivo:** Ejecución continua del mandato de soluciones más allá de lo evidente e investigación tecnológica en internet: implementación en `netopt/diagnostics.py` de `check_pqc_hybrid_tls_and_oversize_hello_readiness_status()`, evaluando la preparación para Criptografía Poscuántica en TLS 1.3 híbrido (NIST FIPS 203 ML-KEM-768 / X25519MLKEM768 draft-ietf-tls-hybrid-design). Audita la tolerancia a paquetes ClientHello multisegmento (>1.5 KB), mitigación de descartes por middleboxes/firewalls obsoletos, alineación con PLPMTUD (RFC 4821) y blindaje contra ataques "Harvest Now, Decrypt Later" (HNDL). Nueva prueba unitaria en `tests/test_netopt_mock.py`, elevando la suite general a 170 tests unitarios aprobados al 100% en 171.07s. Pruebas reales in situ (Ping: 27.04ms, Jitter: 0.65ms, DNS: 25.48ms, Sockets TCP: 160, UDP: 29, ARP: 3) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 170/170 tests aprobados en 171.07s.
