@@ -104,6 +104,30 @@ class TestCloudServer(unittest.TestCase):
             self.assertEqual(res["license_key"], "OMNI-TEST")
             self.assertEqual(res["plan"], "pro")
 
+    def test_license_generation_and_cryptographic_verification(self):
+        with patch.dict(os.environ, {"OMNINET_LICENSE_SECRET": "test_secret_for_licenses_9999"}):
+            # Pro plan
+            key_pro = proxy.generate_signed_license_key(plan="pro", email="alice@example.com")
+            self.assertTrue(key_pro.startswith("OMNI-PRO-"))
+            self.assertEqual(proxy.verify_signed_license_key(key_pro), "pro")
+
+            # Family plan
+            key_fam = proxy.generate_signed_license_key(plan="family", email="bob@example.com")
+            self.assertTrue(key_fam.startswith("OMNI-FAM-"))
+            self.assertEqual(proxy.verify_signed_license_key(key_fam), "family")
+
+            # Tampered key
+            tampered = key_pro[:-4] + "ABCD"
+            self.assertIsNone(proxy.verify_signed_license_key(tampered))
+
+            # Truncated signature (< 32 hex chars) rejected per OMNI-014
+            parts = key_pro.split("-")
+            truncated = f"{parts[0]}-{parts[1]}-{parts[2]}-{parts[3]}-{parts[4][:16]}"
+            self.assertIsNone(proxy.verify_signed_license_key(truncated))
+
+            # Master backdoor rejected
+            self.assertIsNone(proxy.verify_signed_license_key("OMNI-PRO-MASTER-2026"))
+
 
 if __name__ == "__main__":
     unittest.main()
