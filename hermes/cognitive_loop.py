@@ -100,3 +100,8 @@ class HermesCognitiveLoop:
         report.duration_ms = round((time.perf_counter() - t0) * 1000, 2)
         return report
 
+    def meta_cognitive_insights(self) -> Dict[str, Any]:
+        """Exposes high-level meta-cognitive metrics derived from ReflectEvaluator."""
+        return self.evaluator.summarize_learning_insights()
+
+

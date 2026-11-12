@@ -131,3 +131,44 @@ class ReflectEvaluator:
         state["history"] = history[-self.history_limit:]
         self.memory.save()
 
+    def summarize_learning_insights(self) -> Dict[str, Any]:
+        """
+        Synthesizes meta-cognitive telemetry across historical plans and learned strategies.
+        Returns quantifiable metrics on strategy reliability, cognitive calibration,
+        and closed-loop failure avoidance.
+        """
+        state = self.reflections_state()
+        strategies = state.get("strategies", {})
+        history = state.get("history", [])
+
+        total_plans = len(history)
+        real_plans = [h for h in history if h.get("executed_for_real")]
+        avg_score = round(sum(h.get("score", 0) for h in history) / total_plans, 2) if total_plans else 0.0
+
+        pass_count = sum(1 for h in history if h.get("verdict") in ("PASS", "SIMULATED"))
+        pass_rate_pct = round(100.0 * pass_count / total_plans, 2) if total_plans else 0.0
+
+        high_confidence = []
+        penalized = []
+        for name, stats in strategies.items():
+            succ = int(stats.get("success_count", 0))
+            fail = int(stats.get("failure_count", 0))
+            consec = int(stats.get("consecutive_failures", 0))
+            total = succ + fail
+            rate = (succ / total) if total > 0 else 0.0
+            if consec >= 2:
+                penalized.append(name)
+            elif total >= 2 and rate >= 0.8:
+                high_confidence.append(name)
+
+        return {
+            "total_plans_evaluated": total_plans,
+            "real_execution_plans": len(real_plans),
+            "historical_pass_rate_pct": pass_rate_pct,
+            "avg_plan_score": avg_score,
+            "total_strategies_tracked": len(strategies),
+            "high_confidence_strategies": sorted(high_confidence),
+            "penalized_strategies": sorted(penalized)
+        }
+
+

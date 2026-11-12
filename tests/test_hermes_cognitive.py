@@ -200,7 +200,63 @@ class TestHermesCognitiveLoop(unittest.TestCase):
             evaluator.evaluate(plan, report, health_after="healthy")
         self.assertLessEqual(len(self.memory.state["reflections"]["history"]), 5)
 
+    def test_summarize_learning_insights_and_meta_cognitive_propagation(self):
+        """Verifies meta-cognitive synthesis of learning insights and propagation via HermesCognitiveLoop."""
+        from hermes.cognitive_loop import HermesCognitiveLoop
+        from starlette.testclient import TestClient
+        from netopt.fastapi_app import create_app
 
+        evaluator = ReflectEvaluator(memory=self.memory)
+
+        # Empty state
+        insights_empty = evaluator.summarize_learning_insights()
+        self.assertEqual(insights_empty["total_plans_evaluated"], 0)
+        self.assertEqual(insights_empty["high_confidence_strategies"], [])
+        self.assertEqual(insights_empty["penalized_strategies"], [])
+
+        # Seed state with learned strategies and historical evaluations
+        self.memory.state["reflections"] = {
+            "strategies": {
+                "dns_failover": {"success_count": 5, "failure_count": 0, "consecutive_failures": 0},
+                "gaming_l4s_qos": {"success_count": 4, "failure_count": 1, "consecutive_failures": 0},
+                "bbr_congestion": {"success_count": 0, "failure_count": 3, "consecutive_failures": 3},
+                "experimental_tweak": {"success_count": 1, "failure_count": 0, "consecutive_failures": 0}
+            },
+            "history": [
+                {"plan_id": "p1", "verdict": "PASS", "score": 100, "executed_for_real": True},
+                {"plan_id": "p2", "verdict": "SIMULATED", "score": 80, "executed_for_real": False},
+                {"plan_id": "p3", "verdict": "FAIL", "score": 20, "executed_for_real": True}
+            ]
+        }
+
+        insights = evaluator.summarize_learning_insights()
+        self.assertEqual(insights["total_plans_evaluated"], 3)
+        self.assertEqual(insights["real_execution_plans"], 2)
+        # Pass rate: 2 out of 3 = 66.67%
+        self.assertAlmostEqual(insights["historical_pass_rate_pct"], 66.67, places=1)
+        # Avg score: (100 + 80 + 20) / 3 = 66.67
+        self.assertAlmostEqual(insights["avg_plan_score"], 66.67, places=1)
+        self.assertEqual(insights["total_strategies_tracked"], 4)
+        # High confidence: dns_failover (5/5), gaming_l4s_qos (4/5 = 80%)
+        self.assertEqual(insights["high_confidence_strategies"], ["dns_failover", "gaming_l4s_qos"])
+        # Penalized: bbr_congestion (consecutive_failures=3 >= 2)
+        self.assertEqual(insights["penalized_strategies"], ["bbr_congestion"])
+
+        # Test HermesCognitiveLoop propagation
+        loop = HermesCognitiveLoop(memory=self.memory)
+        loop_insights = loop.meta_cognitive_insights()
+        self.assertEqual(loop_insights["total_strategies_tracked"], 4)
+        self.assertEqual(loop_insights["penalized_strategies"], ["bbr_congestion"])
+
+        # Test FastAPI /api/hermes/insights endpoint
+        app = create_app()
+        client = TestClient(app)
+        res = client.get("/api/hermes/insights")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("total_strategies_tracked", data)
+        self.assertIn("high_confidence_strategies", data)
+        self.assertIn("penalized_strategies", data)
 
 
 if __name__ == "__main__":

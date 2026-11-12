@@ -224,6 +224,11 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
     def license_status():
         return get_license_manager().get_status()
 
+    @app.get("/api/hermes/insights")
+    def hermes_insights():
+        from hermes.cognitive_loop import HermesCognitiveLoop
+        return HermesCognitiveLoop().meta_cognitive_insights()
+
     @app.get("/api/llm/config")
     def llm_config():
         cfg = load_llm_config()
