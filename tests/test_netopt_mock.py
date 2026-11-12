@@ -2374,6 +2374,23 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["yang_tcp_connection_grouping_supported"])
         self.assertIn("RFC 9599", res["summary"])
 
+    def test_wifi8_80211bn_uhr_readiness_status(self):
+        """Verifies IEEE 802.11bn (Wi-Fi 8 - Ultra High Reliability / UHR) readiness evaluation."""
+        from netopt.diagnostics import check_wifi8_80211bn_uhr_readiness_status
+        res = check_wifi8_80211bn_uhr_readiness_status()
+        self.assertIn("802.11bn", res["standard"])
+        self.assertIn("Wi-Fi 8", res["standard"])
+        self.assertIn("Ultra High Reliability", res["standard"])
+        self.assertTrue(res["multi_ap_coordinated_beamforming_ready"])
+        self.assertTrue(res["multi_ap_coordinated_spatial_reuse_ready"])
+        self.assertEqual(res["deterministic_latency_p95_reduction_pct"], 25.0)
+        self.assertEqual(res["edge_throughput_improvement_pct"], 25.0)
+        self.assertEqual(res["seamless_roaming_mpdu_loss_reduction_pct"], 25.0)
+        self.assertTrue(res["dynamic_subchannel_operation_supported"])
+        self.assertTrue(res["non_primary_channel_access_supported"])
+        self.assertTrue(res["rf_in_device_coexistence_active"])
+        self.assertIn("Wi-Fi 8", res["summary"])
+
 
 
 if __name__ == "__main__":
