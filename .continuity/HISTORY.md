@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 77: Bucle Cognitivo Hermes con Telemetría de Energía y Disparadores Foresee (158 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia el arnés cognitivo `hermes/`: extensión de `HermesExecutor._tool_resource_audit()` (`hermes/executor.py`) para incorporar métricas de alimentación eléctrica y batería (`power_plugged`, `is_power_saving`, `battery_percent`) proporcionadas por `SystemResourceAdapter`. Extensión de `ForeseePlanner._candidate_steps()` (`hermes/foresee.py`) con palabras clave de energía (`energia`, `bateria`, `power`) para activación determinista del plan de auditoría de recursos. Nueva prueba `test_foresee_energy_and_power_goal_triggers_resource_audit` en `tests/test_hermes_cognitive.py`, elevando la suite general a 158 tests unitarios aprobados al 100% en 145.8s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 158/158 tests aprobados en 145.8s.
+- **Commit / Ref:** Ciclo 77 validado.
+- **Pruebas ejecutadas:** `tests/test_hermes_cognitive.py` (7/7 OK) y `python -m unittest discover -s tests -v` (158/158 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 76: Diagnóstico de ECN en Túneles IP (RFC 9599 / BCP 89) y Modelo YANG TCP (RFC 9648) (157 Tests OK)
 - **Objetivo:** Ejecución del mandato de soluciones más allá de lo evidente e investigación continua en internet: implementación en `netopt/diagnostics.py` de `check_rfc9599_encapsulated_ecn_and_rfc9648_yang_tcp_status()` evaluando las directrices de propagación de Explicit Congestion Notification en protocolos de túnel y encapsulación IP (RFC 9599, BCP 89, Agosto 2024 de Bob Briscoe) y el modelo de datos operacional YANG para la pila TCP (RFC 9648, 2024). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 157 tests unitarios aprobados al 100% en 160.2s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 157/157 tests aprobados en 160.2s.

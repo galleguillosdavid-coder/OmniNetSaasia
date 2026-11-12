@@ -137,6 +137,7 @@ class HermesExecutor:
             top_procs = SystemResourceAdapter.get_top_network_processes(limit=5)
             io_counters = SystemResourceAdapter.get_interface_io_counters()
             disk = SystemResourceAdapter.get_disk_telemetry()
+            power = SystemResourceAdapter.get_power_telemetry()
             return {
                 "success": True,
                 "criterion_met": True,
@@ -146,6 +147,10 @@ class HermesExecutor:
                 "memory_pressure": bool(telemetry.get("memory_pressure", False)),
                 "disk_free_gb": disk.get("free_gb", 0.0),
                 "disk_used_percent": disk.get("used_percent", 0.0),
+                "has_battery": bool(power.get("has_battery", False)),
+                "power_plugged": bool(power.get("power_plugged", True)),
+                "is_power_saving": bool(power.get("is_power_saving", False)),
+                "battery_percent": float(power.get("battery_percent", 100.0)),
                 "top_processes_count": len(top_procs),
                 "interfaces_monitored": len(io_counters.get("interfaces", {}))
             }

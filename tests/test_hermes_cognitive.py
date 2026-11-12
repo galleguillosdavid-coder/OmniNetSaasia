@@ -147,7 +147,21 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertIn("cpu_percent", step_res[0].output)
         self.assertIn("disk_free_gb", step_res[0].output)
         self.assertIn("disk_used_percent", step_res[0].output)
+        self.assertIn("power_plugged", step_res[0].output)
+        self.assertIn("battery_percent", step_res[0].output)
         self.assertIn("top_processes_count", step_res[0].output)
+
+    def test_foresee_energy_and_power_goal_triggers_resource_audit(self):
+        """Verifies that energy and battery audit goals deterministically trigger resource_audit."""
+        planner = ForeseePlanner()
+        plan = planner.foresee("auditar consumo de energia y estado de bateria del equipo", make_diag())
+        strategies = [s.strategy for s in plan.steps]
+        self.assertIn("baseline", strategies)
+        self.assertIn("resource_audit", strategies)
+        step = [s for s in plan.steps if s.strategy == "resource_audit"][0]
+        self.assertEqual(step.tool, "hermes_system_resource_audit")
+        self.assertFalse(step.mutating)
+        self.assertEqual(step.risk, "LOW")
 
     def test_reflect_evaluator_history_limit_and_distillation(self):
         from hermes.executor import ExecutionReport, StepResult
