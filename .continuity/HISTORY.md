@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 83: Adopción de Adaptador de Energía en Subagente Hardware & Thermal (164 Tests OK)
+- **Objetivo:** Adopción metódica de bibliotecas maduras en `netopt/ecosystem_subagents.py`: integración de `SystemResourceAdapter.get_power_telemetry()` en `run_hardware_thermal_subagent()`, sustituyendo llamadas lentas a procesos PowerShell por lectura directa C-level de batería y alimentación AC (`psutil.sensors_battery()`). Nueva prueba `test_hardware_thermal_subagent_uses_mature_power_telemetry` en `tests/test_netopt_mock.py`, elevando la suite general a 164 tests unitarios aprobados al 100% en 166.7s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 164/164 tests aprobados en 166.7s.
+- **Commit / Ref:** Ciclo 83 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_hardware_thermal OK) y `python -m unittest discover -s tests -v` (164/164 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 82: Poda de Nodos Inactivos en Micro Internet DID Resolver (163 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia la red descentralizada `netopt/micro_internet.py`: implementación de `IdentityResolver.prune_stale_nodes()` y `MicroInternetOrchestrator.prune_stale_peers()` para purgar registros de nodos fuera de línea mayores a `max_age_seconds` (evitando fuga de memoria y bloat de disco en redes locales densas). Nueva prueba `test_pillar_2_prune_stale_nodes` en `tests/test_micro_internet.py`, elevando la suite general a 163 tests unitarios aprobados al 100% en 168.6s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 163/163 tests aprobados en 168.6s.

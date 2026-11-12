@@ -230,8 +230,22 @@ class EcosystemOrchestrator:
         cpu_name = platform.processor() or "Procesador Multi-Núcleo"
         cores = os.cpu_count() or 4
         battery_pct = None
+        has_battery = False
+        power_plugged = True
         temp_c = 42.0
         thermal_sensor_probed = False
+
+        # Fast mature adapter path via psutil
+        try:
+            from netopt.adapters import SystemResourceAdapter
+            power = SystemResourceAdapter.get_power_telemetry()
+            if power.get("available"):
+                has_battery = bool(power.get("has_battery", False))
+                power_plugged = bool(power.get("power_plugged", True))
+                if has_battery:
+                    battery_pct = int(power.get("battery_percent", 100))
+        except Exception:
+            pass
 
         if self.platform == PlatformType.WINDOWS:
             try:
@@ -242,12 +256,14 @@ class EcosystemOrchestrator:
                     if isinstance(data_c, dict) and data_c.get("Name"):
                         cpu_name = data_c["Name"]
 
-                cmd_bat = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Battery | Select-Object -First 1 EstimatedChargeRemaining | ConvertTo-Json"]
-                r_bat = subprocess.run(cmd_bat, capture_output=True, text=True, errors="replace", timeout=4, creationflags=0x08000000)
-                if r_bat.returncode == 0 and r_bat.stdout.strip():
-                    d_bat = json.loads(r_bat.stdout)
-                    if isinstance(d_bat, dict) and d_bat.get("EstimatedChargeRemaining") is not None:
-                        battery_pct = int(d_bat["EstimatedChargeRemaining"])
+                if battery_pct is None and not has_battery:
+                    cmd_bat = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Battery | Select-Object -First 1 EstimatedChargeRemaining | ConvertTo-Json"]
+                    r_bat = subprocess.run(cmd_bat, capture_output=True, text=True, errors="replace", timeout=4, creationflags=0x08000000)
+                    if r_bat.returncode == 0 and r_bat.stdout.strip():
+                        d_bat = json.loads(r_bat.stdout)
+                        if isinstance(d_bat, dict) and d_bat.get("EstimatedChargeRemaining") is not None:
+                            battery_pct = int(d_bat["EstimatedChargeRemaining"])
+                            has_battery = True
 
                 cmd_tmp = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue | Select-Object -First 1 Temperature | ConvertTo-Json"]
                 r_tmp = subprocess.run(cmd_tmp, capture_output=True, text=True, errors="replace", timeout=4, creationflags=0x08000000)
@@ -270,7 +286,10 @@ class EcosystemOrchestrator:
                 pass
 
         thermal_str = "Temperatura normal y saludable (cero sobrecalentamiento)" if temp_c < 75 else "Alerta: Temperatura elevada"
-        bat_str = f"Batería: {battery_pct}%" if battery_pct is not None else "Equipo de escritorio (Conectado a corriente)"
+        if battery_pct is not None:
+            bat_str = f"Batería: {battery_pct}% ({'Conectado AC' if power_plugged else 'Modo batería'})"
+        else:
+            bat_str = "Equipo de escritorio (Conectado a corriente)"
 
         return {
             "subagent": "hardware_thermal",
@@ -279,6 +298,8 @@ class EcosystemOrchestrator:
             "estimated_temp_c": temp_c,
             "thermal_sensor_probed": thermal_sensor_probed,
             "battery_percent": battery_pct,
+            "has_battery": has_battery,
+            "power_plugged": power_plugged,
             "summary": f"Hardware & Temperatura: {cpu_name} ({cores} núcleos). {thermal_str}. {bat_str}."
         }
 

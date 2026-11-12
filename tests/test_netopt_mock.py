@@ -2391,6 +2391,27 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["rf_in_device_coexistence_active"])
         self.assertIn("Wi-Fi 8", res["summary"])
 
+    @patch("netopt.adapters.SystemResourceAdapter.get_power_telemetry")
+    def test_hardware_thermal_subagent_uses_mature_power_telemetry(self, mock_power):
+        """Verifies hardware thermal subagent leverages mature psutil power adapter."""
+        from netopt.ecosystem_subagents import EcosystemOrchestrator
+        mock_power.return_value = {
+            "available": True,
+            "has_battery": True,
+            "power_plugged": False,
+            "battery_percent": 82.0,
+            "seconds_left": 5400,
+            "is_power_saving": False
+        }
+        orch = EcosystemOrchestrator()
+        res = orch.run_hardware_thermal_subagent()
+        self.assertEqual(res["subagent"], "hardware_thermal")
+        self.assertTrue(res["has_battery"])
+        self.assertFalse(res["power_plugged"])
+        self.assertEqual(res["battery_percent"], 82)
+        self.assertIn("82%", res["summary"])
+        self.assertIn("Modo batería", res["summary"])
+
 
 
 if __name__ == "__main__":
