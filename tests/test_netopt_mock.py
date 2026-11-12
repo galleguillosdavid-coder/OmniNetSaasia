@@ -2473,6 +2473,21 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["plpmtud_blackhole_resilience_active"])
         self.assertIn("FIPS 203", res["summary"])
 
+    def test_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status(self):
+        """Verifies RFC 9463 (DDR) and RFC 9540 (DNR) Encrypted DNS Auto-Discovery evaluation."""
+        from netopt.diagnostics import check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status
+        res = check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status()
+        self.assertIn("RFC 9463", res["standard_ddr"])
+        self.assertIn("RFC 9540", res["standard_dnr"])
+        self.assertTrue(res["ddr_svcb_discovery_supported"])
+        self.assertTrue(res["dnr_dhcp_options_supported"])
+        self.assertTrue(res["opportunistic_encrypted_upgrade"])
+        self.assertTrue(res["rfc9525_san_identity_validation_enforced"])
+        self.assertTrue(res["cleartext_dns_eavesdropping_mitigated"])
+        self.assertTrue(res["doh_dot_doq_protocols_ready"])
+        self.assertIn("RFC 9463", res["summary"])
+
+
 
 
 

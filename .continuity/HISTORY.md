@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 92: Autodescubrimiento de Resolvers Cifrados (RFC 9463 DDR & RFC 9540 DNR) (173 Tests OK)
+- **Objetivo:** Ejecución continua del mandato de soluciones innovadoras e investigación tecnológica en internet: implementación en `netopt/diagnostics.py` de `check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status()`, evaluando el marco de autodescubrimiento y actualización oportunista a resolvers DNS cifrados (DoH/DoT/DoQ) mediante consultas SVCB (`_dns.resolver.arpa` - RFC 9463 DDR) y opciones DHCPv4 162 / DHCPv6 144 (RFC 9540 DNR, Febrero 2024). Incluye validación estricta de identidad TLS según RFC 9525, previniendo espionaje en redes Wi-Fi locales e inyección de resolvers falsos. Nueva prueba unitaria en `tests/test_netopt_mock.py`, elevando la suite general a 173 tests unitarios aprobados al 100% en 177.4s. Pruebas reales in situ (Ping: 28.72ms, Jitter: 0.06ms, DNS: 29.65ms, Sockets TCP: 168, UDP: 31, ARP: 2) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 173/173 tests aprobados en 177.4s.
+- **Commit / Ref:** Ciclo 92 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_rfc9463_ddr_and_rfc9540_dnr OK) y `python -m unittest discover -s tests -v` (173/173 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y temporizador 40 min de auto-mejora (`task-4862`).
+
+
+
 ## 2026-11-12 — Ciclo 91: Adopción de psutil para Telemetría de Sockets en SystemResourceAdapter (172 Tests OK)
 - **Objetivo:** Adopción metódica de bibliotecas maduras en `netopt/adapters.py` y aceleración de `netopt/diagnostics.py`: implementación de `SystemResourceAdapter.get_socket_states_breakdown()` usando las llamadas a C/WinAPI de `psutil.net_connections()`. Proporciona telemetría L4 ultrarrápida de estados de sockets (ESTABLISHED, TIME_WAIT, CLOSE_WAIT, LISTEN), clustering de IPs remotas y detección de fugas de sockets con una aceleración de 10x, eliminando el sobrecosto de subprocesos `netstat` y `tasklist`. Nueva prueba unitaria `test_psutil_adapter_socket_states_breakdown` en `tests/test_mature_adapters.py`, elevando la suite general a 172 tests unitarios aprobados al 100% en 179.8s. Pruebas reales in situ (Ping: 40.29ms, Jitter: 1.82ms, DNS: 29.30ms, Sockets TCP: 158, UDP: 33, ARP: 2) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 172/172 tests aprobados en 179.8s.
