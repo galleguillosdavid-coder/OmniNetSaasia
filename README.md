@@ -145,7 +145,7 @@ Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estric
 
 El proyecto opera bajo un modelo de doble ciclo inteligente:
 1. **Ciclo Autónomo del Agente IA (Cada 40 Minutos):**
-   - **Auto-Propuesta de Tareas Propias:** El agente no se limita a una simple revisión pasiva del computador anfitrión. Evalúa permanentemente el repositorio, detecta cuellos de botella técnicos y **propone y ejecuta autónomamente sus propias tareas de ingeniería** (refactorizaciones, pruebas, optimizaciones o adopción de bibliotecas) según la ocasión lo demande.
+   - **Redefinición Frecuente y Soluciones Más Allá de lo Evidente:** El agente no se limita a una simple revisión pasiva del computador anfitrión ni a tareas lineales convencionales. Tiene el mandato expreso de **redefinir frecuentemente sus tareas autónomas y buscar activamente soluciones innovadoras más allá de lo evidente**, apoyándose en la investigación continua en Internet y en cualquier otro tipo de solución disruptiva (nuevas arquitecturas, optimizaciones profundas de kernel/red, bibliotecas maduras y refactorizaciones no convencionales), formulando, proponiendo y ejecutando autónomamente sus propios planes técnicos según la ocasión lo demande.
    - **Rotación Multimódulo y Armonización Documental:** Explora sistemáticamente todos los módulos (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `docs/`) manteniendo coherencia técnica y epistemológica absoluta.
    - **Compuerta de Cero Regresiones:** Verificación del 100% de la suite de pruebas unitarias (154/154 OK) antes de cada entrega.
 

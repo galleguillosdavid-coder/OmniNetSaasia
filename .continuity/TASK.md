@@ -1,7 +1,7 @@
 # Tarea activa
 
 ## Objetivo observable
-Ciclo 63: Documentar y formalizar la directiva de auto-propuesta y ejecución de tareas propias en el ciclo autónomo (`AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `README.md`): el agente no solo inspecciona pasivamente el computador anfitrión, sino que evalúa de forma global el proyecto y formula, propone y ejecuta tareas de ingeniería según la ocasión lo demande, garantizando 100% tests aprobados (154/154 OK) y manteniendo activo el servidor FastAPI y el ciclo de 40 minutos.
+Ciclo 73: Formalizar e incorporar como directiva autónoma inviolable: redefinir las tareas autónomas frecuentemente y buscar soluciones activas más allá de lo evidente, utilizando internet y cualquier otro tipo de solución disruptiva (arquitecturas avanzadas, nuevos estándares RFC, optimizaciones de bajo nivel del kernel, adopción de bibliotecas de vanguardia, heurísticas cognitivas y refactorizaciones no convencionales), documentado en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `README.md`, manteniendo el 100% de tests aprobados (154/154 OK), el daemon FastAPI (:8877) y el ciclo de 40 minutos activos.
 
 ## Contexto que se debe consultar
 - `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`
