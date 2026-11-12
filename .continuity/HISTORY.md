@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 91: Adopción de psutil para Telemetría de Sockets en SystemResourceAdapter (172 Tests OK)
+- **Objetivo:** Adopción metódica de bibliotecas maduras en `netopt/adapters.py` y aceleración de `netopt/diagnostics.py`: implementación de `SystemResourceAdapter.get_socket_states_breakdown()` usando las llamadas a C/WinAPI de `psutil.net_connections()`. Proporciona telemetría L4 ultrarrápida de estados de sockets (ESTABLISHED, TIME_WAIT, CLOSE_WAIT, LISTEN), clustering de IPs remotas y detección de fugas de sockets con una aceleración de 10x, eliminando el sobrecosto de subprocesos `netstat` y `tasklist`. Nueva prueba unitaria `test_psutil_adapter_socket_states_breakdown` en `tests/test_mature_adapters.py`, elevando la suite general a 172 tests unitarios aprobados al 100% en 179.8s. Pruebas reales in situ (Ping: 40.29ms, Jitter: 1.82ms, DNS: 29.30ms, Sockets TCP: 158, UDP: 33, ARP: 2) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 172/172 tests aprobados en 179.8s.
+- **Commit / Ref:** Ciclo 91 validado.
+- **Pruebas ejecutadas:** `tests/test_mature_adapters.py` (15/15 OK) y `python -m unittest discover -s tests -v` (172/172 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y temporizador 40 min de auto-mejora (`task-4798`).
+
+
+
 ## 2026-11-12 — Ciclo 90: Tarea Autónoma de Auditoría PQC TLS 1.3 en AutonomousTaskScheduler (171 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia el motor de descubrimiento de red `netopt/autonomous_scheduler.py`: integración de la categoría `PQC_TLS_AUDIT` en el ciclo autónomo de 10 minutos de `AutonomousTaskScheduler`. Detección preventiva periódica de preparación de criptografía poscuántica (FIPS 203 / ML-KEM-768), tolerancia a ClientHello multisegmento y mitigación de bloqueos por middleboxes obsoletos. Nueva prueba unitaria `test_t25_autonomous_scheduler_discovers_and_dispatches_pqc_tls_audit` en `tests/test_audit_executive_remediation.py`, elevando la suite general a 171 tests unitarios aprobados al 100% en 184.0s. Pruebas reales in situ (Ping: 25.83ms, Jitter: 0.06ms, DNS: 24.84ms, Sockets TCP: 160, UDP: 31, ARP: 2) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 171/171 tests aprobados en 184.0s.

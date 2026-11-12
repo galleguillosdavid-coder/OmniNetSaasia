@@ -205,6 +205,70 @@ class SystemResourceAdapter:
         except Exception:
             return []
 
+    @classmethod
+    def get_socket_states_breakdown(cls) -> Dict[str, Any]:
+        """
+        Audits active network socket states across the kernel using psutil C-bindings.
+        Provides rapid L4 socket state telemetry (ESTABLISHED, TIME_WAIT, CLOSE_WAIT, LISTEN),
+        remote IP clustering, and socket leak detection without launching slow netstat subprocesses.
+        """
+        try:
+            import psutil
+            connections = psutil.net_connections(kind="inet")
+            states: Dict[str, int] = {}
+            remote_ips: Dict[str, int] = {}
+            total_tcp = 0
+            total_udp = 0
+
+            for conn in connections:
+                # Type: SOCK_STREAM (TCP) = 1, SOCK_DGRAM (UDP) = 2
+                conn_type = getattr(conn, "type", 1)
+                if conn_type == 1:
+                    total_tcp += 1
+                    st = getattr(conn, "status", None) or "UNKNOWN"
+                    states[st] = states.get(st, 0) + 1
+                elif conn_type == 2:
+                    total_udp += 1
+                    states["UDP"] = states.get("UDP", 0) + 1
+
+                raddr = getattr(conn, "raddr", None)
+                if raddr and hasattr(raddr, "ip"):
+                    rip = raddr.ip
+                    if rip not in ("0.0.0.0", "127.0.0.1", "::", "::1"):
+                        remote_ips[rip] = remote_ips.get(rip, 0) + 1
+
+            time_wait = states.get("TIME_WAIT", 0)
+            close_wait = states.get("CLOSE_WAIT", 0)
+            leak_detected = close_wait > 30 or time_wait > 150
+
+            top_remotes = sorted(
+                [{"ip": ip, "connections": count} for ip, count in remote_ips.items()],
+                key=lambda x: x["connections"],
+                reverse=True
+            )[:5]
+
+            return {
+                "available": True,
+                "total_connections": len(connections),
+                "total_tcp": total_tcp,
+                "total_udp": total_udp,
+                "states": states,
+                "time_wait_count": time_wait,
+                "close_wait_count": close_wait,
+                "socket_leak_detected": leak_detected,
+                "top_remote_ips": top_remotes
+            }
+        except Exception as e:
+            return {
+                "available": False,
+                "error": str(e),
+                "total_connections": 0,
+                "total_tcp": 0,
+                "total_udp": 0,
+                "states": {},
+                "top_remote_ips": []
+            }
+
 
 class HttpClientAdapter:
     """

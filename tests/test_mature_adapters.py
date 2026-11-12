@@ -204,9 +204,46 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertEqual(res_laptop["seconds_left"], 1800)
         self.assertTrue(res_laptop["is_power_saving"])
 
+    @patch("psutil.net_connections")
+    def test_psutil_adapter_socket_states_breakdown(self, mock_connections):
+        from netopt.adapters import SystemResourceAdapter
+        from netopt.diagnostics import inspect_active_sockets
 
+        # Mock synthetic socket connections
+        c1 = MagicMock()
+        c1.type = 1  # TCP
+        c1.status = "ESTABLISHED"
+        c1.raddr = MagicMock(ip="1.1.1.1")
 
+        c2 = MagicMock()
+        c2.type = 1  # TCP
+        c2.status = "TIME_WAIT"
+        c2.raddr = MagicMock(ip="8.8.8.8")
 
+        c3 = MagicMock()
+        c3.type = 2  # UDP
+        c3.status = None
+        c3.raddr = None
+
+        mock_connections.return_value = [c1, c2, c3]
+
+        breakdown = SystemResourceAdapter.get_socket_states_breakdown()
+        self.assertTrue(breakdown["available"])
+        self.assertEqual(breakdown["total_connections"], 3)
+        self.assertEqual(breakdown["total_tcp"], 2)
+        self.assertEqual(breakdown["total_udp"], 1)
+        self.assertEqual(breakdown["states"]["ESTABLISHED"], 1)
+        self.assertEqual(breakdown["states"]["TIME_WAIT"], 1)
+        self.assertEqual(breakdown["states"]["UDP"], 1)
+        self.assertEqual(breakdown["time_wait_count"], 1)
+        self.assertFalse(breakdown["socket_leak_detected"])
+        self.assertEqual(len(breakdown["top_remote_ips"]), 2)
+
+        # Verify inspect_active_sockets adopts the high-speed adapter
+        diag_res = inspect_active_sockets()
+        self.assertEqual(diag_res["total_tcp"], 2)
+        self.assertEqual(diag_res["total_udp"], 1)
+        self.assertIn("ESTABLISHED", diag_res["states"])
 
 
 if __name__ == "__main__":
