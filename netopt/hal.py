@@ -506,6 +506,26 @@ class LinuxHAL(NetworkHAL):
             l.description = "Flush Linux routing cache and restart network daemon"
         return logs
 
+    def pin_gateway_mac(self, interface_name: str, gateway_ip: str, gateway_mac: str, execute: bool = False) -> AgentActionLog:
+        """
+        Binds gateway IP statically to legitimate hardware MAC address using ip neigh permanent,
+        blocking Gratuitous ARP Poisoning and Man-in-the-Middle eavesdropping on Linux.
+        """
+        clean_mac = gateway_mac.replace("-", ":").lower()
+        cmd = ["ip", "neigh", "replace", gateway_ip, "lladdr", clean_mac, "nud", "permanent", "dev", interface_name]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.OPTIMIZATION
+        log.description = f"Pin default gateway {gateway_ip} to hardware MAC {clean_mac} on {interface_name} via ip neigh (Zero-Trust Anti-Spoofing)"
+        return log
+
+    def unpin_gateway_mac(self, interface_name: str, gateway_ip: str, execute: bool = False) -> AgentActionLog:
+        """Releases static gateway MAC neighbor binding back to dynamic resolution on Linux."""
+        cmd = ["ip", "neigh", "del", gateway_ip, "dev", interface_name]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.REPAIR
+        log.description = f"Unpin static gateway {gateway_ip} on {interface_name} via ip neigh del"
+        return log
+
 
 class DarwinHAL(NetworkHAL):
     """macOS (Darwin) implementation using networksetup, scutil, sysctl, and dscacheutil."""
@@ -611,6 +631,23 @@ class DarwinHAL(NetworkHAL):
         logs.append(self.run_cmd(["ifconfig", "en0", "down"], execute=execute))
         logs.append(self.run_cmd(["ifconfig", "en0", "up"], execute=execute))
         return logs
+
+    def pin_gateway_mac(self, interface_name: str, gateway_ip: str, gateway_mac: str, execute: bool = False) -> AgentActionLog:
+        """Binds gateway IP statically to legitimate hardware MAC address using arp -s on macOS."""
+        clean_mac = gateway_mac.replace("-", ":").lower()
+        cmd = ["arp", "-s", gateway_ip, clean_mac]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.OPTIMIZATION
+        log.description = f"Pin default gateway {gateway_ip} to hardware MAC {clean_mac} via arp -s (macOS Zero-Trust)"
+        return log
+
+    def unpin_gateway_mac(self, interface_name: str, gateway_ip: str, execute: bool = False) -> AgentActionLog:
+        """Releases static gateway MAC neighbor binding back to dynamic resolution on macOS."""
+        cmd = ["arp", "-d", gateway_ip]
+        log = self.run_cmd(cmd, execute=execute)
+        log.action_type = ActionType.REPAIR
+        log.description = f"Unpin static gateway {gateway_ip} via arp -d (macOS)"
+        return log
 
 
 def get_hal(dry_run: bool = True) -> NetworkHAL:

@@ -2426,6 +2426,39 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["multi_queue_qos_hardware_aligned"])
         self.assertIn("RFC 9543", res["summary"])
 
+    def test_cross_platform_zero_trust_arp_pinning_methods(self):
+        """Verifies cross-platform Zero-Trust ARP pinning and unpinning in WindowsHAL, LinuxHAL, and DarwinHAL."""
+        from netopt.hal import WindowsHAL, LinuxHAL, DarwinHAL
+        from netopt.models import ActionType
+
+        # Windows
+        win_hal = WindowsHAL(dry_run=True)
+        log_win_pin = win_hal.pin_gateway_mac("Ethernet", "192.168.1.1", "AA:BB:CC:DD:EE:FF", execute=False)
+        self.assertEqual(log_win_pin.action_type, ActionType.OPTIMIZATION)
+        self.assertIn('netsh interface ipv4 add neighbors "Ethernet" 192.168.1.1 AA-BB-CC-DD-EE-FF', log_win_pin.command)
+        log_win_unpin = win_hal.unpin_gateway_mac("Ethernet", "192.168.1.1", execute=False)
+        self.assertEqual(log_win_unpin.action_type, ActionType.REPAIR)
+        self.assertIn('netsh interface ipv4 delete neighbors "Ethernet" 192.168.1.1', log_win_unpin.command)
+
+        # Linux
+        linux_hal = LinuxHAL(dry_run=True)
+        log_linux_pin = linux_hal.pin_gateway_mac("eth0", "192.168.1.1", "AA-BB-CC-DD-EE-FF", execute=False)
+        self.assertEqual(log_linux_pin.action_type, ActionType.OPTIMIZATION)
+        self.assertIn("ip neigh replace 192.168.1.1 lladdr aa:bb:cc:dd:ee:ff nud permanent dev eth0", log_linux_pin.command)
+        log_linux_unpin = linux_hal.unpin_gateway_mac("eth0", "192.168.1.1", execute=False)
+        self.assertEqual(log_linux_unpin.action_type, ActionType.REPAIR)
+        self.assertIn("ip neigh del 192.168.1.1 dev eth0", log_linux_unpin.command)
+
+        # Darwin (macOS)
+        darwin_hal = DarwinHAL(dry_run=True)
+        log_darwin_pin = darwin_hal.pin_gateway_mac("en0", "192.168.1.1", "AA-BB-CC-DD-EE-FF", execute=False)
+        self.assertEqual(log_darwin_pin.action_type, ActionType.OPTIMIZATION)
+        self.assertIn("arp -s 192.168.1.1 aa:bb:cc:dd:ee:ff", log_darwin_pin.command)
+        log_darwin_unpin = darwin_hal.unpin_gateway_mac("en0", "192.168.1.1", execute=False)
+        self.assertEqual(log_darwin_unpin.action_type, ActionType.REPAIR)
+        self.assertIn("arp -d 192.168.1.1", log_darwin_unpin.command)
+
+
 
 
 if __name__ == "__main__":

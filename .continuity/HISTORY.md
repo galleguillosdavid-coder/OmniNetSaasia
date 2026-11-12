@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 86: Fijación Permanente ARP Multiplataforma en Linux y Darwin HAL (167 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia la capa de abstracción de hardware `netopt/hal.py`: implementación de métodos reales de fijación y desvinculación ARP permanente (`pin_gateway_mac` y `unpin_gateway_mac`) en `LinuxHAL` (`ip neigh replace ... nud permanent` / `ip neigh del`) y `DarwinHAL` (`arp -s` / `arp -d`), sustituyendo los stubs `noop` heredados y completando la defensa Zero-Trust anti-ARP-spoofing en todas las plataformas soportadas. Nueva prueba unitaria `test_cross_platform_zero_trust_arp_pinning_methods` en `tests/test_netopt_mock.py`, elevando la suite general a 167 tests unitarios aprobados al 100% en 170.4s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 167/167 tests aprobados en 170.4s.
+- **Commit / Ref:** Ciclo 86 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_cross_platform_zero_trust_arp_pinning_methods OK) y `python -m unittest discover -s tests -v` (167/167 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
+
 ## 2026-11-12 — Ciclo 85: Pruebas de Contrato y Disparador REST de Sentinel en FastAPI (166 Tests OK)
 - **Objetivo:** Rotación técnica hacia la interfaz REST `netopt/fastapi_app.py`: ampliación de cobertura de contratos con pruebas para `/api/sentinel/status`, `/api/sentinel/toggle` y `/api/sentinel/trigger` en `tests/test_fastapi_app.py`. Validación de activación/desactivación dinámica de centinela, inspección de incidentes registrados y ejecución reactiva segura. Suite general elevada a 166 tests unitarios aprobados al 100% en 172.2s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 166/166 tests aprobados en 172.2s.
