@@ -121,6 +121,12 @@ class ForeseePlanner:
                 "Auditoría profunda de recursos del host (CPU, RAM, disco, energía/batería, sockets) vía SystemResourceAdapter.",
                 "Identificar procesos que saturan sockets de red, cuellos de botella de disco o estrangulamiento por ahorro de energía.",
                 "auditoría de recursos completada con éxito.")
+        if any(k in low for k in ("pqc", "cuantica", "cuántica", "post_quantum", "ml-kem", "kyber", "poscuantica")):
+            add("pqc_audit", "hermes_pqc_audit",
+                "Auditoría preventiva de Criptografía Poscuántica (PQC TLS 1.3 / FIPS 203 ML-KEM) y tolerancia ClientHello.",
+                "Verificar compatibilidad con algoritmos híbridos X25519MLKEM768 y mitigación de descartes por middlebox.",
+                "pqc_hybrid_key_exchange_supported=True y fragilidad multisegmento mitigada.",
+                risk="LOW", mutating=False)
         return cands
 
     # ------------------------------------------------------------------

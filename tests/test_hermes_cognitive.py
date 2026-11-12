@@ -258,6 +258,25 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertIn("high_confidence_strategies", data)
         self.assertIn("penalized_strategies", data)
 
+    def test_foresee_pqc_goal_triggers_pqc_audit_tool(self):
+        """Verifies that PQC / Quantum security goals trigger hermes_pqc_audit."""
+        plan = ForeseePlanner().foresee("verificar seguridad cuantica y algoritmos pqc", make_diag())
+        strategies = [s.strategy for s in plan.steps]
+        self.assertIn("pqc_audit", strategies)
+
+        step = [s for s in plan.steps if s.strategy == "pqc_audit"][0]
+        self.assertEqual(step.tool, "hermes_pqc_audit")
+        self.assertFalse(step.mutating)
+        self.assertEqual(step.risk, "LOW")
+
+        # Execute step via HermesExecutor
+        executor = HermesExecutor(WindowsHAL(dry_run=True))
+        self._stub_engines(executor)
+        res = executor.execute(plan, diag=make_diag(), execute=False)
+        pqc_result = [r for r in res.step_results if r.strategy == "pqc_audit"][0]
+        self.assertTrue(pqc_result.criterion_met)
+        self.assertEqual(pqc_result.output.get("active_pqc_algorithm"), "X25519MLKEM768")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,6 +79,7 @@ class HermesExecutor:
         reg("hermes_gaming_l4s_qos", "Modo juego: QoS DSCP + L4S/ECN.", {}, self._tool_gaming)
         reg("hermes_lan_radar", "Radar Zero-Trust de dispositivos LAN.", {}, self._tool_radar)
         reg("hermes_system_resource_audit", "Auditoría de recursos del host (CPU, RAM, sockets).", {}, self._tool_resource_audit)
+        reg("hermes_pqc_audit", "Auditoría de Criptografía Poscuántica (PQC TLS 1.3 / ML-KEM).", {}, self._tool_pqc_audit)
         reg("hermes_verify_health", "Verificación Zero NetLoss post-acción.", {}, self._tool_verify)
 
     def _do_exec(self) -> bool:
@@ -153,6 +154,21 @@ class HermesExecutor:
                 "battery_percent": float(power.get("battery_percent", 100.0)),
                 "top_processes_count": len(top_procs),
                 "interfaces_monitored": len(io_counters.get("interfaces", {}))
+            }
+        except Exception as e:
+            return {"success": False, "criterion_met": False, "error": str(e)}
+
+    def _tool_pqc_audit(self) -> Dict[str, Any]:
+        try:
+            from netopt.diagnostics import check_pqc_hybrid_tls_and_oversize_hello_readiness_status
+            res = check_pqc_hybrid_tls_and_oversize_hello_readiness_status()
+            ok = bool(res.get("pqc_hybrid_key_exchange_supported")) and bool(res.get("multisegment_client_hello_fragility_mitigated"))
+            return {
+                "success": True,
+                "criterion_met": ok,
+                "active_pqc_algorithm": res.get("active_pqc_algorithm", "UNKNOWN"),
+                "pqc_client_hello_size_bytes": res.get("pqc_client_hello_size_bytes", 0),
+                "summary": res.get("summary", "")
             }
         except Exception as e:
             return {"success": False, "criterion_met": False, "error": str(e)}
