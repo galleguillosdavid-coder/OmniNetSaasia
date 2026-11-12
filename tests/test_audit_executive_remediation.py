@@ -300,6 +300,21 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
         self.assertEqual(ddr_tasks[0]["status"], "SIMULATED")
         self.assertIn("DDR/DNR (RFC 9463)", ddr_tasks[0]["concise_result"])
 
+    def test_t27_autonomous_scheduler_discovers_and_dispatches_dns_error_reporting(self):
+        from netopt.autonomous_scheduler import AutonomousTaskScheduler
+        from netopt.hal import WindowsHAL
+
+        sched = AutonomousTaskScheduler(hal=WindowsHAL(dry_run=True))
+        sched.evolution["dns_error_reporting_audited_generation"] = -1
+        cycle = sched.discover_and_schedule_cycle(execute=False)
+
+        dner_tasks = [t for t in cycle["tasks_executed"] if t["category"] == "DNS_ERROR_REPORTING"]
+        self.assertGreaterEqual(len(dner_tasks), 1)
+        self.assertIn("Reporte de Errores DNS", dner_tasks[0]["title"])
+        self.assertIn("DNER", dner_tasks[0]["reason"])
+        self.assertEqual(dner_tasks[0]["status"], "SIMULATED")
+        self.assertIn("DNER/EDE (RFC 9578)", dner_tasks[0]["concise_result"])
+
 
 if __name__ == "__main__":
     unittest.main()

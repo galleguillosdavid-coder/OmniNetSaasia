@@ -354,7 +354,20 @@ class AutonomousTaskScheduler:
                 status="SCHEDULED"
             ))
 
-        # 12. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
+        # 12. Check DNS Error Reporting & Extended Errors (RFC 9578 DNER & RFC 8914 EDE)
+        if self.evolution.get("dns_error_reporting_audited_generation") != self.evolution.get("generation", 1):
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="DNS_ERROR_REPORTING",
+                priority="LOW",
+                title="Auditoría de Reporte de Errores DNS (RFC 9578 DNER & RFC 8914 EDE)",
+                reason="Verificación de señalización estructurada DNER y mitigación de fallos silenciosos de resolución.",
+                status="SCHEDULED"
+            ))
+
+        # 13. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
         if not discovered:
             best_dns_str = f"{best_dns.provider} ({best_dns.avg_latency_ms}ms)" if best_dns else "OK"
             discovered.append(AutonomousNetworkTask(
@@ -492,6 +505,13 @@ class AutonomousTaskScheduler:
                     self.evolution["encrypted_dns_audited_generation"] = self.evolution.get("generation", 1)
                     self._save_evolution()
                 task.concise_result = f"DDR/DNR ({ddr_res['standard_ddr'][:8]}): {ddr_res['summary'][:60]}..."
+            elif task.category == "DNS_ERROR_REPORTING":
+                from .diagnostics import check_rfc9578_dner_and_rfc8914_extended_errors_status
+                dner_res = check_rfc9578_dner_and_rfc8914_extended_errors_status()
+                if do_exec and not is_dry_hal:
+                    self.evolution["dns_error_reporting_audited_generation"] = self.evolution.get("generation", 1)
+                    self._save_evolution()
+                task.concise_result = f"DNER/EDE ({dner_res['standard_dner'][:8]}): {dner_res['summary'][:60]}..."
             else:
                 self.hal.flush_dns_cache(execute=do_exec)
                 task.concise_result = "Auditoría 10m sin anomalías; caché DNS refrescada."

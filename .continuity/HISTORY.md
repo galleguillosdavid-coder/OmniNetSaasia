@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 98: Tarea Autónoma de Reporte de Errores DNS (RFC 9578 DNER & RFC 8914 EDE) en AutonomousTaskScheduler (179 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia el motor de descubrimiento de red `netopt/autonomous_scheduler.py`: integración de la categoría periódica `DNS_ERROR_REPORTING` en el ciclo autónomo de 10 minutos de `AutonomousTaskScheduler`. Audita preventivamente la señalización estructurada de reporte de errores DNS (RFC 9578 DNER, Mayo 2024) y decodificación de errores extendidos (RFC 8914 EDE), detectando fallos silenciosos de resolución y acelerando la autorreparación reactiva bajo Zero NetLoss. Nueva prueba unitaria `test_t27_autonomous_scheduler_discovers_and_dispatches_dns_error_reporting` en `tests/test_audit_executive_remediation.py`, elevando la suite general a 179 tests unitarios aprobados al 100% en 199.78s. Pruebas reales in situ (Ping: 32.65ms, Jitter: 1.75ms, DNS: 28.97ms, Bufferbloat: A+, Sockets TCP: 202, UDP: 29, Wi-Fi 5 GHz: 100%, ARP: 3) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 179/179 tests aprobados en 199.78s.
+- **Commit / Ref:** Ciclo 98 validado.
+- **Pruebas ejecutadas:** `tests/test_audit_executive_remediation.py` (27/27 OK) y `python -m unittest discover -s tests -v` (179/179 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y temporizador 40 min de auto-mejora (`task-5194`).
+
+
+
 ## 2026-11-12 — Ciclo 97: Integración de DDR/DNR y DNER/EDE en Hermes Foresee y Executor (178 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia el motor cognitivo Hermes (`hermes/foresee.py` y `hermes/executor.py`): integración de las estrategias `encrypted_dns_discovery` (RFC 9463 DDR & RFC 9540 DNR) y `dns_error_reporting` (RFC 9578 DNER & RFC 8914 EDE), y registro de las herramientas correspondientes `hermes_encrypted_dns_discovery` y `hermes_dns_error_reporting`. ForeseePlanner ahora traduce metas sobre DNS cifrado, SVCB y reporte de errores en planes deterministas no mutantes ejecutables honestamente por HermesExecutor. Nueva prueba unitaria `test_foresee_encrypted_dns_and_dner_goals_trigger_specialized_tools` en `tests/test_hermes_cognitive.py`, elevando la suite general a 178 tests unitarios aprobados al 100% en 189.0s. Pruebas reales in situ (Ping: 26.38ms, Jitter: 0.19ms, DNS: 25.36ms, Sockets TCP: 204, UDP: 29, Wi-Fi 5 GHz: 100%, Bufferbloat: A+) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 178/178 tests aprobados en 189.0s.
