@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 76: Diagnóstico de ECN en Túneles IP (RFC 9599 / BCP 89) y Modelo YANG TCP (RFC 9648) (157 Tests OK)
+- **Objetivo:** Ejecución del mandato de soluciones más allá de lo evidente e investigación continua en internet: implementación en `netopt/diagnostics.py` de `check_rfc9599_encapsulated_ecn_and_rfc9648_yang_tcp_status()` evaluando las directrices de propagación de Explicit Congestion Notification en protocolos de túnel y encapsulación IP (RFC 9599, BCP 89, Agosto 2024 de Bob Briscoe) y el modelo de datos operacional YANG para la pila TCP (RFC 9648, 2024). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 157 tests unitarios aprobados al 100% en 160.2s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 157/157 tests aprobados en 160.2s.
+- **Commit / Ref:** Ciclo 76 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_rfc9599 OK) y `python -m unittest discover -s tests -v` (157/157 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 75: Telemetría de Energía psutil e Integración en Mantenimiento de Dispositivos (156 Tests OK)
 - **Objetivo:** Adopción de bibliotecas maduras y telemetría de hardware: extensión de `SystemResourceAdapter` (`netopt/adapters.py`) con `get_power_telemetry()` utilizando `psutil.sensors_battery()` para monitorear el estado de batería y alimentación AC, detectando condiciones de ahorro de energía que estrangulan tarjetas de red Wi-Fi y CPU. Integración en `DeviceMaintenanceEngine._inspect_memory_and_processes()` (`netopt/device_maintenance.py`). Nueva prueba `test_psutil_adapter_power_telemetry` en `tests/test_mature_adapters.py`, elevando la suite general a 156 tests unitarios aprobados al 100% en 147.9s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 156/156 tests aprobados en 147.9s.

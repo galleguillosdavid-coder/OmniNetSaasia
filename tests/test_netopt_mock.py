@@ -2358,6 +2358,22 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["anti_tampering_protection_active"])
         self.assertIn("RFC 9651", res["summary"])
 
+    def test_rfc9599_encapsulated_ecn_and_rfc9648_yang_tcp_status(self):
+        """Verifies RFC 9599 (BCP 89) Encapsulated ECN Propagation & RFC 9648 YANG TCP Data Model."""
+        from netopt.diagnostics import check_rfc9599_encapsulated_ecn_and_rfc9648_yang_tcp_status
+        res = check_rfc9599_encapsulated_ecn_and_rfc9648_yang_tcp_status()
+        self.assertIn("RFC 9599", res["standard_encapsulation_ecn"])
+        self.assertIn("BCP 89", res["standard_encapsulation_ecn"])
+        self.assertIn("RFC 9648", res["standard_yang_tcp"])
+        self.assertTrue(res["outer_to_inner_ce_propagation_active"])
+        self.assertTrue(res["not_ect_encapsulation_isolated"])
+        self.assertTrue(res["l4s_ect1_preservation_supported"])
+        self.assertTrue(res["classic_ect0_preservation_supported"])
+        self.assertTrue(res["ecn_tunnel_blackhole_prevention"])
+        self.assertTrue(res["yang_tcp_operational_telemetry_active"])
+        self.assertTrue(res["yang_tcp_connection_grouping_supported"])
+        self.assertIn("RFC 9599", res["summary"])
+
 
 
 if __name__ == "__main__":

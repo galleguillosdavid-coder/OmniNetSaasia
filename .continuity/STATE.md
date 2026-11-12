@@ -1,11 +1,11 @@
 # Estado comprobado
 
 Última actualización: 2026-11-11T15:25:00-03:00
-Commit validado: Ciclo 62 validado en suite de 156 tests
+Commit validado: Ciclo 62 validado en suite de 157 tests
 
 ## Funciona y tiene evidencia
 - Mandato de Auto-Propuesta y Ejecución de Tareas Propias: Documentado en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `README.md`. El agente no se limita a inspeccionar el computador; evalúa proactivamente el repositorio y propone/ejecuta tareas técnicas según la ocasión lo requiera.
-- Suite de pruebas unitarias — 156/156 tests aprobados al 100%
+- Suite de pruebas unitarias — 157/157 tests aprobados al 100%
 - Migración REST API hacia FastAPI y Uvicorn (`netopt/fastapi_app.py` y `main.py`) — Implementación modular con OpenAPI automático, middleware de cuotas/tamaño (413), control de acceso loopback (403), validación tipada estricta Pydantic v2 en todas las rutas y 8 tests dedicados en `tests/test_fastapi_app.py`
 - Validación Pydantic v2 en Servidor Proxy Cloud (`cloud_server/proxy_server.py`) — Validación tipada estricta para `/v1/license/activate`, `/v1/chat` (`CloudChatRequest`), y `/v1/telemetry/report` (`TelemetryReport`) con 10 tests dedicados en `tests/test_pydantic_schemas.py`
 - Arnés Hermes y Bucle Cognitivo (`hermes/foresee.py` y `hermes/executor.py`) — Integración de la herramienta y estrategia `resource_audit` conectada a `SystemResourceAdapter` (`psutil`) para evaluar presión de CPU/memoria y saturación de sockets de red (5 tests en `tests/test_hermes_cognitive.py`)
