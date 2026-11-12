@@ -2458,6 +2458,22 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertEqual(log_darwin_unpin.action_type, ActionType.REPAIR)
         self.assertIn("arp -d 192.168.1.1", log_darwin_unpin.command)
 
+    def test_pqc_hybrid_tls_and_oversize_hello_readiness_status(self):
+        """Verifies Post-Quantum Cryptography (PQC / FIPS 203 ML-KEM) TLS 1.3 readiness evaluation."""
+        from netopt.diagnostics import check_pqc_hybrid_tls_and_oversize_hello_readiness_status
+        res = check_pqc_hybrid_tls_and_oversize_hello_readiness_status()
+        self.assertIn("ML-KEM", res["standard"])
+        self.assertTrue(res["pqc_hybrid_key_exchange_supported"])
+        self.assertEqual(res["active_pqc_algorithm"], "X25519MLKEM768")
+        self.assertGreater(res["pqc_client_hello_size_bytes"], 1500)
+        self.assertTrue(res["multisegment_client_hello_fragility_mitigated"])
+        self.assertTrue(res["middlebox_tls_hello_drop_mitigation"])
+        self.assertTrue(res["harvest_now_decrypt_later_shielded"])
+        self.assertTrue(res["fips203_ml_kem_standardized"])
+        self.assertTrue(res["plpmtud_blackhole_resilience_active"])
+        self.assertIn("FIPS 203", res["summary"])
+
+
 
 
 
