@@ -1,7 +1,7 @@
 # Directivas del Agente del Workspace (`AGENTS.md` - OmniNet Autonomous Agent)
 
 - **Manifiesto Operacional Propio (100% Independiente):** [`docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md) rige este proyecto de forma autónoma e independiente de cualquier otro repositorio externo.
-- **Directiva Recursiva de Rol Inicial Supremo (`Hermes Harness²`):** Toda IA que acceda a este proyecto DEBE asumir como tarea inicial obligatoria el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (ref. [`README.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/README.md)), verificando salud con tests (`162/162`) e inspeccionando memoria (`memory/` y `.continuity/`), para luego desplegar ordenadamente mediante sub-agentes los roles especializados pertinentes (Auditor Cognitivo, Centinela, 10 Sub-Agentes, Zero NetLoss, Asistente Simple).
+- **Directiva Recursiva de Rol Inicial Supremo (`Hermes Harness²`):** Toda IA que acceda a este proyecto DEBE asumir como tarea inicial obligatoria el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (ref. [`README.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/README.md)), verificando salud con tests (`163/163`) e inspeccionando memoria (`memory/` y `.continuity/`), para luego desplegar ordenadamente mediante sub-agentes los roles especializados pertinentes (Auditor Cognitivo, Centinela, 10 Sub-Agentes, Zero NetLoss, Asistente Simple).
 
 ## 1. Comunicación Breve y Concisa (Obligatorio)
 - **Toda respuesta al usuario debe ser breve, directa y al grano** (máximo 3-5 viñetas o líneas cortas).

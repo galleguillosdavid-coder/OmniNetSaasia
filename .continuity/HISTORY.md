@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 82: Poda de Nodos Inactivos en Micro Internet DID Resolver (163 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia la red descentralizada `netopt/micro_internet.py`: implementación de `IdentityResolver.prune_stale_nodes()` y `MicroInternetOrchestrator.prune_stale_peers()` para purgar registros de nodos fuera de línea mayores a `max_age_seconds` (evitando fuga de memoria y bloat de disco en redes locales densas). Nueva prueba `test_pillar_2_prune_stale_nodes` en `tests/test_micro_internet.py`, elevando la suite general a 163 tests unitarios aprobados al 100% en 168.6s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 163/163 tests aprobados en 168.6s.
+- **Commit / Ref:** Ciclo 82 validado.
+- **Pruebas ejecutadas:** `tests/test_micro_internet.py` (7/7 OK) y `python -m unittest discover -s tests -v` (163/163 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 81: Diagnóstico de Wi-Fi 8 (IEEE 802.11bn UHR) y Coordinación Multi-AP (162 Tests OK)
 - **Objetivo:** Ejecución del mandato de soluciones disruptivas más allá de lo evidente e investigación en internet: implementación en `netopt/diagnostics.py` de `check_wifi8_80211bn_uhr_readiness_status()` evaluando la preparación para la próxima generación inalámbrica Wi-Fi 8 (IEEE 802.11bn Ultra High Reliability / UHR). Incluye auditoría de mecanismos de coordinación Multi-AP (Coordinated Beamforming Co-BF y Coordinated Spatial Reuse Co-SR), metas PAR de supresión del 25% de latencia p95, mejora del 25% de rendimiento en el borde de cobertura, mitigación de pérdida de paquetes MPDU en roaming y Dynamic Sub-channel Operation (DSO). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 162 tests unitarios aprobados al 100% en 174.5s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 162/162 tests aprobados en 174.5s.

@@ -168,6 +168,24 @@ class IdentityResolver:
                 nodes.append(node)
             return nodes
 
+    def prune_stale_nodes(self, max_age_seconds: int = 3600) -> int:
+        """
+        Prunes inactive peer records older than max_age_seconds to prevent memory
+        and disk cache bloat in dense local networks.
+        Returns the number of pruned nodes.
+        """
+        with self._lock:
+            now = time.time()
+            to_remove = [
+                did for did, data in self.registry.items()
+                if (now - data.get("last_seen", 0)) > max_age_seconds
+            ]
+            for did in to_remove:
+                del self.registry[did]
+            if to_remove:
+                self._save_cache()
+            return len(to_remove)
+
     def broadcast_zero_conf_beacon(self, did: str, ip: str, port: int, device_name: str = "") -> Dict[str, Any]:
         """
         Broadcasts an mDNS / Zero-Conf peer announcement (RFC 6762 / DNS-SD RFC 6763)
@@ -645,6 +663,10 @@ class MicroInternetOrchestrator:
             "wire_speed_quic_ready": True,
             "summary": "Micro Internet OmniNet Activo: Red cooperativa P2P descentralizada basada en DIDs para intercambio multimedia y resiliencia de red sin nube."
         }
+
+    def prune_stale_peers(self, max_age_seconds: int = 3600) -> int:
+        """Prunes stale offline peers from the local DID resolver cache."""
+        return self.resolver.prune_stale_nodes(max_age_seconds=max_age_seconds)
 
     def schedule_multipath_packet(
         self,

@@ -92,6 +92,32 @@ class TestMicroInternet(unittest.TestCase):
         nodes = resolver.list_known_nodes()
         self.assertGreaterEqual(len(nodes), 1)
 
+    def test_pillar_2_prune_stale_nodes(self):
+        import time
+        resolver = IdentityResolver(cache_file=self.peers_file)
+        active_did = "did:omninet:active_device_001"
+        stale_did = "did:omninet:stale_device_999"
+
+        # 1. Register active node
+        resolver.register_or_update(active_did, "192.168.1.110", 7788, ["UDP"], "Active Node")
+
+        # 2. Register stale node with simulated 2-hour old timestamp
+        resolver.register_or_update(stale_did, "192.168.1.220", 7788, ["UDP"], "Old Node")
+        with resolver._lock:
+            resolver.registry[stale_did]["last_seen"] = time.time() - 7200
+
+        # Verify status
+        stale_info = resolver.resolve(stale_did)
+        self.assertEqual(stale_info["status"], "STALE")
+
+        # 3. Prune nodes older than 3600 seconds
+        pruned_count = resolver.prune_stale_nodes(max_age_seconds=3600)
+        self.assertEqual(pruned_count, 1)
+
+        # Active node persists; stale node pruned
+        self.assertIsNotNone(resolver.resolve(active_did))
+        self.assertIsNone(resolver.resolve(stale_did))
+
     def test_pillar_3_multipath_transport(self):
         dev = DeviceDID(storage_path=self.id_file)
         resolver = IdentityResolver(cache_file=self.peers_file)
