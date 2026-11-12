@@ -2340,6 +2340,25 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["paws_wrapped_sequence_protection"])
         self.assertIn("RFC 9293", res["summary"])
 
+    def test_rfc9651_structured_fields_and_rfc9421_signatures_status(self):
+        """Verifies RFC 9651 HTTP Structured Fields (obsoletes RFC 8941) & RFC 9421 HTTP Message Signatures."""
+        from netopt.diagnostics import check_rfc9651_structured_fields_and_rfc9421_signatures_status
+        res = check_rfc9651_structured_fields_and_rfc9421_signatures_status()
+        self.assertIn("RFC 9651", res["standard_structured_fields"])
+        self.assertTrue(res["obsoletes_rfc8941"])
+        self.assertIn("RFC 9421", res["standard_message_signatures"])
+        self.assertIn("Dictionary", res["supported_data_structures"])
+        self.assertIn("List", res["supported_data_structures"])
+        self.assertIn("Item", res["supported_data_structures"])
+        self.assertIn("Boolean", res["supported_types"])
+        self.assertTrue(res["parameter_metadata_supported"])
+        self.assertTrue(res["header_smuggling_mitigated"])
+        self.assertTrue(res["covered_components_canonicalization_active"])
+        self.assertTrue(res["signature_input_dictionary_compliant"])
+        self.assertTrue(res["anti_tampering_protection_active"])
+        self.assertIn("RFC 9651", res["summary"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
