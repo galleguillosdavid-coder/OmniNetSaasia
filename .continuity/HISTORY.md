@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 94: Agregador Global de Métricas de Feedback IA en Cloud Server (175 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia el servidor SaaS `cloud_server/proxy_server.py`: implementación de `compute_global_feedback_stats()` y nuevo endpoint GET `/v1/feedback/stats` para computar métricas agregadas anónimas sobre el uso y satisfacción del asistente de IA (volumen de consultas, dispositivos únicos, distribución de modelos de IA y promedio de profundidad de turnos por sesión), garantizando cero exposición de mensajes o identificadores privados. Nueva prueba unitaria `test_compute_global_feedback_stats_and_aggregation` en `tests/test_cloud_server.py`, elevando la suite general a 175 tests unitarios aprobados al 100% en 181.4s. Pruebas reales in situ (Ping: 34.56ms, Jitter: 2.64ms, DNS: 29.48ms, Sockets TCP: 172, UDP: 29, ARP: 3) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 175/175 tests aprobados en 181.4s.
+- **Commit / Ref:** Ciclo 94 validado.
+- **Pruebas ejecutadas:** `tests/test_cloud_server.py` (9/9 OK) y `python -m unittest discover -s tests -v` (175/175 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y nuevo temporizador 40 min de auto-mejora (`task-4972`).
+
+
+
 ## 2026-11-12 — Ciclo 93: Integración de Estrategia PQC en Hermes Foresee y Executor (174 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia el motor cognitivo Hermes (`hermes/foresee.py` y `hermes/executor.py`): incorporación de la estrategia `pqc_audit` y herramienta `hermes_pqc_audit`. `ForeseePlanner` ahora reconoce determinísticamente metas vinculadas a seguridad cuántica y criptografía poscuántica (`"pqc"`, `"cuantica"`, `"post_quantum"`), programando auditorías no mutantes (`risk=LOW`, `mutating=False`) para verificar compatibilidad FIPS 203 (ML-KEM-768) y resiliencia ante fragmentación de ClientHello sin recurrir a suposiciones sintéticas. Nueva prueba unitaria `test_foresee_pqc_goal_triggers_pqc_audit_tool` en `tests/test_hermes_cognitive.py`, elevando la suite general a 174 tests unitarios aprobados al 100% en 180.3s. Pruebas reales in situ (Ping: 34.25ms, Jitter: 0.82ms, DNS: 33.10ms, Sockets TCP: 171, UDP: 29, ARP: 2) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 174/174 tests aprobados en 180.3s.

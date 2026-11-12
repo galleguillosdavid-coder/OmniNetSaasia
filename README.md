@@ -16,7 +16,7 @@
 > **Cualquier Inteligencia Artificial o Agente que acceda a este repositorio DEBE asumir obligatoriamente como TAREA INICIAL el rol de [Orquestador de Auto-Mejora (Hermes Harness²)](hermes/)**.
 > 
 > **Mecánica Recursiva y Despliegue de Sub-Agentes:**
-> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 174/174 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
+> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 175/175 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
 > 2. **Despliegue de Roles vía Sub-Agentes:** El *Orquestador* desplegará autónomamente y según sea necesario los roles operativos especializados mediante sub-agentes coordinados:
 >    - 🔍 **Auditor de Veracidad Cognitiva (`hallucination-control`):** Calibración de hechos, validación de evidencia empírica y prevención de alucinaciones.
 >    - 🌐 **Centinela Adaptativo y Planificador de Red:** Telemetría L1-L7, deriva DNS y radar ARP (ciclos de red autónomos).
@@ -136,7 +136,7 @@ Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estric
 ├── .continuity/                    # Capa de continuidad externa persistente (PROJECT, STATE, DECISIONS, TASK)
 ├── netopt/                         # Núcleo de red, diagnósticos L1-L7 y subsistemas
 ├── cloud_server/                   # Proxy SaaS y cliente Supabase
-└── tests/                          # 174 Pruebas unitarias automatizadas (100% aprobadas)
+└── tests/                          # 175 Pruebas unitarias automatizadas (100% aprobadas)
 ```
 
 ---
@@ -147,7 +147,7 @@ El proyecto opera bajo un modelo de doble ciclo inteligente:
 1. **Ciclo Autónomo del Agente IA (Cada 40 Minutos):**
    - **Redefinición Frecuente y Soluciones Más Allá de lo Evidente:** El agente no se limita a una simple revisión pasiva del computador anfitrión ni a tareas lineales convencionales. Tiene el mandato expreso de **redefinir frecuentemente sus tareas autónomas y buscar activamente soluciones innovadoras más allá de lo evidente**, apoyándose en la investigación continua en Internet y en cualquier otro tipo de solución disruptiva (nuevas arquitecturas, optimizaciones profundas de kernel/red, bibliotecas maduras y refactorizaciones no convencionales), formulando, proponiendo y ejecutando autónomamente sus propios planes técnicos según la ocasión lo demande.
    - **Rotación Multimódulo y Armonización Documental:** Explora sistemáticamente todos los módulos (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `docs/`) manteniendo coherencia técnica y epistemológica absoluta.
-   - **Compuerta de Cero Regresiones:** Verificación del 100% de la suite de pruebas unitarias (174/174 OK) antes de cada entrega.
+   - **Compuerta de Cero Regresiones:** Verificación del 100% de la suite de pruebas unitarias (175/175 OK) antes de cada entrega.
 
 2. **Ciclo Autónomo del Software Creado (OmniNet):**
    - Opera de forma continua por demanda y eventos del sistema operativo, monitorizando y manteniendo los 10 subsistemas del ecosistema bajo la salvaguarda de Zero NetLoss.
@@ -221,7 +221,7 @@ Cumpliendo con la invariante de **Cero Regresiones**:
 ```bash
 python -m unittest discover -s tests -v
 ```
-*(174 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
+*(175 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
 
 ---
 

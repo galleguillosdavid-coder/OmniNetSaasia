@@ -200,6 +200,57 @@ class TestCloudServer(unittest.TestCase):
                 self.assertEqual(stats["wifi7_devices_count"], 2)
                 self.assertEqual(stats["app_versions"]["2.9.6"], 3)
 
+    def test_compute_global_feedback_stats_and_aggregation(self):
+        """Verifies fleet-wide statistical aggregation of anonymous AI assistant feedback."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_feedback_file = os.path.join(tmp_dir, "test_global_feedback.json")
+            with patch.object(proxy, "CLOUD_FEEDBACK_FILE", tmp_feedback_file):
+                # Empty state
+                stats_empty = proxy.compute_global_feedback_stats()
+                self.assertEqual(stats_empty["total_feedback_entries"], 0)
+                self.assertEqual(stats_empty["unique_devices"], 0)
+                self.assertEqual(stats_empty["avg_messages_per_session"], 0.0)
+                self.assertEqual(stats_empty["models_used"], {})
+
+                # Ingest synthetic feedback entries
+                now = time.time()
+                entries = [
+                    {
+                        "timestamp": now - 100,
+                        "device_hash": "dev_a",
+                        "license_hash": "lic_1",
+                        "msg_count": 2,
+                        "model": "deepseek-chat"
+                    },
+                    {
+                        "timestamp": now - 50,
+                        "device_hash": "dev_b",
+                        "license_hash": "lic_2",
+                        "msg_count": 4,
+                        "model": "deepseek-chat"
+                    },
+                    {
+                        "timestamp": now - 10,
+                        "device_hash": "dev_a",  # repeated device
+                        "license_hash": "lic_1",
+                        "msg_count": 6,
+                        "model": "deepseek-coder"
+                    }
+                ]
+                for e in entries:
+                    proxy.append_global_feedback(e)
+
+                stats = proxy.compute_global_feedback_stats()
+                self.assertEqual(stats["total_feedback_entries"], 3)
+                self.assertEqual(stats["unique_devices"], 2)
+                self.assertEqual(stats["unique_licenses"], 2)
+                # avg_messages = (2 + 4 + 6) / 3 = 4.0
+                self.assertEqual(stats["avg_messages_per_session"], 4.0)
+                self.assertEqual(stats["models_used"]["deepseek-chat"], 2)
+                self.assertEqual(stats["models_used"]["deepseek-coder"], 1)
+                self.assertEqual(stats["recent_activity_count"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

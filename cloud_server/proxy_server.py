@@ -131,6 +131,67 @@ def append_global_feedback(entry: Dict[str, Any]) -> None:
         json.dump(items[-500:], f, indent=2, ensure_ascii=False)
 
 
+def compute_global_feedback_stats() -> Dict[str, Any]:
+    """
+    Computes aggregated statistical metrics across all anonymized AI assistant feedback entries.
+    Provides insights into conversational volume, AI model distribution, and average session depth
+    without storing or exposing user prompts or private identifiers.
+    """
+    items: List[Dict[str, Any]] = []
+    if os.path.exists(CLOUD_FEEDBACK_FILE):
+        try:
+            with open(CLOUD_FEEDBACK_FILE, "r", encoding="utf-8") as f:
+                items = json.load(f)
+        except Exception:
+            items = []
+
+    total_entries = len(items)
+    if not total_entries:
+        return {
+            "service": "OmniNet Global Feedback Aggregator",
+            "total_feedback_entries": 0,
+            "unique_devices": 0,
+            "unique_licenses": 0,
+            "avg_messages_per_session": 0.0,
+            "models_used": {},
+            "recent_activity_count": 0
+        }
+
+    devices = set()
+    licenses = set()
+    msg_counts = []
+    models: Dict[str, int] = {}
+    now = time.time()
+    recent_24h = 0
+
+    for it in items:
+        dev = it.get("device_hash")
+        if dev:
+            devices.add(dev)
+        lic = it.get("license_hash")
+        if lic:
+            licenses.add(lic)
+        cnt = it.get("msg_count")
+        if cnt is not None and isinstance(cnt, (int, float)) and cnt >= 0:
+            msg_counts.append(int(cnt))
+        mod = str(it.get("model") or "unknown").strip()
+        models[mod] = models.get(mod, 0) + 1
+        ts = it.get("timestamp", 0)
+        if isinstance(ts, (int, float)) and (now - ts) <= 86400:
+            recent_24h += 1
+
+    return {
+        "service": "OmniNet Global Feedback Aggregator",
+        "total_feedback_entries": total_entries,
+        "unique_devices": len(devices),
+        "unique_licenses": len(licenses),
+        "avg_messages_per_session": round(sum(msg_counts) / len(msg_counts), 2) if msg_counts else 0.0,
+        "models_used": models,
+        "recent_activity_count": recent_24h
+    }
+
+
+
 def append_global_telemetry(entry: Dict[str, Any]) -> None:
     items: List[Dict[str, Any]] = []
     if os.path.exists(CLOUD_TELEMETRY_FILE):
@@ -304,6 +365,8 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             })
         elif self.path == "/v1/telemetry/stats":
             self.send_json(200, compute_global_telemetry_stats())
+        elif self.path == "/v1/feedback/stats":
+            self.send_json(200, compute_global_feedback_stats())
         else:
             self.send_json(200, {
                 "status": "online",
