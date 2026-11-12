@@ -247,6 +247,28 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
         self.assertEqual(len(bh_act), 1)
         self.assertIn("RFC 4821", bh_act[0].description)
 
+    @patch("netopt.device_maintenance.DeviceMaintenanceEngine.diagnose_all_device_faults")
+    def test_t24_autonomous_scheduler_discovers_device_maintenance_on_battery_or_faults(self, mock_diag):
+        from netopt.autonomous_scheduler import AutonomousTaskScheduler
+        from netopt.hal import WindowsHAL
+
+        mock_diag.return_value = {
+            "platform": "windows",
+            "faults_detected": [
+                "Batería crítica sin conexión AC (12.0%): ahorro de energía puede limitar adaptadores de red y CPU"
+            ],
+            "total_faults_count": 1
+        }
+        sched = AutonomousTaskScheduler(hal=WindowsHAL(dry_run=True))
+        cycle = sched.discover_and_schedule_cycle(execute=False)
+
+        dev_tasks = [t for t in cycle["tasks_executed"] if t["category"] == "DEVICE_MAINTENANCE"]
+        self.assertEqual(len(dev_tasks), 1)
+        self.assertIn("Mantenimiento integral", dev_tasks[0]["title"])
+        self.assertIn("Batería crítica", dev_tasks[0]["reason"])
+        self.assertEqual(dev_tasks[0]["status"], "SIMULATED")
+        self.assertIn("Mantenimiento OS", dev_tasks[0]["concise_result"])
+
 
 
 if __name__ == "__main__":

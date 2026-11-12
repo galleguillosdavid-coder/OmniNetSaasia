@@ -957,10 +957,14 @@ class DeviceMaintenanceEngine:
         # 1. CCleaner Deep Temp, Browser Cache, CrashDumps & Shaders Cleanup
         temp_res = self._clean_temp_files_safe(execute=should_apply)
         bd = temp_res.get("breakdown", {})
+        temp_dir = ""
+        if isinstance(pre_audit.get("storage"), dict):
+            temp_dir = str(pre_audit["storage"].get("temp_dir") or "")
+        clean_target = f"{temp_dir} + Browser/GPU/App Caches" if temp_dir else "Browser/GPU/App Caches"
         actions_log.append({
             "category": "CCLEANER_JUNK_CACHES",
             "title": "CCleaner: Purga de Temporales, Caché de Navegadores (Chrome/Edge/Brave/Opera/Firefox), CrashDumps y Shaders",
-            "command": f"ccleaner_deep_clean({pre_audit['storage']['temp_dir']} + Browser/GPU/App Caches)",
+            "command": f"ccleaner_deep_clean({clean_target})",
             "status": "SUCCESS" if should_apply else "DRY_RUN",
             "detail": (
                 f"{temp_res['cleaned_files']} archivos ({temp_res['freed_mb']} MB total: "
