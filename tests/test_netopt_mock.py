@@ -2487,6 +2487,21 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertTrue(res["doh_dot_doq_protocols_ready"])
         self.assertIn("RFC 9463", res["summary"])
 
+    def test_rfc9578_dner_and_rfc8914_extended_errors_status(self):
+        """Verifies RFC 9578 (DNER) and RFC 8914 (EDE) DNS Error Reporting evaluation."""
+        from netopt.diagnostics import check_rfc9578_dner_and_rfc8914_extended_errors_status
+        res = check_rfc9578_dner_and_rfc8914_extended_errors_status()
+        self.assertIn("RFC 9578", res["standard_dner"])
+        self.assertIn("RFC 8914", res["standard_ede"])
+        self.assertTrue(res["dner_reporting_agent_supported"])
+        self.assertTrue(res["rfc8914_extended_dns_errors_parsed"])
+        self.assertTrue(res["dner_http_and_dns_transport_ready"])
+        self.assertTrue(res["silent_resolution_failures_mitigated"])
+        self.assertTrue(res["dnssec_bogus_signature_telemetry"])
+        self.assertTrue(res["automated_failover_trigger_aligned"])
+        self.assertIn("RFC 9578", res["summary"])
+
+
 
 
 

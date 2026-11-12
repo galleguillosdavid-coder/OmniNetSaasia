@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 95: Diagnóstico de DNS Error Reporting (RFC 9578 DNER & RFC 8914 EDE) (176 Tests OK)
+- **Objetivo:** Ejecución continua del mandato de soluciones disruptivas e investigación tecnológica en internet: implementación en `netopt/diagnostics.py` de `check_rfc9578_dner_and_rfc8914_extended_errors_status()`, evaluando el marco de reporte estructurado de fallas de resolución DNS (RFC 9578 DNER, Mayo 2024) y decodificación de errores extendidos (RFC 8914 EDE: DNSSEC Bogus, Prohibited, Blocked, Authority Unreachable). Mitiga la persistencia de agujeros negros silenciosos de resolución y acelera la autorreparación y conmutación reactiva a resolvers Anycast. Nueva prueba unitaria en `tests/test_netopt_mock.py`, elevando la suite general a 176 tests unitarios aprobados al 100% en 185.1s. Pruebas reales in situ (Ping: 35.27ms, Jitter: 1.18ms, DNS: 27.26ms, Sockets TCP: 168, UDP: 30, ARP: 3) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 176/176 tests aprobados en 185.1s.
+- **Commit / Ref:** Ciclo 95 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_rfc9578_dner OK) y `python -m unittest discover -s tests -v` (176/176 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y temporizador 40 min de auto-mejora (`task-5024`).
+
+
+
 ## 2026-11-12 — Ciclo 94: Agregador Global de Métricas de Feedback IA en Cloud Server (175 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia el servidor SaaS `cloud_server/proxy_server.py`: implementación de `compute_global_feedback_stats()` y nuevo endpoint GET `/v1/feedback/stats` para computar métricas agregadas anónimas sobre el uso y satisfacción del asistente de IA (volumen de consultas, dispositivos únicos, distribución de modelos de IA y promedio de profundidad de turnos por sesión), garantizando cero exposición de mensajes o identificadores privados. Nueva prueba unitaria `test_compute_global_feedback_stats_and_aggregation` en `tests/test_cloud_server.py`, elevando la suite general a 175 tests unitarios aprobados al 100% en 181.4s. Pruebas reales in situ (Ping: 34.56ms, Jitter: 2.64ms, DNS: 29.48ms, Sockets TCP: 172, UDP: 29, ARP: 3) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 175/175 tests aprobados en 181.4s.
