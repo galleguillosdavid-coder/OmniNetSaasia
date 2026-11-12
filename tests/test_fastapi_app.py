@@ -132,6 +132,16 @@ class TestFastAPIApp(unittest.TestCase):
         self.assertFalse(data["applied"])
         self.assertIn("logs", data)
 
+    def test_tasks_trigger_endpoint_dry_run_safety(self):
+        resp = self.client.post("/api/tasks/trigger", json={"execute": False})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("tasks_executed", data)
+        self.assertIn("generation", data)
+        self.assertIn("concise_summary", data)
+        for t in data["tasks_executed"]:
+            self.assertIn(t.get("status"), ("SIMULATED", "SCHEDULED"))
+
 
 
 

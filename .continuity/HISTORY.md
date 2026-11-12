@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 80: Pruebas de Contrato FastAPI (/api/tasks/trigger) y Cobertura REST (161 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia la API REST `netopt/fastapi_app.py`: incorporación de pruebas de contrato y comportamiento seguro dry-run para el endpoint `/api/tasks/trigger` en `tests/test_fastapi_app.py`. Validación de estructura de respuesta, generación evolutiva, resumen conciso y aislamiento Zero NetLoss (`SIMULATED`). Suite general elevada a 161 tests unitarios aprobados al 100% en 164.3s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 161/161 tests aprobados en 164.3s.
+- **Commit / Ref:** Ciclo 80 validado.
+- **Pruebas ejecutadas:** `tests/test_fastapi_app.py` (13/13 OK) y `python -m unittest discover -s tests -v` (161/161 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 79: Programador Autónomo y Mantenimiento Defensivo de Dispositivos (160 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia `netopt/autonomous_scheduler.py` y `netopt/device_maintenance.py`: incorporación de acceso defensivo a la telemetría de almacenamiento y temporales en `run_full_device_maintenance()`. Nueva prueba `test_t24_autonomous_scheduler_discovers_device_maintenance_on_battery_or_faults` en `tests/test_audit_executive_remediation.py`, validando que condiciones críticas de batería y recursos disparen deterministamente la tarea de mantenimiento autónomo bajo Zero NetLoss. Suite general elevada a 160 tests unitarios aprobados al 100% en 155.2s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 160/160 tests aprobados en 155.2s.
