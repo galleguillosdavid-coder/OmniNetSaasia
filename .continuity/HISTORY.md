@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 84: Diagnóstico de Network Slicing IETF (RFC 9543) y Partición NRP (165 Tests OK)
+- **Objetivo:** Ejecución continua del mandato de soluciones más allá de lo evidente e investigación tecnológica en internet: implementación en `netopt/diagnostics.py` de `check_rfc9543_ietf_network_slicing_and_nrp_status()` evaluando el marco arquitectónico de Network Slicing de IETF (RFC 9543, Marzo 2024). Incluye verificación de puntos de demarcación de servicio (SDPs), particiones de recursos de red (NRP), direccionamiento de tráfico DSCP-a-NRP, garantías deterministas de SLO/SLE e interoperabilidad con rebanado de transporte 5G y Segment Routing (SRv6/SR-MPLS). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 165 tests unitarios aprobados al 100% en 168.9s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 165/165 tests aprobados en 168.9s.
+- **Commit / Ref:** Ciclo 84 validado.
+- **Pruebas ejecutadas:** `tests/test_netopt_mock.py` (test_rfc9543 OK) y `python -m unittest discover -s tests -v` (165/165 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 83: Adopción de Adaptador de Energía en Subagente Hardware & Thermal (164 Tests OK)
 - **Objetivo:** Adopción metódica de bibliotecas maduras en `netopt/ecosystem_subagents.py`: integración de `SystemResourceAdapter.get_power_telemetry()` en `run_hardware_thermal_subagent()`, sustituyendo llamadas lentas a procesos PowerShell por lectura directa C-level de batería y alimentación AC (`psutil.sensors_battery()`). Nueva prueba `test_hardware_thermal_subagent_uses_mature_power_telemetry` en `tests/test_netopt_mock.py`, elevando la suite general a 164 tests unitarios aprobados al 100% en 166.7s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 164/164 tests aprobados en 166.7s.

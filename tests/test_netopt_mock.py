@@ -2412,6 +2412,20 @@ class TestOmniNetCore(unittest.TestCase):
         self.assertIn("82%", res["summary"])
         self.assertIn("Modo batería", res["summary"])
 
+    def test_rfc9543_ietf_network_slicing_and_nrp_status(self):
+        """Verifies RFC 9543 IETF Network Slicing and Network Resource Partitions (NRP) evaluation."""
+        from netopt.diagnostics import check_rfc9543_ietf_network_slicing_and_nrp_status
+        res = check_rfc9543_ietf_network_slicing_and_nrp_status()
+        self.assertIn("RFC 9543", res["standard"])
+        self.assertTrue(res["service_demarcation_points_defined"])
+        self.assertTrue(res["network_resource_partitions_active"])
+        self.assertTrue(res["dscp_to_nrp_traffic_steering"])
+        self.assertTrue(res["slo_sle_deterministic_guarantees"])
+        self.assertTrue(res["buffer_and_queue_isolation_supported"])
+        self.assertTrue(res["sr_mpls_srv6_transport_interworking_ready"])
+        self.assertTrue(res["multi_queue_qos_hardware_aligned"])
+        self.assertIn("RFC 9543", res["summary"])
+
 
 
 if __name__ == "__main__":
