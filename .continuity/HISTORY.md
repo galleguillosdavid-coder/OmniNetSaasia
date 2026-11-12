@@ -1,5 +1,13 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 75: Telemetría de Energía psutil e Integración en Mantenimiento de Dispositivos (156 Tests OK)
+- **Objetivo:** Adopción de bibliotecas maduras y telemetría de hardware: extensión de `SystemResourceAdapter` (`netopt/adapters.py`) con `get_power_telemetry()` utilizando `psutil.sensors_battery()` para monitorear el estado de batería y alimentación AC, detectando condiciones de ahorro de energía que estrangulan tarjetas de red Wi-Fi y CPU. Integración en `DeviceMaintenanceEngine._inspect_memory_and_processes()` (`netopt/device_maintenance.py`). Nueva prueba `test_psutil_adapter_power_telemetry` en `tests/test_mature_adapters.py`, elevando la suite general a 156 tests unitarios aprobados al 100% en 147.9s. Armonización documental en todo el repositorio.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 156/156 tests aprobados en 147.9s.
+- **Commit / Ref:** Ciclo 75 validado.
+- **Pruebas ejecutadas:** `tests/test_mature_adapters.py` (14/14 OK) y `python -m unittest discover -s tests -v` (156/156 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y ciclo 40 min de auto-mejora.
+
+
 ## 2026-11-12 — Ciclo 74: Diagnóstico de Structured Fields (RFC 9651) y Firmas Criptográficas HTTP (RFC 9421) (155 Tests OK)
 - **Objetivo:** Ejecución del mandato de soluciones más allá de lo evidente e investigación en internet: implementación en `netopt/diagnostics.py` de `check_rfc9651_structured_fields_and_rfc9421_signatures_status()` evaluando la gramática tipada unificada de cabeceras HTTP (RFC 9651, Septiembre 2024, que reemplaza a RFC 8941) y la integridad criptográfica contra manipulación y smuggling de componentes de mensajes (RFC 9421). Nueva prueba en `tests/test_netopt_mock.py`, elevando la suite general a 155 tests unitarios aprobados al 100% en 142.6s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 155/155 tests aprobados en 142.6s.

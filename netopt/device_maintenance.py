@@ -321,11 +321,17 @@ class DeviceMaintenanceEngine:
         if hung_or_zombies:
             faults.append(f"Procesos colgados/zombies detectados: {', '.join(hung_or_zombies[:4])}")
 
+        power_telem = SystemResourceAdapter.get_power_telemetry()
+        if power_telem.get("has_battery") and power_telem.get("is_power_saving"):
+            pct = power_telem.get("battery_percent", 0.0)
+            faults.append(f"Batería crítica sin conexión AC ({pct}%): ahorro de energía puede limitar adaptadores de red y CPU")
+
         return {
             "total_ram_mb": total_mb,
             "available_ram_mb": avail_mb,
             "used_ram_percent": used_pct,
             "hung_or_zombie_processes": hung_or_zombies,
+            "power_telemetry": power_telem,
             "faults": faults
         }
 

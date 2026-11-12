@@ -178,6 +178,32 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertEqual(res["ping_ms"], 18.5)
         self.assertIn("Cloudflare", res["server"])
 
+    @patch("psutil.sensors_battery")
+    def test_psutil_adapter_power_telemetry(self, mock_battery):
+        from netopt.adapters import SystemResourceAdapter
+        # 1. Desktop / plugged case where sensors_battery returns None
+        mock_battery.return_value = None
+        res_desktop = SystemResourceAdapter.get_power_telemetry()
+        self.assertTrue(res_desktop["available"])
+        self.assertFalse(res_desktop["has_battery"])
+        self.assertTrue(res_desktop["power_plugged"])
+        self.assertEqual(res_desktop["battery_percent"], 100.0)
+        self.assertFalse(res_desktop["is_power_saving"])
+
+        # 2. Laptop low battery case
+        mock_batt = MagicMock()
+        mock_batt.percent = 12.0
+        mock_batt.power_plugged = False
+        mock_batt.secsleft = 1800
+        mock_battery.return_value = mock_batt
+        res_laptop = SystemResourceAdapter.get_power_telemetry()
+        self.assertTrue(res_laptop["available"])
+        self.assertTrue(res_laptop["has_battery"])
+        self.assertFalse(res_laptop["power_plugged"])
+        self.assertEqual(res_laptop["battery_percent"], 12.0)
+        self.assertEqual(res_laptop["seconds_left"], 1800)
+        self.assertTrue(res_laptop["is_power_saving"])
+
 
 
 

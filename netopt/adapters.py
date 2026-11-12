@@ -90,6 +90,41 @@ class SystemResourceAdapter:
                 "used_percent": 0.0
             }
 
+    @classmethod
+    def get_power_telemetry(cls) -> Dict[str, Any]:
+        """Provides battery and AC power status via psutil.sensors_battery()."""
+        try:
+            import psutil
+            battery = psutil.sensors_battery()
+            if battery is None:
+                return {
+                    "available": True,
+                    "has_battery": False,
+                    "power_plugged": True,
+                    "battery_percent": 100.0,
+                    "seconds_left": -1,
+                    "is_power_saving": False
+                }
+            return {
+                "available": True,
+                "has_battery": True,
+                "power_plugged": bool(battery.power_plugged),
+                "battery_percent": float(battery.percent),
+                "seconds_left": int(battery.secsleft) if getattr(battery, "secsleft", None) is not None else -1,
+                "is_power_saving": not bool(battery.power_plugged) and float(battery.percent) <= 20.0
+            }
+        except Exception as e:
+            return {
+                "available": False,
+                "error": str(e),
+                "has_battery": False,
+                "power_plugged": True,
+                "battery_percent": 100.0,
+                "seconds_left": -1,
+                "is_power_saving": False
+            }
+
+
 
     @classmethod
     def get_interface_io_counters(cls) -> Dict[str, Any]:

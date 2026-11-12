@@ -1,4 +1,5 @@
 import os
+import sys
 
 files_to_update = [
     "AGENTS.md",
@@ -10,15 +11,23 @@ files_to_update = [
     ".continuity/TASK.md",
 ]
 
+old_count = sys.argv[1] if len(sys.argv) > 1 else "155"
+new_count = sys.argv[2] if len(sys.argv) > 2 else "156"
+
 for rel_path in files_to_update:
     if os.path.exists(rel_path):
         with open(rel_path, "r", encoding="utf-8") as f:
             content = f.read()
-        new_content = content.replace("154/154", "155/155").replace("154 tests", "155 tests").replace("154 Pruebas", "155 Pruebas").replace("154 pruebas", "155 pruebas")
+        new_content = (
+            content.replace(f"{old_count}/{old_count}", f"{new_count}/{new_count}")
+            .replace(f"{old_count} tests", f"{new_count} tests")
+            .replace(f"{old_count} Pruebas", f"{new_count} Pruebas")
+            .replace(f"{old_count} pruebas", f"{new_count} pruebas")
+        )
         if new_content != content:
             with open(rel_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
-            print(f"Updated {rel_path}")
+            print(f"Updated {rel_path}: {old_count} -> {new_count}")
         else:
             print(f"No changes in {rel_path}")
 
