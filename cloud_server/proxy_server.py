@@ -144,6 +144,80 @@ def append_global_telemetry(entry: Dict[str, Any]) -> None:
         json.dump(items[-1000:], f, indent=2, ensure_ascii=False)
 
 
+def compute_global_telemetry_stats() -> Dict[str, Any]:
+    """
+    Computes aggregated statistical metrics across all anonymized device telemetry reports.
+    Provides global insights into fleet health, bufferbloat distribution, latency averages,
+    and Wi-Fi 7 adoption without exposing sensitive device identities.
+    """
+    items: List[Dict[str, Any]] = []
+    if os.path.exists(CLOUD_TELEMETRY_FILE):
+        try:
+            with open(CLOUD_TELEMETRY_FILE, "r", encoding="utf-8") as f:
+                items = json.load(f)
+        except Exception:
+            items = []
+
+    total_reports = len(items)
+    if not total_reports:
+        return {
+            "service": "OmniNet Global Telemetry Aggregator",
+            "total_reports": 0,
+            "unique_devices": 0,
+            "avg_latency_ms": 0.0,
+            "avg_jitter_ms": 0.0,
+            "avg_packet_loss_pct": 0.0,
+            "bufferbloat_distribution": {},
+            "platforms_breakdown": {},
+            "wifi7_devices_count": 0,
+            "app_versions": {}
+        }
+
+    devices = set()
+    latencies = []
+    jitters = []
+    packet_losses = []
+    bufferbloat: Dict[str, int] = {}
+    platforms: Dict[str, int] = {}
+    wifi7_count = 0
+    versions: Dict[str, int] = {}
+
+    for it in items:
+        dev = it.get("device_hash")
+        if dev:
+            devices.add(dev)
+        lat = it.get("avg_latency_ms")
+        if lat is not None and isinstance(lat, (int, float)) and lat >= 0:
+            latencies.append(float(lat))
+        jit = it.get("jitter_ms")
+        if jit is not None and isinstance(jit, (int, float)) and jit >= 0:
+            jitters.append(float(jit))
+        loss = it.get("packet_loss_pct")
+        if loss is not None and isinstance(loss, (int, float)) and loss >= 0:
+            packet_losses.append(float(loss))
+        grade = str(it.get("bufferbloat_grade") or "N/A").strip().upper()
+        bufferbloat[grade] = bufferbloat.get(grade, 0) + 1
+        plat = str(it.get("platform") or "unknown").strip().lower()
+        platforms[plat] = platforms.get(plat, 0) + 1
+        if it.get("is_wifi7"):
+            wifi7_count += 1
+        ver = str(it.get("app_version") or "unknown").strip()
+        versions[ver] = versions.get(ver, 0) + 1
+
+    return {
+        "service": "OmniNet Global Telemetry Aggregator",
+        "total_reports": total_reports,
+        "unique_devices": len(devices),
+        "avg_latency_ms": round(sum(latencies) / len(latencies), 2) if latencies else 0.0,
+        "avg_jitter_ms": round(sum(jitters) / len(jitters), 2) if jitters else 0.0,
+        "avg_packet_loss_pct": round(sum(packet_losses) / len(packet_losses), 2) if packet_losses else 0.0,
+        "bufferbloat_distribution": bufferbloat,
+        "platforms_breakdown": platforms,
+        "wifi7_devices_count": wifi7_count,
+        "app_versions": versions
+    }
+
+
 def format_rfc9457_problem_details(
     status: int,
     title: str,
@@ -228,6 +302,8 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "total_queries_proxied": sum(v.get("queries_count", 0) for v in lics.values()),
                 "sample_keys": [f"{k[:8]}...{k[-4:]}" for k in list(lics.keys())[:5]]
             })
+        elif self.path == "/v1/telemetry/stats":
+            self.send_json(200, compute_global_telemetry_stats())
         else:
             self.send_json(200, {
                 "status": "online",

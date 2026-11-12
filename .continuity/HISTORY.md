@@ -1,5 +1,14 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-12 — Ciclo 87: Agregador Global de Métricas de Telemetría en Cloud Server (168 Tests OK)
+- **Objetivo:** Rotación técnica multimódulo hacia la infraestructura SaaS `cloud_server/proxy_server.py`: implementación de `compute_global_telemetry_stats()` y ruta GET `/v1/telemetry/stats` para computar estadísticas agregadas anónimas de salud de flota a nivel mundial (dispositivos únicos, latencia media, jitter medio RFC 3550, tasa de pérdida de paquetes, distribución de bufferbloat A+ a F, desglose de plataformas y adopción de Wi-Fi 7). Nueva prueba unitaria `test_compute_global_telemetry_stats_and_aggregation` en `tests/test_cloud_server.py`, elevando la suite general a 168 tests unitarios aprobados al 100% en 172.1s. Ejecución de pruebas empíricas in situ en el dispositivo (Ping: 30.26ms, Jitter: 0.64ms, DNS: 28.45ms, Sockets TCP: 188, UDP: 31, ARP: 3) y armonización documental completa.
+- **Resultado:** APROBADO al 100%. 1 test nuevo y 168/168 tests aprobados en 172.1s.
+- **Commit / Ref:** Ciclo 87 validado.
+- **Pruebas ejecutadas:** `tests/test_cloud_server.py` (8/8 OK) y `python -m unittest discover -s tests -v` (168/168 OK).
+- **Pendientes:** Mantener activo daemon FastAPI (:8877) y nuevo temporizador 40 min de auto-mejora (`task-4541`).
+
+
+
 ## 2026-11-12 — Ciclo 86: Fijación Permanente ARP Multiplataforma en Linux y Darwin HAL (167 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia la capa de abstracción de hardware `netopt/hal.py`: implementación de métodos reales de fijación y desvinculación ARP permanente (`pin_gateway_mac` y `unpin_gateway_mac`) en `LinuxHAL` (`ip neigh replace ... nud permanent` / `ip neigh del`) y `DarwinHAL` (`arp -s` / `arp -d`), sustituyendo los stubs `noop` heredados y completando la defensa Zero-Trust anti-ARP-spoofing en todas las plataformas soportadas. Nueva prueba unitaria `test_cross_platform_zero_trust_arp_pinning_methods` en `tests/test_netopt_mock.py`, elevando la suite general a 167 tests unitarios aprobados al 100% en 170.4s. Armonización documental en todo el repositorio.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 167/167 tests aprobados en 170.4s.

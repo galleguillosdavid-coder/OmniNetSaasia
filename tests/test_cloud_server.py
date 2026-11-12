@@ -128,6 +128,78 @@ class TestCloudServer(unittest.TestCase):
             # Master backdoor rejected
             self.assertIsNone(proxy.verify_signed_license_key("OMNI-PRO-MASTER-2026"))
 
+    def test_compute_global_telemetry_stats_and_aggregation(self):
+        """Verifies fleet-wide statistical aggregation of anonymous device telemetry."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_telemetry_file = os.path.join(tmp_dir, "test_global_telemetry.json")
+            with patch.object(proxy, "CLOUD_TELEMETRY_FILE", tmp_telemetry_file):
+                # Empty state
+                stats_empty = proxy.compute_global_telemetry_stats()
+                self.assertEqual(stats_empty["total_reports"], 0)
+                self.assertEqual(stats_empty["unique_devices"], 0)
+                self.assertEqual(stats_empty["avg_latency_ms"], 0.0)
+                self.assertEqual(stats_empty["bufferbloat_distribution"], {})
+
+                # Ingest synthetic telemetry entries
+                entries = [
+                    {
+                        "timestamp": 1700000001,
+                        "device_hash": "dev_001",
+                        "platform": "windows",
+                        "avg_latency_ms": 20.0,
+                        "jitter_ms": 1.0,
+                        "packet_loss_pct": 0.0,
+                        "bufferbloat_grade": "A+",
+                        "is_wifi7": True,
+                        "app_version": "2.9.6"
+                    },
+                    {
+                        "timestamp": 1700000002,
+                        "device_hash": "dev_002",
+                        "platform": "linux",
+                        "avg_latency_ms": 40.0,
+                        "jitter_ms": 3.0,
+                        "packet_loss_pct": 1.0,
+                        "bufferbloat_grade": "B",
+                        "is_wifi7": False,
+                        "app_version": "2.9.6"
+                    },
+                    {
+                        "timestamp": 1700000003,
+                        "device_hash": "dev_001",  # Repeated device
+                        "platform": "windows",
+                        "avg_latency_ms": 30.0,
+                        "jitter_ms": 2.0,
+                        "packet_loss_pct": 0.5,
+                        "bufferbloat_grade": "A",
+                        "is_wifi7": True,
+                        "app_version": "2.9.6"
+                    }
+                ]
+                for e in entries:
+                    proxy.append_global_telemetry(e)
+
+                stats = proxy.compute_global_telemetry_stats()
+                self.assertEqual(stats["total_reports"], 3)
+                self.assertEqual(stats["unique_devices"], 2)
+                # avg_latency = (20 + 40 + 30) / 3 = 30.0
+                self.assertEqual(stats["avg_latency_ms"], 30.0)
+                # avg_jitter = (1 + 3 + 2) / 3 = 2.0
+                self.assertEqual(stats["avg_jitter_ms"], 2.0)
+                # avg_packet_loss = (0 + 1 + 0.5) / 3 = 0.5
+                self.assertEqual(stats["avg_packet_loss_pct"], 0.5)
+                # Bufferbloat breakdown
+                self.assertEqual(stats["bufferbloat_distribution"]["A+"], 1)
+                self.assertEqual(stats["bufferbloat_distribution"]["B"], 1)
+                self.assertEqual(stats["bufferbloat_distribution"]["A"], 1)
+                # Platforms breakdown
+                self.assertEqual(stats["platforms_breakdown"]["windows"], 2)
+                self.assertEqual(stats["platforms_breakdown"]["linux"], 1)
+                # Wi-Fi 7 devices count
+                self.assertEqual(stats["wifi7_devices_count"], 2)
+                self.assertEqual(stats["app_versions"]["2.9.6"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()
