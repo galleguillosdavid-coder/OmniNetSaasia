@@ -341,7 +341,20 @@ class AutonomousTaskScheduler:
                 status="SCHEDULED"
             ))
 
-        # 11. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
+        # 11. Check Encrypted DNS Auto-Discovery (RFC 9463 DDR & RFC 9540 DNR)
+        if self.evolution.get("encrypted_dns_audited_generation") != self.evolution.get("generation", 1):
+            discovered.append(AutonomousNetworkTask(
+                task_id=f"task_{int(now)}_{uuid.uuid4().hex[:4]}",
+                created_at=now,
+                scheduled_for=now,
+                category="ENCRYPTED_DNS_DISCOVERY",
+                priority="LOW",
+                title="Autodescubrimiento de Resolvers Cifrados (RFC 9463 DDR & RFC 9540 DNR)",
+                reason="Verificación preventiva de endpoints DoH/DoT/DoQ locales vía SVCB y DHCP DNR.",
+                status="SCHEDULED"
+            ))
+
+        # 12. Always ensure at least a proactive hygiene/audit task is logged per 10-min cycle
         if not discovered:
             best_dns_str = f"{best_dns.provider} ({best_dns.avg_latency_ms}ms)" if best_dns else "OK"
             discovered.append(AutonomousNetworkTask(
@@ -472,6 +485,13 @@ class AutonomousTaskScheduler:
                     self.evolution["pqc_tls_audited_generation"] = self.evolution.get("generation", 1)
                     self._save_evolution()
                 task.concise_result = f"PQC TLS 1.3 ({pqc_res['active_pqc_algorithm']}): {pqc_res['summary'][:60]}..."
+            elif task.category == "ENCRYPTED_DNS_DISCOVERY":
+                from .diagnostics import check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status
+                ddr_res = check_rfc9463_ddr_and_rfc9540_dnr_encrypted_discovery_status()
+                if do_exec and not is_dry_hal:
+                    self.evolution["encrypted_dns_audited_generation"] = self.evolution.get("generation", 1)
+                    self._save_evolution()
+                task.concise_result = f"DDR/DNR ({ddr_res['standard_ddr'][:8]}): {ddr_res['summary'][:60]}..."
             else:
                 self.hal.flush_dns_cache(execute=do_exec)
                 task.concise_result = "Auditoría 10m sin anomalías; caché DNS refrescada."

@@ -285,6 +285,21 @@ class TestAuditExecutiveRemediation(unittest.TestCase):
         self.assertEqual(pqc_tasks[0]["status"], "SIMULATED")
         self.assertIn("PQC TLS 1.3 (X25519MLKEM768)", pqc_tasks[0]["concise_result"])
 
+    def test_t26_autonomous_scheduler_discovers_and_dispatches_encrypted_dns_discovery(self):
+        from netopt.autonomous_scheduler import AutonomousTaskScheduler
+        from netopt.hal import WindowsHAL
+
+        sched = AutonomousTaskScheduler(hal=WindowsHAL(dry_run=True))
+        sched.evolution["encrypted_dns_audited_generation"] = -1
+        cycle = sched.discover_and_schedule_cycle(execute=False)
+
+        ddr_tasks = [t for t in cycle["tasks_executed"] if t["category"] == "ENCRYPTED_DNS_DISCOVERY"]
+        self.assertGreaterEqual(len(ddr_tasks), 1)
+        self.assertIn("Autodescubrimiento de Resolvers Cifrados", ddr_tasks[0]["title"])
+        self.assertIn("DNR", ddr_tasks[0]["reason"])
+        self.assertEqual(ddr_tasks[0]["status"], "SIMULATED")
+        self.assertIn("DDR/DNR (RFC 9463)", ddr_tasks[0]["concise_result"])
+
 
 if __name__ == "__main__":
     unittest.main()
