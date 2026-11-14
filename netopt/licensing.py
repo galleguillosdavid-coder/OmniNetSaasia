@@ -12,9 +12,12 @@ import uuid
 import hmac
 import hashlib
 import platform
+import tempfile
+import threading
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional, Tuple
+from urllib.parse import urlparse
 
 try:
     from .adapters import HttpClientAdapter
@@ -171,9 +174,28 @@ class LicenseManager:
         return defaults
 
     def save_state(self) -> None:
-        os.makedirs(os.path.dirname(LICENSE_STATE_FILE), exist_ok=True)
-        with open(LICENSE_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.state, f, indent=2, ensure_ascii=False)
+        with _LICENSE_LOCK:
+            state_dir = os.path.dirname(os.path.abspath(LICENSE_STATE_FILE)) or "."
+            os.makedirs(state_dir, exist_ok=True)
+            fd, tmp_path = tempfile.mkstemp(dir=state_dir, prefix=".lic_", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(self.state, f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, LICENSE_STATE_FILE)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+
+    def _apply_activated_plan(self, plan_unlocked: str, clean_key: str, email: str) -> str:
+        plan_key = plan_unlocked if plan_unlocked in PLAN_CATALOG else "pro"
+        self.state["plan"] = plan_key
+        self.state["license_key"] = clean_key
+        self.state["email"] = email
+        self.state["ai_queries_limit"] = PLAN_CATALOG[plan_key]["monthly_ai_limit"]
+        self.state["activated_at"] = time.time()
+        self.save_state()
+        return plan_key
 
     def get_status(self) -> Dict[str, Any]:
         plan_id = self.state.get("plan", "free")
@@ -208,9 +230,10 @@ class LicenseManager:
             self.save_state()
             return {"success": True, "plan": "free", "message": "Cambiado a Plan Gratis (5 consultas de prueba)."}
 
-        # 1. Try Cloud Proxy validation if configured
+        # 1. Try Cloud Proxy validation if configured (HTTP/HTTPS only)
         cloud_url = self.state.get("cloud_proxy_url", "").strip()
-        if cloud_url:
+        parsed_cloud = urlparse(cloud_url) if cloud_url else None
+        if cloud_url and parsed_cloud and parsed_cloud.scheme.lower() in ("http", "https") and parsed_cloud.netloc:
             act_url = f"{cloud_url.rstrip('/')}/v1/license/activate"
             act_payload = {
                 "license_key": clean_key,
@@ -220,13 +243,7 @@ class LicenseManager:
             if HttpClientAdapter.is_available():
                 status_code, cdata = HttpClientAdapter.post_json(act_url, act_payload, timeout_sec=8.0)
                 if status_code == 200 and isinstance(cdata, dict) and cdata.get("valid"):
-                    plan_unlocked = cdata.get("plan", "pro")
-                    self.state["plan"] = plan_unlocked
-                    self.state["license_key"] = clean_key
-                    self.state["email"] = email
-                    self.state["ai_queries_limit"] = PLAN_CATALOG[plan_unlocked]["monthly_ai_limit"]
-                    self.state["activated_at"] = time.time()
-                    self.save_state()
+                    plan_unlocked = self._apply_activated_plan(cdata.get("plan", "pro"), clean_key, email)
                     return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
                 elif status_code in (401, 403) or (isinstance(cdata, dict) and cdata.get("valid") is False):
                     return {
@@ -244,13 +261,7 @@ class LicenseManager:
                 with urllib.request.urlopen(req, timeout=8) as resp:
                     cdata = json.loads(resp.read().decode("utf-8"))
                     if cdata.get("valid"):
-                        plan_unlocked = cdata.get("plan", "pro")
-                        self.state["plan"] = plan_unlocked
-                        self.state["license_key"] = clean_key
-                        self.state["email"] = email
-                        self.state["ai_queries_limit"] = PLAN_CATALOG[plan_unlocked]["monthly_ai_limit"]
-                        self.state["activated_at"] = time.time()
-                        self.save_state()
+                        plan_unlocked = self._apply_activated_plan(cdata.get("plan", "pro"), clean_key, email)
                         return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
                     elif cdata.get("valid") is False:
                         return {
@@ -283,12 +294,7 @@ class LicenseManager:
         # 2. Verify cryptographic signature locally
         plan_unlocked = verify_signed_license_key(clean_key)
         if plan_unlocked:
-            self.state["plan"] = plan_unlocked
-            self.state["license_key"] = clean_key
-            self.state["email"] = email
-            self.state["ai_queries_limit"] = PLAN_CATALOG[plan_unlocked]["monthly_ai_limit"]
-            self.state["activated_at"] = time.time()
-            self.save_state()
+            plan_unlocked = self._apply_activated_plan(plan_unlocked, clean_key, email)
             return {
                 "success": True,
                 "plan": plan_unlocked,
@@ -303,29 +309,33 @@ class LicenseManager:
 
     def check_and_consume_ai_quota(self) -> Tuple[bool, str]:
         """Checks if the user can make an AI request and increments usage counter."""
-        st = self.get_status()
-        if st["is_pro"]:
+        with _LICENSE_LOCK:
+            st = self.get_status()
+            if st["is_pro"]:
+                self.state["ai_queries_used"] = int(self.state.get("ai_queries_used", 0)) + 1
+                self.save_state()
+                return True, "OK"
+
+            if st["ai_queries_remaining"] <= 0:
+                return (
+                    False,
+                    "🔒 **Llegaste al límite de 5 consultas gratis de prueba.**\n"
+                    "• Activa tu **Plan Personal Pro ($4.99 USD/mes)** desde el botón **💎 Mi Plan** arriba a la derecha para tener consultas ilimitadas, limpieza profunda BleachBit + SDIO y cuidado automático cada 10 minutos."
+                )
+
             self.state["ai_queries_used"] = int(self.state.get("ai_queries_used", 0)) + 1
             self.save_state()
-            return True, "OK"
-
-        if st["ai_queries_remaining"] <= 0:
-            return (
-                False,
-                "🔒 **Llegaste al límite de 5 consultas gratis de prueba.**\n"
-                "• Activa tu **Plan Personal Pro ($4.99 USD/mes)** desde el botón **💎 Mi Plan** arriba a la derecha para tener consultas ilimitadas, limpieza profunda BleachBit + SDIO y cuidado automático cada 10 minutos."
-            )
-
-        self.state["ai_queries_used"] = int(self.state.get("ai_queries_used", 0)) + 1
-        self.save_state()
-        return True, f"Quedan {st['ai_queries_remaining'] - 1} consultas gratis."
+            return True, f"Quedan {st['ai_queries_remaining'] - 1} consultas gratis."
 
 
+_LICENSE_LOCK = threading.RLock()
 _LICENSE_MGR: Optional[LicenseManager] = None
 
 
 def get_license_manager() -> LicenseManager:
     global _LICENSE_MGR
     if _LICENSE_MGR is None:
-        _LICENSE_MGR = LicenseManager()
+        with _LICENSE_LOCK:
+            if _LICENSE_MGR is None:
+                _LICENSE_MGR = LicenseManager()
     return _LICENSE_MGR

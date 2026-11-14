@@ -46,4 +46,22 @@
 - **Evidencia:** 76/76 tests unitarios aprobados (`test_hermes_cognitive.py` 4/4 OK) y validación en vivo contra red real reportando veredicto `SIMULATED` honesto.
 - **Límites conocidos:** La evaluación de re-planificación depende de métricas de red reproducibles.
 
+---
+
+## [2026-11-14] SUC-006: Persistencia Atómica Thread-Safe y Despertar Instantáneo con `threading.Event`
+- **Problema:** Los demonios y planificadores que usaban `time.sleep(interval)` tardaban hasta 60–600s en detenerse, y la escritura JSON directa `open(..., "w")` bajo hilos concurrentes (`ThreadingHTTPServer`, `HermesMemory`, `LicenseManager`, `telemetry.py`) exponía corrupción de estado.
+- **Solución:** Uso sistemático de `self._stop_event.wait(interval)` + `self._stop_event.set()` en `stop()`, `threading.RLock()` en singletons y accesos compartidos, y escritura atómica con `tempfile.mkstemp(..., dir=parent)` + `os.replace()`.
+- **Contexto donde aplica:** `netopt/auto_trigger.py`, `netopt/autonomous_scheduler.py`, `netopt/persistence.py`, `netopt/telemetry.py`, `netopt/licensing.py`, `cloud_server/proxy_server.py`, `hermes/self_improvement.py`, `hermes/executor.py`, `hermes/orchestrator.py`.
+- **Evidencia:** Pruebas unitarias dedicadas de despertar inmediato (`timeout=1.0s`) y concurrencia multi-hilo en `tests/test_fastapi_app.py`, `tests/test_cloud_server.py` y `tests/test_hermes.py`.
+- **Límites conocidos:** En sistemas de archivos sin atomicidad POSIX/NTFS entre volúmenes distintos, el archivo temporal debe crearse siempre en el mismo directorio destino (`dir=parent`).
+
+---
+
+## [2026-11-14] SUC-007: Defensa en Profundidad en Fronteras de Entrada y Criptografía Ed25519 Real
+- **Problema:** Superficies expuestas a CWE-22 (traversal de snapshots), CWE-78 (nombres de interfaz en HAL), inyección de flags (`-t` en PMTU), bypass SSRF por subcadena (`"localhost" in url`) o esquemas `file://` en `urllib`, y firma simétrica débil en `DeviceDID`.
+- **Solución:** Validadores dedicados (`_validate_probe_target`, `_validate_iface_name`, `_is_local_llm_url`, `_validate_http_url`), `os.path.realpath()` para snapshots, `subprocess.list2cmdline()` + `shutil.which()` en elevación, y migración a `Ed25519PrivateKey`/`Ed25519PublicKey` (`cryptography`).
+- **Contexto donde aplica:** `netopt/diagnostics.py`, `netopt/rollback.py`, `netopt/hal.py`, `netopt/llm_gateway.py`, `netopt/adapters.py`, `netopt/telemetry.py`, `netopt/licensing.py`, `netopt/elevation.py`, `netopt/micro_internet.py`.
+- **Evidencia:** Suites `tests/test_fastapi_app.py` (32/32 OK), `tests/test_cloud_server.py` (11/11 OK) y `tests/test_micro_internet.py` (7/7 OK).
+- **Límites conocidos:** Las reglas de validación deben mantenerse sincronizadas cuando se incorporen nuevos endpoints o adaptadores de red.
+
 

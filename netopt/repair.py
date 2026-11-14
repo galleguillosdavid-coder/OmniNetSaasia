@@ -86,80 +86,84 @@ class NetworkRepairEngine:
 
     def execute_triage_repair(self, failure_type: str, execute: bool = False) -> List[AgentActionLog]:
         """
-        Executes targeted remedial action for the diagnosed failure tier.
+        Executes targeted remedial action for the diagnosed failure tier
+        while enforcing dry-run HAL safety invariants.
         """
-        actions: List[AgentActionLog] = []
+        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        handlers = {
+            "L1_INTERFACE_DOWN": self._repair_l1_interface_down,
+            "L2_DHCP_OR_GATEWAY_FAILURE": self._repair_l2_dhcp_gateway,
+            "L4_DNS_FAILURE": self._repair_l4_dns,
+            "L3_DUPLICATE_GATEWAY_CONFLICT": self._repair_l3_duplicate_gateways,
+            "L3_PMTU_BLACKHOLE": self._repair_l3_pmtu_blackhole,
+            "L3_ROUTING_OR_INTERNET_CUT": self._repair_soft_reset,
+            "L7_HIGH_LOSS_OR_DEGRADED": self._repair_soft_reset,
+        }
+        handler = handlers.get(failure_type)
+        if handler is None:
+            return []
+        return handler(should_apply)
 
-        if failure_type == "L1_INTERFACE_DOWN":
-            reset_logs = self.hal.reset_network_stack(execute=execute)
-            actions.extend(reset_logs)
-            act_dhcp = self.hal.renew_dhcp_lease(execute=execute)
-            act_dhcp.description = "Re-enable interface and request fresh DHCP lease"
-            actions.append(act_dhcp)
-
-        elif failure_type == "L2_DHCP_OR_GATEWAY_FAILURE":
-            # Action: Renew DHCP lease, clear local ARP neighbor cache, and flush DNS cache
-            act1 = self.hal.renew_dhcp_lease(execute=execute)
-            act1.description = "Renew DHCP lease to re-acquire valid gateway and IP lease"
-            actions.append(act1)
-
-            plat = detect_platform()
-            arp_cmd = (
-                ["netsh", "interface", "ip", "delete", "arpcache"]
-                if plat == PlatformType.WINDOWS
-                else (["ip", "neigh", "flush", "all"] if plat == PlatformType.LINUX else ["arp", "-d", "-a"])
-            )
-            act_arp = self.hal.run_cmd(arp_cmd, execute=execute)
-            act_arp.description = "Flush stale ARP / Neighbor MAC cache"
-            actions.append(act_arp)
-
-            act2 = self.hal.flush_dns_cache(execute=execute)
-            actions.append(act2)
-
-        elif failure_type == "L4_DNS_FAILURE":
-            # Action: Flush DNS cache, then assign resilient public Anycast DNS
-            act_flush = self.hal.flush_dns_cache(execute=execute)
-            actions.append(act_flush)
-
-            interfaces = self.hal.get_interfaces()
-            for iface in interfaces:
-                if iface.is_up and not iface.is_loopback:
-                    act_dns = self.hal.set_dns_servers(
-                        iface.name,
-                        ["1.1.1.1", "8.8.8.8", "9.9.9.9"],
-                        execute=execute
-                    )
-                    act_dns.description = f"Override broken DNS on {iface.name} with Cloudflare/Google/Quad9"
-                    actions.append(act_dns)
-
-        elif failure_type == "L3_DUPLICATE_GATEWAY_CONFLICT":
-            # Action: Prune rogue/stale duplicate gateways and flush DNS
-            prune_logs = self.hal.prune_duplicate_default_gateways(execute=execute)
-            actions.extend(prune_logs)
-            act_flush = self.hal.flush_dns_cache(execute=execute)
-            actions.append(act_flush)
-
-        elif failure_type == "L3_PMTU_BLACKHOLE":
-            # Action: Enable RFC 4821 PLPMTUD Black Hole Detection and flush DNS
-            plat = detect_platform()
-            if plat == PlatformType.WINDOWS:
-                act = self.hal.run_cmd([
-                    "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
-                    "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f"
-                ], execute=execute)
-                act.description = "Enable RFC 4821 PLPMTUD Black Hole Detection in Windows Registry"
-                actions.append(act)
-            elif plat == PlatformType.LINUX:
-                act = self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
-                act.description = "Enable RFC 4821 PLPMTUD in Linux kernel (tcp_mtu_probing=1)"
-                actions.append(act)
-            act_flush = self.hal.flush_dns_cache(execute=execute)
-            actions.append(act_flush)
-
-        elif failure_type in ["L3_ROUTING_OR_INTERNET_CUT", "L7_HIGH_LOSS_OR_DEGRADED"]:
-            # Action: Soft reset of network stack
-            reset_logs = self.hal.reset_network_stack(execute=execute)
-            actions.extend(reset_logs)
-
+    def _repair_l1_interface_down(self, execute: bool) -> List[AgentActionLog]:
+        actions: List[AgentActionLog] = list(self.hal.reset_network_stack(execute=execute))
+        act_dhcp = self.hal.renew_dhcp_lease(execute=execute)
+        act_dhcp.description = "Re-enable interface and request fresh DHCP lease"
+        actions.append(act_dhcp)
         return actions
+
+    def _repair_l2_dhcp_gateway(self, execute: bool) -> List[AgentActionLog]:
+        act1 = self.hal.renew_dhcp_lease(execute=execute)
+        act1.description = "Renew DHCP lease to re-acquire valid gateway and IP lease"
+        plat = detect_platform()
+        arp_cmd = (
+            ["netsh", "interface", "ip", "delete", "arpcache"]
+            if plat == PlatformType.WINDOWS
+            else (["ip", "neigh", "flush", "all"] if plat == PlatformType.LINUX else ["arp", "-d", "-a"])
+        )
+        act_arp = self.hal.run_cmd(arp_cmd, execute=execute)
+        act_arp.description = "Flush stale ARP / Neighbor MAC cache"
+        act2 = self.hal.flush_dns_cache(execute=execute)
+        return [act1, act_arp, act2]
+
+    def _repair_l4_dns(self, execute: bool) -> List[AgentActionLog]:
+        actions: List[AgentActionLog] = [self.hal.flush_dns_cache(execute=execute)]
+        for iface in self.hal.get_interfaces():
+            if iface.is_up and not iface.is_loopback:
+                act_dns = self.hal.set_dns_servers(
+                    iface.name,
+                    ["1.1.1.1", "8.8.8.8", "9.9.9.9"],
+                    execute=execute,
+                )
+                act_dns.description = f"Override broken DNS on {iface.name} with Cloudflare/Google/Quad9"
+                actions.append(act_dns)
+        return actions
+
+    def _repair_l3_duplicate_gateways(self, execute: bool) -> List[AgentActionLog]:
+        actions: List[AgentActionLog] = list(self.hal.prune_duplicate_default_gateways(execute=execute))
+        actions.append(self.hal.flush_dns_cache(execute=execute))
+        return actions
+
+    def _repair_l3_pmtu_blackhole(self, execute: bool) -> List[AgentActionLog]:
+        actions: List[AgentActionLog] = []
+        plat = detect_platform()
+        if plat == PlatformType.WINDOWS:
+            act = self.hal.run_cmd([
+                "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f",
+            ], execute=execute)
+            act.description = "Enable RFC 4821 PLPMTUD Black Hole Detection in Windows Registry"
+            actions.append(act)
+        elif plat == PlatformType.LINUX:
+            act = self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
+            act.description = "Enable RFC 4821 PLPMTUD in Linux kernel (tcp_mtu_probing=1)"
+            actions.append(act)
+        elif plat == PlatformType.DARWIN:
+            act = self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.path_mtu_discovery=1"], execute=execute)
+            act.description = "Enable RFC 4821 PLPMTUD in macOS kernel (path_mtu_discovery=1)"
+            actions.append(act)
+        actions.append(self.hal.flush_dns_cache(execute=execute))
+        return actions
+
+    def _repair_soft_reset(self, execute: bool) -> List[AgentActionLog]:
+        return list(self.hal.reset_network_stack(execute=execute))
 

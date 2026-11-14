@@ -67,6 +67,7 @@ class AutonomousTaskScheduler:
         self.interval_sec = interval_sec
         self.auto_execute = auto_execute
         self.running = False
+        self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self.optimizer = NetworkOptimizer(self.hal)
         self.repair_engine = NetworkRepairEngine(self.hal)
@@ -533,22 +534,24 @@ class AutonomousTaskScheduler:
             task.executed_at = round(time.time(), 2)
 
     def _loop(self):
-        while self.running:
+        while self.running and not self._stop_event.is_set():
             try:
                 self.discover_and_schedule_cycle(execute=self.auto_execute)
             except Exception:
                 pass
-            time.sleep(self.interval_sec)
+            self._stop_event.wait(self.interval_sec)
 
     def start(self):
         if self.running:
             return
+        self._stop_event.clear()
         self.running = True
         self._thread = threading.Thread(target=self._loop, daemon=True, name="Autonomous10MinScheduler")
         self._thread.start()
 
     def stop(self):
         self.running = False
+        self._stop_event.set()
 
     def get_status(self) -> Dict[str, Any]:
         return {
@@ -566,10 +569,13 @@ class AutonomousTaskScheduler:
 
 
 _SCHEDULER_INSTANCE: Optional[AutonomousTaskScheduler] = None
+_SCHEDULER_LOCK = threading.Lock()
 
 
 def get_task_scheduler() -> AutonomousTaskScheduler:
     global _SCHEDULER_INSTANCE
     if _SCHEDULER_INSTANCE is None:
-        _SCHEDULER_INSTANCE = AutonomousTaskScheduler(interval_sec=600, auto_execute=False)
+        with _SCHEDULER_LOCK:
+            if _SCHEDULER_INSTANCE is None:
+                _SCHEDULER_INSTANCE = AutonomousTaskScheduler(interval_sec=600, auto_execute=False)
     return _SCHEDULER_INSTANCE

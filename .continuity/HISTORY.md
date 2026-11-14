@@ -1,5 +1,126 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-14 — Ciclo 120: Concurrencia y Contención de Errores en `HermesOrchestrator` (`hermes/orchestrator.py`)
+- **Auditoría y Corrección (`hermes/orchestrator.py`)**: Se protegió `active_sessions` con `_sessions_lock` (`threading.RLock`, tope 200 sesiones), se acotó `max_workers` (`[1, 16]`) con retorno temprano para listas vacías en `delegate_parallel()`, y se contuvieron excepciones de `run_turn()` en `spawn_session()`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `41.22 ms`, jitter `1.08 ms`, pérdida `0.0%`, bufferbloat `A+`, delta `4.45 ms`, Wi-Fi `100%` 5 GHz, `116` sockets TCP, `34` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de QUIC Connection Migration (`RFC 9000`), seguridad 0-RTT (`RFC 9001`/`9114`), rotación de Connection IDs y Multipath QUIC.
+- **Pruebas Unitarias**: Se añadió `test_orchestrator_parallel_bounds_and_exception_containment` en `tests/test_hermes.py`.
+
+## 2026-11-14 — Ciclo 119: Persistencia Atómica y Seguridad `dry_run` en `hermes/self_improvement.py`
+- **Auditoría y Corrección (`hermes/self_improvement.py`)**: Se protegió `HermesMemory` (`save`, `record_evolution`, `distill_skill`) con `threading.RLock()` y escritura atómica (`tempfile` + `os.replace`), y se reforzó `should_apply` (`execute and not hal.dry_run`) en `HermesSelfImprovementEngine.run_evolution_cycle()`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `28.68 ms`, jitter `0.19 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `117` sockets TCP, `32` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de TCP RACK-TLP (`RFC 8985`), HyStart++ y TCP pacing en Windows 11 y Linux.
+- **Pruebas Unitarias**: Se añadió `test_hermes_memory_atomic_save_and_dry_run_enforced` en `tests/test_hermes.py`.
+
+## 2026-11-14 — Ciclo 118: Acotamiento de Parámetros y Shutdown Limpio en `netopt/cli.py`
+- **Auditoría y Corrección (`netopt/cli.py`)**: Se parametrizó `main(argv=None) -> int`, se acotaron `--interval` (`[5, 86400]s`) y `--cycles` (`>= 1`) en `daemon` evitando busy-loops, se añadió `KeyboardInterrupt` -> `daemon.stop()`, y `default=str` en `repair --json`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `29.89 ms`, jitter `0.61 ms`, pérdida `0.0%`, bufferbloat `A+`, delta `3.57 ms`, Wi-Fi `100%` 5 GHz, `111` sockets TCP, `31` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de detección de ARP/NDP spoofing, riesgos de ND Proxy (`RFC 4389`) y principios Zero-Trust LAN (DAI, RA Guard y micro-segmentación).
+- **Pruebas Unitarias**: Se añadió `test_cli_daemon_bounds_and_repair_json_serialization` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 117: Seguridad de Argumentos y Rutas en Elevación de Privilegios (`netopt/elevation.py`)
+- **Auditoría y Corrección (`netopt/elevation.py`)**: Se reemplazó el entrecomillado manual en `_elevate_windows()` por `subprocess.list2cmdline()`, y en `_elevate_posix()` se resolvieron rutas absolutas mediante `shutil.which("sudo"|"pkexec")` + `os.execv` con separador `--`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `27.98 ms`, jitter `1.28 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `113` sockets TCP, `35` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de DSCP QoS, WebRTC NACK (`RFC 8888`), `fq_codel` y L4S (`RFC 9330`) para baja latencia en Windows 11 y Linux.
+- **Pruebas Unitarias**: Se añadió `test_elevation_windows_list2cmdline_and_posix_fallback` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 116: Seguridad HTTP(S) y Persistencia Atómica en `netopt/licensing.py`
+- **Auditoría y Corrección (`netopt/licensing.py`)**: Se protegió `save_state()`, `check_and_consume_ai_quota()` y `get_license_manager()` con `_LICENSE_LOCK` y escritura atómica (`tempfile` + `os.replace`), se validó el esquema `http`/`https` de `cloud_proxy_url` antes del fallback `urllib.request.urlopen`, y se extrajo `_apply_activated_plan()` con fallback seguro en `PLAN_CATALOG`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `29.91 ms`, jitter `0.16 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `112` sockets TCP, `35` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de Happy Eyeballs v3 (`draft-ietf-happy-happyeyeballs-v3`), registros DNS SVCB/HTTPS y Multipath QUIC (`draft-ietf-quic-multipath`).
+- **Pruebas Unitarias**: Se añadió `test_license_manager_rejects_non_http_cloud_url_and_atomic_save` en `tests/test_cloud_server.py`.
+
+## 2026-11-14 — Ciclo 115: Persistencia Atómica y Thread-Safe en `cloud_server/proxy_server.py`
+- **Auditoría y Corrección (`cloud_server/proxy_server.py`)**: Se añadieron `_CLOUD_IO_LOCK` (`threading.RLock`), `_atomic_write_json`, `_read_json_list` y `_append_json_list` para proteger `load_cloud_db`, `save_cloud_db`, `append_global_feedback` y `append_global_telemetry` contra condiciones de carrera y corrupción en `ThreadingHTTPServer`, eliminando código duplicado.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `35.65 ms`, jitter `1.24 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `117` sockets TCP, `37` UDP, `3` dispositivos ARP).
+- **Investigación Web**: Revisión de TLS 1.3 `X25519MLKEM768` (`RFC 10024`), fragmentación de `ClientHello` (~1.3–1.5 KB) en TCP/middleboxes vs paquetes iniciales QUIC.
+- **Pruebas Unitarias**: Se añadió `test_cloud_db_and_telemetry_atomic_thread_safe_persistence` en `tests/test_cloud_server.py`.
+
+## 2026-11-14 — Ciclo 114: Validación de Objetivos, Persistencia Atómica y Seguridad HTTP en `netopt/telemetry.py`
+- **Auditoría y Corrección (`netopt/telemetry.py`)**: Se validó `target` con `_validate_probe_target()` en `run_real_device_empirical_probes()`, se protegió `_persist_local_empirical_metrics()` con `_METRICS_FILE_LOCK` y escritura atómica (`tempfile` + `os.replace`), y se validó el esquema `http`/`https` de `collector_url` en `dispatch_global_device_telemetry()`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `40.49 ms`, jitter `1.27 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `113` sockets TCP, `37` UDP, `2` dispositivos ARP).
+- **Investigación Web**: Revisión de adopción 2025–2026 de DNS over QUIC (`RFC 9250`, 0-RTT), DDR (`RFC 9462`, `_dns.resolver.arpa` SVCB) y DNR (`RFC 9463`).
+- **Pruebas Unitarias**: Se añadió `test_telemetry_validates_target_and_rejects_non_http_collector` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 113: Deduplicación y Validación de Esquema en `HttpClientAdapter` (`netopt/adapters.py`)
+- **Auditoría y Corrección (`netopt/adapters.py`)**: Se consolidaron `post_json`, `get_json` y `patch_json` sobre `request_json` eliminando duplicación, se validó el esquema `http`/`https` en todas las rutas (`_validate_http_url`) retornando `400` ante esquemas inválidos, y se acotaron timeouts al rango `[0.1, 120.0]s` (`_bound_timeout`).
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `33.89 ms`, jitter `1.61 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `112` sockets TCP, `39` UDP, `2` dispositivos ARP).
+- **Investigación Web**: Revisión de convergencia TCP BBRv3 (`draft-ietf-ccwg-bbr`), TCP Prague y L4S (`DualPI2` / AccECN) en Linux 6.12+ y stacks QUIC.
+- **Pruebas Unitarias**: Se añadió `test_http_client_adapter_rejects_invalid_scheme_and_delegates` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 112: Despacho Modular y Seguridad `dry_run` en `NetworkRepairEngine` (`netopt/repair.py`)
+- **Auditoría y Corrección (`netopt/repair.py`)**: Se reforzó `should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))` en `NetworkRepairEngine.execute_triage_repair()`, se sustituyó la cadena `if/elif` de 77 líneas por una tabla de despacho con helpers dedicados, y se añadió soporte macOS (`Darwin`) para PLPMTUD en `_repair_l3_pmtu_blackhole()`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `36.53 ms`, jitter `2.94 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `113` sockets TCP, `33` UDP, `2` dispositivos ARP).
+- **Investigación Web**: Revisión de Wi-Fi 7 (802.11be) MLO en Windows 11 24H2/25H2 (EMLSR, bandas 5+6 GHz, WPA3-SAE y gestión de energía del adaptador).
+- **Pruebas Unitarias**: Se añadió `test_repair_engine_dry_run_hal_forces_simulated_and_handles_unknown_tier` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 111: Concurrencia y Contención de Errores en `HermesExecutor` y `HermesAgentHarness` (`hermes/`)
+- **Auditoría y Corrección (`hermes/executor.py`, `hermes/harness.py`)**: Se añadió `self._exec_lock = threading.RLock()` con limpieza garantizada `finally: self._ctx = {}` en `HermesExecutor.execute()` para evitar condiciones de carrera sobre `_ctx`, se contuvieron excepciones de `rollback_mgr.rollback()` sin abortar la emisión del `ExecutionReport`, y se acotó `timeout_sec` en `HermesAgentHarness.execute_python` al rango `[0.5, 60.0]s`.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `33.12 ms`, jitter `0.54 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%` 5 GHz, `119` sockets TCP, `33` UDP, `2` dispositivos ARP).
+- **Investigación Web**: Revisión de la evolución del stack de red en Windows 11 (QUIC/`HTTP.sys`, DoH nativo, Encrypted Client Hello `RFC 9849` y L4S ECN).
+- **Pruebas Unitarias**: Se añadió `test_executor_thread_safety_and_rollback_exception_containment` en `tests/test_hermes_cognitive.py`.
+
+## 2026-11-14 — Ciclo 110: Apagado Instantáneo con `threading.Event` en `NetworkDaemon` (`netopt/persistence.py`)
+- **Auditoría y Corrección (`netopt/persistence.py`)**: Se reemplazó `time.sleep(self.poll_interval)` en `NetworkDaemon.run_loop()` por `self._stop_event.wait(self.poll_interval)` junto con `self._stop_event.set()` en `stop()`, evitando bloqueos de hasta 60s al detener el demonio.
+- **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `28.23 ms`, jitter `0.96 ms`, pérdida `0.0%`, bufferbloat `A+`, Wi-Fi `100%`, `116` sockets TCP, `2` dispositivos ARP).
+- **Investigación Web**: Revisión de IETF Media over QUIC (`draft-ietf-moq-transport`), QUIC Datagrams (`RFC 9221`) y baseline de WebTransport en navegadores.
+- **Pruebas Unitarias**: Se añadió `test_network_daemon_stop_event_wakes_immediately` en `tests/test_fastapi_app.py`.
+
+## 2026-11-14 — Ciclo 109: Validación Estricta de Objetivos en `discover_path_mtu` y `/api/pmtu` (`netopt/diagnostics.py`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/diagnostics.py`: implementación de `_validate_probe_target()` (acepta solo IPv4/IPv6 válidos o hostnames RFC 1123 y bloquea inyección de flags `-*` o metacaracteres) en `discover_path_mtu()`, devolviendo HTTP 400 en `GET /api/pmtu`.
+- **Investigación & Empírica In Situ:** Vigilancia IETF sobre cifrado oportunista DNS (`RFC 9539`), DNSSEC y DELEG. Sonda real en host: Ping `40.09 ms`, Jitter `1.96 ms`, Pérdida `0.0%`, DNS `28.70 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `114`, ARP `2`.
+- **Resultado:** APROBADO (`test_pmtu_endpoint_rejects_invalid_target_flag_injection` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 108: Despacho Dry-Run por Defecto y Singleton Thread-Safe en `netopt/ecosystem_subagents.py`
+- **Objetivo:** Rotación multimódulo hacia `netopt/ecosystem_subagents.py`: reemplazo de cadena `if/elif` de 12 ramas en `execute_subagent_by_id()` por tabla de despacho unificada, cambio de valor por defecto a `execute=False` (Zero NetLoss dry-run-by-default), y protección `_ORCHESTRATOR_LOCK` en `get_ecosystem_orchestrator()`.
+- **Investigación & Empírica In Situ:** Vigilancia web sobre Windows 11 Zero Trust DNS (`ZTDNS` + `WFP` + `DoH` obligatorio). Sonda real en host: Ping `36.22 ms`, Jitter `2.39 ms`, Pérdida `0.0%`, DNS `29.14 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `110`, ARP `2`.
+- **Resultado:** APROBADO (`test_ecosystem_subagent_dispatch_default_dry_run` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 107: Endurecimiento JSON-RPC 2.0 y Validación de Límites en `mcp_server.py`
+- **Objetivo:** Rotación multimódulo hacia `mcp_server.py`: extracción de `process_jsonrpc_line()` y `_write_jsonrpc()`, manejo estándar JSON-RPC 2.0 (`-32700` Parse error, `-32600` Invalid Request, `-32601` Method not found, silencio en notificaciones sin `id`) y acotación segura de `poll_interval_sec` (`[5, 86400]`) y `max_hops` (`[1, 30]`).
+- **Investigación & Empírica In Situ:** Vigilancia IETF sobre descubrimiento DNS cifrado (`RFC 9463 DNR`, `RFC 9462 DDR`, `RFC 9540` y `RFC 9578`). Sonda real en host: Ping `36.34 ms`, Jitter `2.47 ms`, Pérdida `0.0%`, DNS `28.56 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `106`, ARP `2`.
+- **Resultado:** APROBADO (`test_mcp_server_jsonrpc_error_and_bounds_handling` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 106: Concurrencia `threading.Event` y Singleton Thread-Safe en `AutonomousTaskScheduler` (`netopt/autonomous_scheduler.py`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/autonomous_scheduler.py` y `netopt/device_maintenance.py`: reemplazo de `time.sleep(self.interval_sec)` (600s) por `threading.Event.wait()` para despertar inmediato en `stop()`, y bloqueo `_SCHEDULER_LOCK` en `get_task_scheduler()` (*double-checked locking*).
+- **Investigación & Empírica In Situ:** Vigilancia IETF sobre QUIC v2 (`RFC 9369`) y Happy Eyeballs v3 (racing QUIC vs TLS/TCP vía `SVCB`/`HTTPS`). Sonda real en host: Ping `34.57 ms`, Jitter `0.76 ms`, Pérdida `0.0%`, DNS `29.01 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `120`, ARP `2`.
+- **Resultado:** APROBADO (`test_autonomous_scheduler_stop_event_wakes_immediately` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 105: Concurrencia `threading.Event` y Singleton Thread-Safe en `AutoSentinel` (`netopt/auto_trigger.py`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/auto_trigger.py`: reemplazo de `time.sleep(self.interval)` por `threading.Event.wait()` para despertar inmediato en `stop()`, bloqueo `_SENTINEL_LOCK` en `get_sentinel()` (double-checked locking) y prevención de `trigger_reason` vacío ante estados `DEGRADED`.
+- **Investigación & Empírica In Situ:** Vigilancia web sobre CAKE AQM `DiffServ4`, BBRv3 y Wi-Fi 7 Preamble Puncturing (802.11be). Sonda real en host: Ping `36.36 ms`, Jitter `2.52 ms`, Pérdida `0.0%`, DNS `28.60 ms`, Bufferbloat `A`, Wi-Fi `100%`, Sockets TCP `111`, ARP `2`.
+- **Resultado:** APROBADO (`test_auto_sentinel_stop_event_wakes_immediately` en `tests/test_fastapi_app.py` + `tests/test_autosentinel_safety.py`).
+
+## 2026-11-14 — Ciclo 104: Honestidad Epistemológica Dry-Run en `NetworkOptimizer.execute_plan` (`netopt/optimizer.py`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/repair.py` y `netopt/optimizer.py`: corrección en `NetworkOptimizer.execute_plan()` para exigir `execute=True` y `hal.dry_run=False` antes de aplicar cambios o marcar `plan.status = "verified"` (cuando `hal.dry_run=True`, reporta honestamente `plan.status = "simulated"` igual que `optimize_gaming_and_l4s_qos` y `HermesExecutor`).
+- **Investigación & Empírica In Situ:** Vigilancia IETF sobre L4S, DualPI2 AQM, TCP Prague y Oblivious HTTP (`RFC 9458`). Sonda real en host: Ping `33.53 ms`, Jitter `0.99 ms`, Pérdida `0.0%`, DNS `32.72 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `128`, ARP `2`.
+- **Resultado:** APROBADO (`test_optimizer_execute_plan_dry_run_hal_reports_simulated` en `tests/test_fastapi_app.py` + `tests/test_anti_hallucination_comprehensive.py`).
+
+## 2026-11-14 — Ciclo 103: Mitigación CWE-78 en `LinuxHAL.renew_dhcp_lease` y Validación en `DarwinHAL` (`netopt/hal.py`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/hal.py`: extracción de `LinuxHAL._validate_iface_name()` aplicado también a `renew_dhcp_lease()` (bloquea inyección de comandos OS CWE-78 con `shell=True`), más validación de interfaz e IPs (`ipaddress.ip_address`) en `DarwinHAL.set_dns_servers()`.
+- **Investigación & Empírica In Situ:** Vigilancia web sobre pila Windows 11 (BBRv2, HyStart++ RFC 9406, RACK-TLP, RSC y NDIS LSO/RSS). Sonda real en host: Ping `36.27 ms`, Jitter `0.59 ms`, Pérdida `0.0%`, DNS `31.43 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `99`, ARP `2`.
+- **Resultado:** APROBADO (`test_hal_linux_and_darwin_input_validation_blocks_injection` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 102: Protección Path Traversal (CWE-22) y Desduplicación DNS en `netopt/rollback.py`
+- **Objetivo:** Rotación multimódulo hacia `netopt/rollback.py` y `cloud_server/supabase_client.py`: endurecimiento de `RollbackManager.load_snapshot()` con validación estricta `[A-Za-z0-9_-]+` y verificación `os.path.realpath()` para bloquear traversal (`../../`, `..\\`), además de extraer `_check_dns_resolution()` eliminando lógica duplicada.
+- **Investigación & Empírica In Situ:** Vigilancia web sobre despliegue 2025-2026 de Encrypted Client Hello (`RFC 9849` / `RFC 9848` SVCB/HTTPS bootstrapping) y DNS-over-QUIC (`RFC 9250`). Sonda real en host: Ping `34.64 ms`, Jitter `1.17 ms`, Pérdida `0.0%`, DNS `28.53 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `102`, ARP `2`.
+- **Resultado:** APROBADO (`test_rollback_load_snapshot_prevents_path_traversal` en `tests/test_fastapi_app.py`).
+
+## 2026-11-14 — Ciclo 101: Migración a Firma Asimétrica Ed25519 Real en `netopt/micro_internet.py` (`cryptography`)
+- **Objetivo:** Rotación multimódulo hacia `netopt/micro_internet.py`: reemplazo de firma simétrica vulnerable (`hmac` usando `public_key` como secreto) por firma asimétrica real **Ed25519** (`Ed25519PrivateKey` / `Ed25519PublicKey`) mediante la biblioteca madura `cryptography`, actualizando `export_document()` a `Ed25519VerificationKey2020` y migración automática de identidades legadas sin `key_type: Ed25519`.
+- **Investigación & Empírica In Situ:** Vigilancia IETF sobre `draft-ietf-quic-multipath` (-21), WebTransport (`webtrans` WGLC) y MASQUE (`draft-ietf-masque-quic-proxy`). Sonda real en host: Ping `45.86 ms`, Jitter `2.64 ms`, Pérdida `0.0%`, DNS `28.74 ms`, Bufferbloat `A`, Wi-Fi `100%`, Sockets TCP `107`, ARP `2`.
+- **Resultado:** APROBADO (`tests/test_micro_internet.py` 7/7 OK con verificación de firma Ed25519 de 128 hex chars y aislamiento entre dispositivos).
+
+## 2026-11-14 — Ciclo 100: Auditoría de SSRF/URL Parsing y Desduplicación en `netopt/llm_gateway.py` (183 Tests Catalogados)
+- **Objetivo:** Rotación multimódulo hacia `netopt/llm_gateway.py` y `hermes/executor.py`: reemplazo de la verificación por subcadena (`"localhost" in base_url`) por `_is_local_llm_url(base_url)` con `urllib.parse.urlparse().hostname` (mitiga bypass SSRF como `https://evil.com/?localhost` o `127.0.0.1.attacker.com`) y unificación de respuesta con `_finalize()`.
+- **Investigación & Empírica In Situ:** Vigilancia web sobre pila de red Windows 11 (Wi-Fi 7 MLO 802.11be, L4S y criptografía poscuántica TLS 1.3 `X25519_MLKEM768` / FIPS 203). Sonda real en host: Ping `32.5 ms`, Jitter `1.09 ms`, Pérdida `0.0%`, DNS `28.45 ms`, Bufferbloat `A+`, Wi-Fi `100%`, Sockets TCP `103`, ARP `2`.
+- **Resultado:** APROBADO. Nuevo test `test_is_local_llm_url_prevents_ssrf_bypass` en `tests/test_fastapi_app.py`.
+
+## 2026-11-13 — Ciclo 99: Auditoría de Seguridad y Endurecimiento Pydantic v2 en FastAPI & Cloud Proxy (182 Tests OK)
+- **Objetivo:** Auditoría de código en `netopt/fastapi_app.py`, `netopt/schemas.py` y `cloud_server/proxy_server.py`: (1) validación segura de cabecera `Content-Length` (rechazo 400 ante valores no numéricos o negativos en lugar de error 500), (2) comparación timing-safe (`hmac.compare_digest`) para `X-OmniNet-Token` y `Authorization: Bearer` administrativo, (3) helper unificado `_sanitize_llm_config` evitando fuga de claves cortas (`<= 8` chars -> `****`), y (4) cobertura Pydantic v2 completa (`ExecuteFlagRequest`, `LLMConfigUpdateRequest`) en `/api/llm/config`, `/api/tasks/trigger` y `/api/device/maintain`.
+- **Resultado:** APROBADO al 100%. 3 tests nuevos en `tests/test_fastapi_app.py` y pruebas empíricas reales in situ verificadas (Ping: 34.49ms, Jitter: 0.23ms, Loss: 0%, DNS: 32.13ms, Bufferbloat: A+, Wi-Fi: 100%, Sockets TCP: 291, ARP: 2).
+- **Pendientes:** Mantener activo el ciclo autónomo de 40 min (`schedule`) y explorar migración de `http.server` en `cloud_server/proxy_server.py` a FastAPI/Uvicorn en el siguiente ciclo.
+
 ## 2026-11-12 — Ciclo 98: Tarea Autónoma de Reporte de Errores DNS (RFC 9578 DNER & RFC 8914 EDE) en AutonomousTaskScheduler (179 Tests OK)
 - **Objetivo:** Rotación técnica multimódulo hacia el motor de descubrimiento de red `netopt/autonomous_scheduler.py`: integración de la categoría periódica `DNS_ERROR_REPORTING` en el ciclo autónomo de 10 minutos de `AutonomousTaskScheduler`. Audita preventivamente la señalización estructurada de reporte de errores DNS (RFC 9578 DNER, Mayo 2024) y decodificación de errores extendidos (RFC 8914 EDE), detectando fallos silenciosos de resolución y acelerando la autorreparación reactiva bajo Zero NetLoss. Nueva prueba unitaria `test_t27_autonomous_scheduler_discovers_and_dispatches_dns_error_reporting` en `tests/test_audit_executive_remediation.py`, elevando la suite general a 179 tests unitarios aprobados al 100% en 199.78s. Pruebas reales in situ (Ping: 32.65ms, Jitter: 1.75ms, DNS: 28.97ms, Bufferbloat: A+, Sockets TCP: 202, UDP: 29, Wi-Fi 5 GHz: 100%, ARP: 3) y armonización documental completa.
 - **Resultado:** APROBADO al 100%. 1 test nuevo y 179/179 tests aprobados en 199.78s.
@@ -437,8 +558,6 @@
 - **Commit / Ref:** `git_sync.py`
 - **Pruebas ejecutadas:** `python -m unittest discover -s tests -v` (138/138 OK).
 - **Pendientes:** Ninguno.
-
-
 
 
 

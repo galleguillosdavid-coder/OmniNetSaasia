@@ -12,6 +12,7 @@ import time
 import subprocess
 import urllib.request
 import urllib.error
+import urllib.parse
 from typing import List, Dict, Any, Optional
 
 from .models import HealthState
@@ -130,6 +131,16 @@ REGLAS CRÍTICAS DE RESPUESTA DIRECTA:
 
 {instructions}
 """
+
+
+def _is_local_llm_url(base_url: str) -> bool:
+    """Returns True only when base_url's parsed hostname is a loopback address."""
+    try:
+        parsed = urllib.parse.urlparse((base_url or "").strip())
+        host = (parsed.hostname or "").lower()
+        return host in ("localhost", "127.0.0.1", "::1")
+    except Exception:
+        return False
 
 
 class LLMGateway:
@@ -818,7 +829,7 @@ class LLMGateway:
         base_url = self.config.get("base_url", "https://api.deepseek.com")
         model = self.config.get("model", "deepseek-chat")
 
-        if api_key or "localhost" in base_url or "127.0.0.1" in base_url:
+        if api_key or _is_local_llm_url(base_url):
             try:
                 system_content = get_system_prompt(language_mode=lang)
                 enriched_user_msg = user_message
@@ -850,20 +861,22 @@ class LLMGateway:
                     "Authorization": auth_hdr
                 }
 
+                def _finalize(answer: str) -> Dict[str, Any]:
+                    self._record_conversation_feedback(user_message, answer, executed_tool, pending_followup)
+                    return {
+                        "reply": answer,
+                        "language_mode": lang,
+                        "model": model,
+                        "provider": provider,
+                        "executed_tool": executed_tool,
+                        "tool_output": tool_output,
+                        "backend_trace": backend_trace
+                    }
+
                 if HttpClientAdapter.is_available():
                     status_code, resp_data = HttpClientAdapter.post_json(endpoint, req_body, headers=headers, timeout_sec=25.0)
                     if status_code == 200 and isinstance(resp_data, dict) and "choices" in resp_data:
-                        answer = resp_data["choices"][0]["message"]["content"]
-                        self._record_conversation_feedback(user_message, answer, executed_tool, pending_followup)
-                        return {
-                            "reply": answer,
-                            "language_mode": lang,
-                            "model": model,
-                            "provider": provider,
-                            "executed_tool": executed_tool,
-                            "tool_output": tool_output,
-                            "backend_trace": backend_trace
-                        }
+                        return _finalize(resp_data["choices"][0]["message"]["content"])
                     elif status_code != 200:
                         raise RuntimeError(f"HTTP upstream error {status_code}: {resp_data.get('error', resp_data)}")
 
@@ -876,17 +889,7 @@ class LLMGateway:
 
                 with urllib.request.urlopen(req, timeout=25) as resp:
                     resp_data = json.loads(resp.read().decode("utf-8"))
-                    answer = resp_data["choices"][0]["message"]["content"]
-                    self._record_conversation_feedback(user_message, answer, executed_tool, pending_followup)
-                    return {
-                        "reply": answer,
-                        "language_mode": lang,
-                        "model": model,
-                        "provider": provider,
-                        "executed_tool": executed_tool,
-                        "tool_output": tool_output,
-                        "backend_trace": backend_trace
-                    }
+                    return _finalize(resp_data["choices"][0]["message"]["content"])
 
             except Exception as e:
                 res_fb = self._local_cognitive_fallback(user_message, executed_tool, tool_output, backend_trace, language_mode=lang, error=str(e))

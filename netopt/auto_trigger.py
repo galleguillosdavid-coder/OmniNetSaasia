@@ -75,6 +75,7 @@ class AutoSentinel:
         # El centinela nace desactivado.
         self.enabled = bool(enabled)
         self.running = False
+        self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self.repair_engine = NetworkRepairEngine(self.hal)
         self.optimizer = NetworkOptimizer(self.hal)
@@ -148,8 +149,10 @@ class AutoSentinel:
                 severity = "MEDIUM"
 
         # If healthy, or non-critical trigger inside 10-minute hysteresis cooldown, skip thrashing
-        if not trigger_reasons and diag.overall_health == HealthState.HEALTHY:
-            return None
+        if not trigger_reasons:
+            if diag.overall_health == HealthState.HEALTHY:
+                return None
+            trigger_reasons.append(f"Degradación general detectada ({diag.overall_health.value})")
         if severity != "CRITICAL" and (time.time() - self.last_heal_time) < self.cooldown_sec:
             return None
 
@@ -252,23 +255,25 @@ class AutoSentinel:
         return report
 
     def _loop(self):
-        while self.running:
+        while self.running and not self._stop_event.is_set():
             if self.enabled:
                 try:
                     self.check_health_and_auto_heal()
                 except Exception:
                     pass
-            time.sleep(self.interval)
+            self._stop_event.wait(self.interval)
 
     def start(self):
         if self.running:
             return
+        self._stop_event.clear()
         self.running = True
         self._thread = threading.Thread(target=self._loop, daemon=True, name="AutoSentinelThread")
         self._thread.start()
 
     def stop(self):
         self.running = False
+        self._stop_event.set()
 
     def get_status(self) -> Dict[str, Any]:
         return {
@@ -285,11 +290,14 @@ class AutoSentinel:
 
 # Global singleton instance
 _SENTINEL_INSTANCE: Optional[AutoSentinel] = None
+_SENTINEL_LOCK = threading.Lock()
 
 
 def get_sentinel() -> AutoSentinel:
     global _SENTINEL_INSTANCE
     if _SENTINEL_INSTANCE is None:
-        _SENTINEL_INSTANCE = AutoSentinel()
+        with _SENTINEL_LOCK:
+            if _SENTINEL_INSTANCE is None:
+                _SENTINEL_INSTANCE = AutoSentinel()
     return _SENTINEL_INSTANCE
 

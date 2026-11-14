@@ -10,6 +10,7 @@ tool dispatcher under Zero NetLoss invariants.
 """
 
 from __future__ import annotations
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -64,6 +65,7 @@ class HermesExecutor:
         self.optimizer = NetworkOptimizer(self.hal)
         self.repair = NetworkRepairEngine(self.hal)
         self.rollback_mgr = RollbackManager(self.hal)
+        self._exec_lock = threading.RLock()
         self._ctx: Dict[str, Any] = {}
         self._register_tools()
 
@@ -216,45 +218,53 @@ class HermesExecutor:
                 execute: bool = False) -> ExecutionReport:
         t0 = time.perf_counter()
         do_exec = bool(execute) and not (getattr(self.hal, "dry_run", False) is True)
-        self._ctx = {"diag": diag, "do_exec": do_exec, "baseline": None}
-        report = ExecutionReport(plan_id=plan.plan_id, executed_for_real=do_exec, step_results=[])
-        satisfied: set = set()
+        with self._exec_lock:
+            self._ctx = {"diag": diag, "do_exec": do_exec, "baseline": None}
+            try:
+                report = ExecutionReport(plan_id=plan.plan_id, executed_for_real=do_exec, step_results=[])
+                satisfied: set = set()
 
-        for step in plan.steps:
-            if report.aborted:
-                report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, SKIPPED,
-                                                      error="Plan abortado por fallo de paso crítico previo."))
-                continue
-            missing = [d for d in step.depends_on if d not in satisfied]
-            if missing:
-                report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, SKIPPED,
-                                                      error=f"Dependencias no satisfechas: {missing}"))
-                continue
+                for step in plan.steps:
+                    if report.aborted:
+                        report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, SKIPPED,
+                                                              error="Plan abortado por fallo de paso crítico previo."))
+                        continue
+                    missing = [d for d in step.depends_on if d not in satisfied]
+                    if missing:
+                        report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, SKIPPED,
+                                                              error=f"Dependencias no satisfechas: {missing}"))
+                        continue
 
-            if step.mutating and step.requires_snapshot and do_exec and report.snapshot_id is None:
-                try:
-                    snap = self.rollback_mgr.capture_snapshot(description=f"Hermes pre-plan {plan.plan_id}")
-                    report.snapshot_id = snap.snapshot_id
-                except Exception as e:
-                    report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, FAILED,
-                                                          error=f"Snapshot Zero NetLoss falló: {e}"))
-                    report.aborted = True
-                    continue
+                    if step.mutating and step.requires_snapshot and do_exec and report.snapshot_id is None:
+                        try:
+                            snap = self.rollback_mgr.capture_snapshot(description=f"Hermes pre-plan {plan.plan_id}")
+                            report.snapshot_id = snap.snapshot_id
+                        except Exception as e:
+                            report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, FAILED,
+                                                                  error=f"Snapshot Zero NetLoss falló: {e}"))
+                            report.aborted = True
+                            continue
 
-            res = self._run_step(step, do_exec)
-            report.step_results.append(res)
-            if res.status in (SUCCEEDED, SIMULATED):
-                satisfied.add(step.step_id)
-            elif step.critical:
-                report.aborted = True
+                    res = self._run_step(step, do_exec)
+                    report.step_results.append(res)
+                    if res.status in (SUCCEEDED, SIMULATED):
+                        satisfied.add(step.step_id)
+                    elif step.critical:
+                        report.aborted = True
 
-        verify = next((r for r in report.step_results if r.strategy == "verify"), None)
-        if do_exec and report.snapshot_id and (verify is None or verify.status != SUCCEEDED):
-            report.rollback_log = self.rollback_mgr.rollback(report.snapshot_id, execute=True)
-            report.rolled_back = True
+                verify = next((r for r in report.step_results if r.strategy == "verify"), None)
+                if do_exec and report.snapshot_id and (verify is None or verify.status != SUCCEEDED):
+                    try:
+                        report.rollback_log = self.rollback_mgr.rollback(report.snapshot_id, execute=True)
+                        report.rolled_back = True
+                    except Exception as e:
+                        report.rollback_log = [f"Error en auto-rollback: {e}"]
+                        report.rolled_back = False
 
-        report.duration_ms = round((time.perf_counter() - t0) * 1000, 2)
-        return report
+                report.duration_ms = round((time.perf_counter() - t0) * 1000, 2)
+                return report
+            finally:
+                self._ctx = {}
 
     def _run_step(self, step: PlanStep, do_exec: bool) -> StepResult:
         disp = self.harness.dispatch_tool(step.tool, dict(step.args))

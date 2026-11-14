@@ -12,9 +12,12 @@ import sys
 import json
 import time
 import hashlib
+import tempfile
+import threading
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
+from urllib.parse import urlparse
 
 from .hal import detect_platform, get_hal
 from .diagnostics import (
@@ -24,13 +27,15 @@ from .diagnostics import (
     inspect_wifi_and_nic,
     inspect_active_sockets,
     discover_path_mtu,
-    audit_arp_lan
+    audit_arp_lan,
+    _validate_probe_target,
 )
 from .ecosystem_subagents import get_ecosystem_orchestrator
 
 
 DEFAULT_CLOUD_COLLECTOR_URL = os.environ.get("OMNINET_CLOUD_URL", "http://127.0.0.1:9988")
 LOCAL_METRICS_LOG = os.path.expanduser("~/.netopt_state/local_empirical_metrics.json")
+_METRICS_FILE_LOCK = threading.Lock()
 
 
 def run_real_device_empirical_probes(target: str = "1.1.1.1") -> Dict[str, Any]:
@@ -38,14 +43,15 @@ def run_real_device_empirical_probes(target: str = "1.1.1.1") -> Dict[str, Any]:
     Executes real empirical network, hardware, and OS probes directly on the physical host machine.
     Guarantees that telemetry is grounded in real hardware signals rather than mocks or simulations.
     """
+    safe_target = _validate_probe_target(target)
     plat = detect_platform()
     hal = get_hal(dry_run=True)
 
     # 1. Real latency, jitter, and packet loss
-    metrics = measure_target_metrics(target, count=3)
+    metrics = measure_target_metrics(safe_target, count=3)
 
     # 2. Real DNS probe latency
-    dns_lat = query_dns_resolver_latency(target, domain="cloudflare.com", timeout=1.0)
+    dns_lat = query_dns_resolver_latency(safe_target, domain="cloudflare.com", timeout=1.0)
 
     # 3. Real Wi-Fi and interface state
     wifi_data = inspect_wifi_and_nic()
@@ -58,7 +64,7 @@ def run_real_device_empirical_probes(target: str = "1.1.1.1") -> Dict[str, Any]:
     arp_data = audit_arp_lan()
 
     # 6. Real bufferbloat evaluation
-    bloat_grade, idle_ms, delta_ms = check_bufferbloat(target)
+    bloat_grade, idle_ms, delta_ms = check_bufferbloat(safe_target)
 
     # 7. 10 Ecosystem Subagents Live Status
     orch = get_ecosystem_orchestrator()
@@ -97,22 +103,31 @@ def run_real_device_empirical_probes(target: str = "1.1.1.1") -> Dict[str, Any]:
 
 
 def _persist_local_empirical_metrics(entry: Dict[str, Any]) -> None:
-    try:
-        os.makedirs(os.path.dirname(LOCAL_METRICS_LOG), exist_ok=True)
-        items = []
-        if os.path.exists(LOCAL_METRICS_LOG):
+    with _METRICS_FILE_LOCK:
+        try:
+            log_dir = os.path.dirname(LOCAL_METRICS_LOG)
+            os.makedirs(log_dir, exist_ok=True)
+            items = []
+            if os.path.exists(LOCAL_METRICS_LOG):
+                try:
+                    with open(LOCAL_METRICS_LOG, "r", encoding="utf-8") as f:
+                        items = json.load(f)
+                        if not isinstance(items, list):
+                            items = []
+                except Exception:
+                    items = []
+            items.append(entry)
+            fd, tmp_path = tempfile.mkstemp(dir=log_dir, prefix=".metrics_", suffix=".tmp")
             try:
-                with open(LOCAL_METRICS_LOG, "r", encoding="utf-8") as f:
-                    items = json.load(f)
-                    if not isinstance(items, list):
-                        items = []
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(items[-200:], f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, LOCAL_METRICS_LOG)
             except Exception:
-                items = []
-        items.append(entry)
-        with open(LOCAL_METRICS_LOG, "w", encoding="utf-8") as f:
-            json.dump(items[-200:], f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+        except Exception:
+            pass
 
 
 def dispatch_global_device_telemetry(
@@ -125,6 +140,14 @@ def dispatch_global_device_telemetry(
     """
     report = empirical_report or run_real_device_empirical_probes()
     base_url = (collector_url or DEFAULT_CLOUD_COLLECTOR_URL).rstrip("/")
+    parsed_base = urlparse(base_url)
+    if parsed_base.scheme.lower() not in ("http", "https") or not parsed_base.netloc:
+        return {
+            "success": False,
+            "dispatched": False,
+            "error": "Unsupported or invalid collector URL scheme",
+            "payload_cached_locally": True,
+        }
     endpoint = f"{base_url}/v1/telemetry/report"
 
     payload = {

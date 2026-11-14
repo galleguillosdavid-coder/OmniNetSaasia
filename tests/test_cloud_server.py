@@ -251,6 +251,45 @@ class TestCloudServer(unittest.TestCase):
                 self.assertEqual(stats["models_used"]["deepseek-coder"], 1)
                 self.assertEqual(stats["recent_activity_count"], 3)
 
+    def test_cloud_db_and_telemetry_atomic_thread_safe_persistence(self):
+        """Verifies concurrent append_global_telemetry calls do not lose or corrupt entries."""
+        import tempfile
+        import threading
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_tel = os.path.join(tmp_dir, "concurrent_telemetry.json")
+            with patch.object(proxy, "CLOUD_TELEMETRY_FILE", tmp_tel):
+                threads = [
+                    threading.Thread(
+                        target=proxy.append_global_telemetry,
+                        args=({"device_hash": f"dev_{i}", "avg_latency_ms": float(i), "bufferbloat_grade": "A"},),
+                    )
+                    for i in range(12)
+                ]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(timeout=2.0)
+
+                stats = proxy.compute_global_telemetry_stats()
+                self.assertEqual(stats["total_reports"], 12)
+                self.assertEqual(stats["unique_devices"], 12)
+
+    def test_license_manager_rejects_non_http_cloud_url_and_atomic_save(self):
+        """Verifies LicenseManager skips non-HTTP cloud_proxy_url and atomically persists state."""
+        import tempfile
+        import netopt.licensing as lic
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_state = os.path.join(tmp_dir, "license_state.json")
+            with patch.object(lic, "LICENSE_STATE_FILE", tmp_state), \
+                 patch("urllib.request.urlopen", side_effect=AssertionError("urlopen should not be called for file://")):
+                mgr = lic.LicenseManager()
+                mgr.state["cloud_proxy_url"] = "file:///etc/passwd"
+                res = mgr.activate_license("INVALID-KEY-1234")
+                self.assertFalse(res["success"])
+                mgr.save_state()
+                self.assertTrue(os.path.exists(tmp_state))
+
 
 if __name__ == "__main__":
     unittest.main()

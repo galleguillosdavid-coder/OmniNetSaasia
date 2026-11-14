@@ -22,6 +22,7 @@ import shutil
 import zipfile
 import platform
 import subprocess
+import threading
 from typing import Dict, List, Optional, Any
 
 from .hal import detect_platform, PlatformType, get_hal
@@ -554,46 +555,42 @@ class EcosystemOrchestrator:
     # -------------------------------------------------------------------------
     # UNIFIED EXECUTION GATEWAY
     # -------------------------------------------------------------------------
-    def execute_subagent_by_id(self, subagent_id: str, execute: bool = True) -> Dict[str, Any]:
-        """Dispatches action directly to the requested sub-agent."""
-        sid = subagent_id.lower().strip()
-        if sid in ("network", "redes"):
-            return self.run_network_subagent(execute=execute)
-        elif sid in ("antivirus", "seguridad"):
-            return self.run_antivirus_subagent(execute=execute)
-        elif sid in ("cleaner", "limpiador", "limpieza"):
-            return self.run_cleaner_subagent(execute=execute)
-        elif sid in ("drivers", "controladores"):
-            return self.run_drivers_subagent(execute=execute)
-        elif sid in ("hardware_thermal", "temperatura", "hardware"):
-            return self.run_hardware_thermal_subagent(execute=execute)
-        elif sid in ("startup_boost", "arranque", "inicio"):
-            return self.run_startup_boost_subagent(execute=execute)
-        elif sid in ("uninstaller", "desinstalador"):
-            return self.run_uninstaller_subagent(execute=execute)
-        elif sid in ("privacy_shield", "privacidad", "anti_rastreo"):
-            return self.run_privacy_shield_subagent(execute=execute)
-        elif sid in ("os_repair", "reparacion", "salud"):
-            return self.run_os_repair_subagent(execute=execute)
-        elif sid in ("backup", "respaldo", "copias"):
-            return self.run_backup_subagent(execute=execute)
-        elif sid in ("micro_internet", "microinternet", "mesh", "did"):
-            return self.run_micro_internet_subagent(execute=execute)
-        elif sid in ("zero_netloss", "rollback", "reversion"):
-            return self.run_zero_netloss_subagent(execute=execute)
-        else:
-            return {
-                "subagent": sid,
-                "success": False,
-                "summary": f"Sub-agente '{sid}' no reconocido en el ecosistema."
-            }
+    def execute_subagent_by_id(self, subagent_id: str, execute: bool = False) -> Dict[str, Any]:
+        """Dispatches action directly to the requested sub-agent (dry-run by default)."""
+        sid = (subagent_id or "").lower().strip()
+        dispatch_groups = {
+            ("network", "redes"): self.run_network_subagent,
+            ("antivirus", "seguridad"): self.run_antivirus_subagent,
+            ("cleaner", "limpiador", "limpieza"): self.run_cleaner_subagent,
+            ("drivers", "controladores"): self.run_drivers_subagent,
+            ("hardware_thermal", "temperatura", "hardware"): self.run_hardware_thermal_subagent,
+            ("startup_boost", "arranque", "inicio"): self.run_startup_boost_subagent,
+            ("uninstaller", "desinstalador"): self.run_uninstaller_subagent,
+            ("privacy_shield", "privacidad", "anti_rastreo"): self.run_privacy_shield_subagent,
+            ("os_repair", "reparacion", "salud"): self.run_os_repair_subagent,
+            ("backup", "respaldo", "copias"): self.run_backup_subagent,
+            ("micro_internet", "microinternet", "mesh", "did"): self.run_micro_internet_subagent,
+            ("zero_netloss", "rollback", "reversion"): self.run_zero_netloss_subagent,
+        }
+        for aliases, runner in dispatch_groups.items():
+            if sid in aliases:
+                return runner(execute=execute)
+        return {
+            "subagent": sid,
+            "success": False,
+            "summary": f"Sub-agente '{sid}' no reconocido en el ecosistema."
+        }
 
 
 _GLOBAL_ORCHESTRATOR: Optional[EcosystemOrchestrator] = None
+_ORCHESTRATOR_LOCK = threading.Lock()
+
 
 def get_ecosystem_orchestrator() -> EcosystemOrchestrator:
     global _GLOBAL_ORCHESTRATOR
     if _GLOBAL_ORCHESTRATOR is None:
-        _GLOBAL_ORCHESTRATOR = EcosystemOrchestrator()
+        with _ORCHESTRATOR_LOCK:
+            if _GLOBAL_ORCHESTRATOR is None:
+                _GLOBAL_ORCHESTRATOR = EcosystemOrchestrator()
     return _GLOBAL_ORCHESTRATOR
 

@@ -41,16 +41,22 @@ class TestMicroInternet(unittest.TestCase):
         self.assertEqual(dev.did, dev2.did)
         self.assertEqual(dev.public_key, dev2.public_key)
 
-        # 3. Cryptographic signature & document
+        # 3. Cryptographic Ed25519 signature & document
         sig = dev.sign_message("hola micro internet")
-        self.assertEqual(len(sig), 64)
+        self.assertEqual(len(sig), 128)
         self.assertTrue(dev.verify_message("hola micro internet", sig, dev.public_key))
         self.assertFalse(dev.verify_message("mensaje adulterado", sig, dev.public_key))
-        self.assertFalse(dev.verify_message("hola micro internet", "a" * 64, dev.public_key))
+        self.assertFalse(dev.verify_message("hola micro internet", "a" * 128, dev.public_key))
+
+        # 4. Asymmetric isolation: another device cannot verify as dev or forge dev's signature
+        other_id_file = os.path.join(self.temp_dir, "other_identity.json")
+        other_dev = DeviceDID(storage_path=other_id_file)
+        self.assertFalse(other_dev.verify_message("hola micro internet", sig, other_dev.public_key))
 
         doc = dev.export_document()
         self.assertEqual(doc["id"], dev.did)
         self.assertIn("verificationMethod", doc)
+        self.assertEqual(doc["verificationMethod"][0]["type"], "Ed25519VerificationKey2020")
 
     def test_pillar_2_identity_resolver(self):
         resolver = IdentityResolver(cache_file=self.peers_file)

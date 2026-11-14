@@ -9,11 +9,12 @@ from __future__ import annotations
 import os
 import json
 import time
+import hmac
 import secrets
 from typing import Dict, Any, List, Optional
 from dataclasses import asdict
 
-from fastapi import FastAPI, Request, HTTPException, Depends, status
+from fastapi import FastAPI, Request, HTTPException, Depends, Body, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,7 +28,9 @@ from .schemas import (
     SentinelToggleRequest,
     LicenseActivationRequest,
     TelemetryReport,
-    DeviceIdentity
+    DeviceIdentity,
+    ExecuteFlagRequest,
+    LLMConfigUpdateRequest,
 )
 from .hal import get_hal, detect_platform
 from .diagnostics import (
@@ -54,6 +57,18 @@ LOCAL_SESSION_TOKEN = secrets.token_hex(16)
 MAX_PAYLOAD_SIZE = 1024 * 1024  # 1 MB
 
 
+def _sanitize_llm_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Returns a copy of LLM config with the API key stripped and safely masked."""
+    safe_cfg = {k: v for k, v in cfg.items() if k != "api_key"}
+    raw_key = str(cfg.get("api_key") or "")
+    safe_cfg["api_key_configured"] = bool(raw_key)
+    if raw_key:
+        safe_cfg["api_key_masked"] = (
+            raw_key[:4] + "..." + raw_key[-3:] if len(raw_key) > 8 else "****"
+        )
+    return safe_cfg
+
+
 def create_app(dashboard_html_provider=None) -> FastAPI:
     """Creates and configures the FastAPI application."""
     app = FastAPI(
@@ -75,18 +90,31 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
     async def security_and_limit_middleware(request: Request, call_next):
         # 1. Payload size protection (OMNI-020)
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > MAX_PAYLOAD_SIZE:
-            return JSONResponse(
-                status_code=413,
-                content={"error": "Payload Too Large (Máximo 1MB permitido)"}
-            )
+        if content_length is not None:
+            try:
+                parsed_length = int(content_length)
+            except (ValueError, TypeError):
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"error": "Cabecera Content-Length inválida"}
+                )
+            if parsed_length < 0:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"error": "Cabecera Content-Length negativa"}
+                )
+            if parsed_length > MAX_PAYLOAD_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"error": "Payload Too Large (Máximo 1MB permitido)"}
+                )
 
         # 2. Local loopback / CSRF access control (OMNI-003)
         client_ip = request.client.host if request.client else "127.0.0.1"
         is_loopback = client_ip in ("127.0.0.1", "::1", "localhost", "testclient")
-        req_token = request.headers.get("X-OmniNet-Token")
+        req_token = request.headers.get("X-OmniNet-Token") or ""
 
-        if not is_loopback and req_token != LOCAL_SESSION_TOKEN:
+        if not is_loopback and not hmac.compare_digest(req_token, LOCAL_SESSION_TOKEN):
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={"error": "Acceso denegado: API local protegida (solo loopback o token válido)"}
@@ -172,7 +200,10 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
 
     @app.get("/api/pmtu")
     def get_pmtu(target: str = "1.1.1.1"):
-        return discover_path_mtu(target)
+        try:
+            return discover_path_mtu(target)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     @app.get("/api/arp")
     def get_arp_audit():
@@ -231,12 +262,7 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
 
     @app.get("/api/llm/config")
     def llm_config():
-        cfg = load_llm_config()
-        safe_cfg = {k: v for k, v in cfg.items() if k != "api_key"}
-        safe_cfg["api_key_configured"] = bool(cfg.get("api_key"))
-        if cfg.get("api_key"):
-            safe_cfg["api_key_masked"] = cfg["api_key"][:4] + "..." + cfg["api_key"][-3:]
-        return safe_cfg
+        return _sanitize_llm_config(load_llm_config())
 
     # ------------------------------------------------------------------
     # POST Mutating & Action Endpoints (Validated by Pydantic)
@@ -287,14 +313,11 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
         return res
 
     @app.post("/api/llm/config")
-    def update_llm_settings(payload: Dict[str, Any]):
+    def update_llm_settings(req: LLMConfigUpdateRequest):
         gateway = LLMGateway()
+        payload = req.model_dump(exclude_none=True)
         gateway.update_config(payload)
-        safe_cfg = {k: v for k, v in gateway.config.items() if k != "api_key"}
-        safe_cfg["api_key_configured"] = bool(gateway.config.get("api_key"))
-        if gateway.config.get("api_key"):
-            safe_cfg["api_key_masked"] = gateway.config["api_key"][:4] + "..." + gateway.config["api_key"][-3:]
-        return {"status": "saved", "config": safe_cfg}
+        return {"status": "saved", "config": _sanitize_llm_config(gateway.config)}
 
     @app.post("/api/sentinel/toggle")
     def toggle_sentinel(req: SentinelToggleRequest):
@@ -319,14 +342,14 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
         }
 
     @app.post("/api/tasks/trigger")
-    def trigger_tasks(payload: Dict[str, Any] = None):
-        execute = bool((payload or {}).get("execute", False))
+    def trigger_tasks(req: Optional[ExecuteFlagRequest] = Body(default=None)):
+        execute = bool(req.execute) if req else False
         sched = get_task_scheduler()
         return sched.discover_and_schedule_cycle(execute=execute)
 
     @app.post("/api/device/maintain")
-    def run_device_maintenance(payload: Dict[str, Any] = None):
-        execute = bool((payload or {}).get("execute", False))
+    def run_device_maintenance(req: Optional[ExecuteFlagRequest] = Body(default=None)):
+        execute = bool(req.execute) if req else False
         hal = get_hal(dry_run=not execute)
         maint = DeviceMaintenanceEngine(hal)
         return maint.run_full_device_maintenance(execute=execute)

@@ -15,12 +15,16 @@ from __future__ import annotations
 import os
 import json
 import time
-import socket
 import hmac
+import socket
 import hashlib
 import secrets
 import threading
 from typing import Dict, Any, List, Optional, Tuple
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
 
 
 IDENTITY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "micro_internet_identity.json")
@@ -42,21 +46,29 @@ class DeviceDID:
             try:
                 with open(self.storage_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if data.get("did") and data.get("public_key") and data.get("secret_key"):
+                    if (
+                        data.get("key_type") == "Ed25519"
+                        and data.get("did")
+                        and data.get("public_key")
+                        and data.get("secret_key")
+                    ):
                         return data["did"], data["public_key"], data["secret_key"]
             except Exception:
                 pass
 
-        # Generate cryptographic device identity (Ed25519-compatible 256-bit seed)
-        raw_secret = secrets.token_bytes(32)
+        # Generate real Ed25519 asymmetric keypair via mature `cryptography` library
+        priv_key = Ed25519PrivateKey.generate()
+        raw_secret = priv_key.private_bytes_raw()
+        raw_pub = priv_key.public_key().public_bytes_raw()
         secret_hex = raw_secret.hex()
-        pub_digest = hashlib.sha256(raw_secret).hexdigest()
-        did = f"did:omninet:{pub_digest[:32]}"
-        public_key = pub_digest
+        pub_hex = raw_pub.hex()
+        did_digest = hashlib.sha256(raw_pub).hexdigest()
+        did = f"did:omninet:{did_digest[:32]}"
 
         data = {
+            "key_type": "Ed25519",
             "did": did,
-            "public_key": public_key,
+            "public_key": pub_hex,
             "secret_key": secret_hex,
             "created_at": time.time(),
             "device_name": socket.gethostname()
@@ -67,21 +79,21 @@ class DeviceDID:
         except Exception:
             pass
 
-        return did, public_key, secret_hex
+        return did, pub_hex, secret_hex
 
     def sign_message(self, message: str) -> str:
-        """Signs a message using the device cryptographic identity key (HMAC-SHA256 envelope)."""
-        key_bytes = bytes.fromhex(self.public_key)
-        return hmac.new(key_bytes, message.encode("utf-8"), hashlib.sha256).hexdigest()
+        """Signs a message asymmetrically using the device Ed25519 private key."""
+        priv_key = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(self._secret_key))
+        return priv_key.sign(message.encode("utf-8")).hex()
 
     def verify_message(self, message: str, signature: str, peer_public_key: str) -> bool:
-        """Verifies peer authentication envelope cryptographically using constant-time digest comparison."""
-        if not signature or len(signature) != 64 or not peer_public_key:
+        """Verifies a peer Ed25519 signature against peer_public_key."""
+        if not signature or len(signature) != 128 or not peer_public_key:
             return False
         try:
-            key_bytes = bytes.fromhex(peer_public_key)
-            expected = hmac.new(key_bytes, message.encode("utf-8"), hashlib.sha256).hexdigest()
-            return hmac.compare_digest(signature.lower(), expected.lower())
+            pub_key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(peer_public_key))
+            pub_key.verify(bytes.fromhex(signature), message.encode("utf-8"))
+            return True
         except Exception:
             return False
 
@@ -92,7 +104,7 @@ class DeviceDID:
             "id": self.did,
             "verificationMethod": [{
                 "id": f"{self.did}#key-1",
-                "type": "JsonWebKey2020",
+                "type": "Ed25519VerificationKey2020",
                 "controller": self.did,
                 "publicKeyHex": self.public_key
             }],

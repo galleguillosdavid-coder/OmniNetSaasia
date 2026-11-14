@@ -6,6 +6,7 @@ Continuously samples network SLA, checks for configuration drift, and triggers a
 from __future__ import annotations
 import json
 import os
+import threading
 import time
 from typing import Optional, Dict, Any, Callable
 from .models import HealthState, DiagnosticsReport
@@ -37,6 +38,7 @@ class NetworkDaemon:
         self.max_loss = max_acceptable_loss_percent
         self.auto_heal = auto_heal
         self.running = False
+        self._stop_event = threading.Event()
         self.repair_engine = NetworkRepairEngine(self.hal)
         self.optimizer = NetworkOptimizer(self.hal)
         self.rollback_mgr = RollbackManager(self.hal)
@@ -116,16 +118,18 @@ class NetworkDaemon:
     def run_loop(self, max_cycles: Optional[int] = None, callback: Optional[Callable] = None):
         """Starts monitoring loop."""
         self.running = True
+        self._stop_event.clear()
         cycles = 0
-        while self.running:
+        while self.running and not self._stop_event.is_set():
             res = self.check_and_heal_once()
             if callback:
                 callback(res)
             cycles += 1
             if max_cycles and cycles >= max_cycles:
                 break
-            time.sleep(self.poll_interval)
+            self._stop_event.wait(self.poll_interval)
 
     def stop(self):
         self.running = False
+        self._stop_event.set()
 

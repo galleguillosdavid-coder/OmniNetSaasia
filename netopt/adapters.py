@@ -9,6 +9,7 @@ import os
 import sys
 import time
 from typing import Dict, Any, List, Optional, Tuple
+from urllib.parse import urlparse
 
 
 class SystemResourceAdapter:
@@ -287,6 +288,21 @@ class HttpClientAdapter:
         except ImportError:
             return False
 
+    @staticmethod
+    def _validate_http_url(url: str) -> bool:
+        try:
+            parsed = urlparse(str(url or "").strip())
+            return parsed.scheme.lower() in ("http", "https") and bool(parsed.netloc)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _bound_timeout(timeout_sec: float) -> float:
+        try:
+            return max(0.1, min(120.0, float(timeout_sec)))
+        except (TypeError, ValueError):
+            return 8.0
+
     @classmethod
     def post_json(
         cls,
@@ -296,20 +312,7 @@ class HttpClientAdapter:
         timeout_sec: float = 8.0
     ) -> Tuple[int, Dict[str, Any]]:
         """Posts JSON payload and decodes response safely."""
-        try:
-            import httpx
-            h = {"Content-Type": "application/json"}
-            if headers:
-                h.update(headers)
-            with httpx.Client(timeout=timeout_sec) as client:
-                resp = client.post(url, json=payload, headers=h)
-                try:
-                    data = resp.json()
-                except Exception:
-                    data = {"text": resp.text}
-                return resp.status_code, data
-        except Exception as e:
-            return 500, {"error": str(e), "adapter": "httpx_adapter"}
+        return cls.request_json("POST", url, payload=payload, headers=headers, timeout_sec=timeout_sec)
 
     @classmethod
     def get_json(
@@ -319,18 +322,7 @@ class HttpClientAdapter:
         timeout_sec: float = 5.0
     ) -> Tuple[int, Dict[str, Any]]:
         """Performs GET and decodes JSON response."""
-        try:
-            import httpx
-            h = headers or {}
-            with httpx.Client(timeout=timeout_sec) as client:
-                resp = client.get(url, headers=h)
-                try:
-                    data = resp.json()
-                except Exception:
-                    data = {"text": resp.text}
-                return resp.status_code, data
-        except Exception as e:
-            return 500, {"error": str(e), "adapter": "httpx_adapter"}
+        return cls.request_json("GET", url, payload=None, headers=headers, timeout_sec=timeout_sec)
 
     @classmethod
     def patch_json(
@@ -341,20 +333,7 @@ class HttpClientAdapter:
         timeout_sec: float = 8.0
     ) -> Tuple[int, Dict[str, Any]]:
         """Patches JSON payload and decodes response safely."""
-        try:
-            import httpx
-            h = {"Content-Type": "application/json"}
-            if headers:
-                h.update(headers)
-            with httpx.Client(timeout=timeout_sec) as client:
-                resp = client.patch(url, json=payload, headers=h)
-                try:
-                    data = resp.json()
-                except Exception:
-                    data = {"text": resp.text}
-                return resp.status_code, data
-        except Exception as e:
-            return 500, {"error": str(e), "adapter": "httpx_adapter"}
+        return cls.request_json("PATCH", url, payload=payload, headers=headers, timeout_sec=timeout_sec)
 
     @classmethod
     def request_json(
@@ -367,12 +346,14 @@ class HttpClientAdapter:
         timeout_sec: float = 8.0
     ) -> Tuple[int, Any]:
         """Generic JSON request supporting arbitrary HTTP methods (GET, POST, PATCH, DELETE)."""
+        if not cls._validate_http_url(url):
+            return 400, {"error": "Unsupported or invalid HTTP(S) URL", "adapter": "httpx_adapter"}
         try:
             import httpx
-            h = {"Content-Type": "application/json"}
+            h = {"Content-Type": "application/json"} if payload is not None else {}
             if headers:
                 h.update(headers)
-            with httpx.Client(timeout=timeout_sec) as client:
+            with httpx.Client(timeout=cls._bound_timeout(timeout_sec)) as client:
                 resp = client.request(
                     method=method.upper(),
                     url=url,
@@ -396,10 +377,12 @@ class HttpClientAdapter:
         timeout_sec: float = 10.0
     ) -> Tuple[int, bytes]:
         """Performs GET and returns raw binary bytes via httpx."""
+        if not cls._validate_http_url(url):
+            return 400, b""
         try:
             import httpx
             h = headers or {}
-            with httpx.Client(timeout=timeout_sec) as client:
+            with httpx.Client(timeout=cls._bound_timeout(timeout_sec)) as client:
                 resp = client.get(url, headers=h)
                 return resp.status_code, resp.content
         except Exception:
@@ -414,10 +397,12 @@ class HttpClientAdapter:
         timeout_sec: float = 10.0
     ) -> Tuple[int, bytes]:
         """Performs POST with raw binary content via httpx."""
+        if not cls._validate_http_url(url):
+            return 400, b""
         try:
             import httpx
             h = headers or {}
-            with httpx.Client(timeout=timeout_sec) as client:
+            with httpx.Client(timeout=cls._bound_timeout(timeout_sec)) as client:
                 resp = client.post(url, content=content, headers=h)
                 return resp.status_code, resp.content
         except Exception:

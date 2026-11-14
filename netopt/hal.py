@@ -424,9 +424,14 @@ class LinuxHAL(NetworkHAL):
             pass
         return dns
 
-    def set_dns_servers(self, interface_name: str, servers: List[str], execute: bool = False) -> AgentActionLog:
-        if not re.match(r"^[a-zA-Z0-9_\-\.\s]+$", interface_name):
+    @staticmethod
+    def _validate_iface_name(interface_name: str) -> str:
+        if not interface_name or not re.match(r"^[a-zA-Z0-9_\-\.]+$", interface_name):
             raise ValueError(f"Nombre de interfaz Linux inválido: {interface_name}")
+        return interface_name
+
+    def set_dns_servers(self, interface_name: str, servers: List[str], execute: bool = False) -> AgentActionLog:
+        self._validate_iface_name(interface_name)
         for s in servers:
             ipaddress.ip_address(s)
         # Preferred modern path: resolvectl, fallback to nmcli
@@ -476,8 +481,7 @@ class LinuxHAL(NetworkHAL):
         return logs
 
     def set_interface_mtu(self, interface_name: str, mtu: int, execute: bool = False) -> AgentActionLog:
-        if not re.match(r"^[a-zA-Z0-9_\-\.\s]+$", interface_name):
-            raise ValueError(f"Nombre de interfaz Linux inválido: {interface_name}")
+        self._validate_iface_name(interface_name)
         mtu_val = int(mtu)
         if not (576 <= mtu_val <= 9000):
             raise ValueError(f"Valor MTU fuera de rango seguro (576-9000): {mtu}")
@@ -488,7 +492,8 @@ class LinuxHAL(NetworkHAL):
         return action
 
     def renew_dhcp_lease(self, interface_name: Optional[str] = None, execute: bool = False) -> AgentActionLog:
-        if interface_name:
+        if interface_name is not None:
+            self._validate_iface_name(interface_name)
             cmd = f"dhclient -r {interface_name} && dhclient {interface_name} || nmcli device reapply {interface_name}"
         else:
             cmd = "dhclient -r && dhclient || systemctl restart NetworkManager"
@@ -577,6 +582,10 @@ class DarwinHAL(NetworkHAL):
         return dns
 
     def set_dns_servers(self, interface_name: str, servers: List[str], execute: bool = False) -> AgentActionLog:
+        if not interface_name or any(c in interface_name for c in (";", "&", "|", "`", "$", "\n", "\r")):
+            raise ValueError(f"Nombre de interfaz macOS inválido: {interface_name}")
+        for s in servers:
+            ipaddress.ip_address(s)
         cmd = ["networksetup", "-setdnsservers", interface_name] + servers
         action = self.run_cmd(cmd, execute=execute)
         action.action_type = ActionType.OPTIMIZATION

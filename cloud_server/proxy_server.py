@@ -16,6 +16,8 @@ import json
 import time
 import hmac
 import hashlib
+import tempfile
+import threading
 import urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List
@@ -55,21 +57,58 @@ LEMONSQUEEZY_WEBHOOK_SECRET = os.environ.get("LEMONSQUEEZY_WEBHOOK_SECRET", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ADMIN_SECRET_KEY = os.environ.get("OMNINET_ADMIN_KEY", "")
 MAX_PAYLOAD_SIZE = 1024 * 1024  # 1 MB
+_CLOUD_IO_LOCK = threading.RLock()
+
+
+def _atomic_write_json(path: str, data: Any) -> None:
+    """Atomically writes JSON data to disk using tempfile + os.replace."""
+    parent = os.path.dirname(os.path.abspath(path)) or "."
+    os.makedirs(parent, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".cloud_", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+
+def _read_json_list(path: str) -> List[Dict[str, Any]]:
+    with _CLOUD_IO_LOCK:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return data
+            except Exception:
+                pass
+        return []
+
+
+def _append_json_list(path: str, entry: Dict[str, Any], limit: int) -> None:
+    with _CLOUD_IO_LOCK:
+        items = _read_json_list(path)
+        items.append(entry)
+        _atomic_write_json(path, items[-limit:])
 
 
 def load_cloud_db() -> Dict[str, Any]:
-    if os.path.exists(CLOUD_DB_FILE):
-        try:
-            with open(CLOUD_DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    db = {
-        "licenses": {},
-        "processed_webhook_events": []
-    }
-    save_cloud_db(db)
-    return db
+    with _CLOUD_IO_LOCK:
+        if os.path.exists(CLOUD_DB_FILE):
+            try:
+                with open(CLOUD_DB_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        db = {
+            "licenses": {},
+            "processed_webhook_events": []
+        }
+        save_cloud_db(db)
+        return db
 
 
 def verify_lemon_squeezy_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
@@ -114,21 +153,12 @@ def verify_stripe_signature(raw_body: bytes, signature_header: str, secret: str,
 
 
 def save_cloud_db(db: Dict[str, Any]) -> None:
-    with open(CLOUD_DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db, f, indent=2, ensure_ascii=False)
+    with _CLOUD_IO_LOCK:
+        _atomic_write_json(CLOUD_DB_FILE, db)
 
 
 def append_global_feedback(entry: Dict[str, Any]) -> None:
-    items: List[Dict[str, Any]] = []
-    if os.path.exists(CLOUD_FEEDBACK_FILE):
-        try:
-            with open(CLOUD_FEEDBACK_FILE, "r", encoding="utf-8") as f:
-                items = json.load(f)
-        except Exception:
-            items = []
-    items.append(entry)
-    with open(CLOUD_FEEDBACK_FILE, "w", encoding="utf-8") as f:
-        json.dump(items[-500:], f, indent=2, ensure_ascii=False)
+    _append_json_list(CLOUD_FEEDBACK_FILE, entry, limit=500)
 
 
 def compute_global_feedback_stats() -> Dict[str, Any]:
@@ -137,13 +167,7 @@ def compute_global_feedback_stats() -> Dict[str, Any]:
     Provides insights into conversational volume, AI model distribution, and average session depth
     without storing or exposing user prompts or private identifiers.
     """
-    items: List[Dict[str, Any]] = []
-    if os.path.exists(CLOUD_FEEDBACK_FILE):
-        try:
-            with open(CLOUD_FEEDBACK_FILE, "r", encoding="utf-8") as f:
-                items = json.load(f)
-        except Exception:
-            items = []
+    items = _read_json_list(CLOUD_FEEDBACK_FILE)
 
     total_entries = len(items)
     if not total_entries:
@@ -193,16 +217,7 @@ def compute_global_feedback_stats() -> Dict[str, Any]:
 
 
 def append_global_telemetry(entry: Dict[str, Any]) -> None:
-    items: List[Dict[str, Any]] = []
-    if os.path.exists(CLOUD_TELEMETRY_FILE):
-        try:
-            with open(CLOUD_TELEMETRY_FILE, "r", encoding="utf-8") as f:
-                items = json.load(f)
-        except Exception:
-            items = []
-    items.append(entry)
-    with open(CLOUD_TELEMETRY_FILE, "w", encoding="utf-8") as f:
-        json.dump(items[-1000:], f, indent=2, ensure_ascii=False)
+    _append_json_list(CLOUD_TELEMETRY_FILE, entry, limit=1000)
 
 
 def compute_global_telemetry_stats() -> Dict[str, Any]:
@@ -211,13 +226,7 @@ def compute_global_telemetry_stats() -> Dict[str, Any]:
     Provides global insights into fleet health, bufferbloat distribution, latency averages,
     and Wi-Fi 7 adoption without exposing sensitive device identities.
     """
-    items: List[Dict[str, Any]] = []
-    if os.path.exists(CLOUD_TELEMETRY_FILE):
-        try:
-            with open(CLOUD_TELEMETRY_FILE, "r", encoding="utf-8") as f:
-                items = json.load(f)
-        except Exception:
-            items = []
+    items = _read_json_list(CLOUD_TELEMETRY_FILE)
 
     total_reports = len(items)
     if not total_reports:
@@ -350,7 +359,7 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 self.send_json(503, {"error": "Endpoint administrativo deshabilitado: OMNINET_ADMIN_KEY no configurado en servidor (Fail-Closed)."})
                 return
             auth = self.headers.get("Authorization", "")
-            if auth != f"Bearer {ADMIN_SECRET_KEY}":
+            if not hmac.compare_digest(auth, f"Bearer {ADMIN_SECRET_KEY}"):
                 self.send_json(401, {"error": "Unauthorized: Clave de administrador requerida."})
                 return
             db = load_cloud_db()
@@ -375,7 +384,15 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             })
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
+        raw_len = self.headers.get("Content-Length", "0")
+        try:
+            length = int(raw_len)
+        except (ValueError, TypeError):
+            self.send_json(400, {"error": "Cabecera Content-Length inválida"})
+            return
+        if length < 0:
+            self.send_json(400, {"error": "Cabecera Content-Length negativa"})
+            return
         if length > MAX_PAYLOAD_SIZE:
             self.send_json(413, {"error": "Payload Too Large (Máximo 1MB permitido)"})
             return

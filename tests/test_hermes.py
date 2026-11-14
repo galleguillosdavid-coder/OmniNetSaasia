@@ -163,6 +163,47 @@ class TestHermesSelfImprovement(unittest.TestCase):
             rep_fail = engine.run_evolution_cycle(execute=False, run_tests=True)
             self.assertFalse(rep_fail.zero_regressions_verified)
 
+    def test_hermes_memory_atomic_save_and_dry_run_enforced(self):
+        import tempfile
+        import threading
+        from unittest.mock import MagicMock
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            mem_file = os.path.join(tmp_dir, "mem.json")
+            mem = HermesMemory(memory_path=mem_file)
+            threads = [
+                threading.Thread(target=mem.distill_skill, args=(f"skill_{i}", "t", "a"))
+                for i in range(10)
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=2.0)
+            self.assertTrue(os.path.exists(mem_file))
+            reloaded = HermesMemory(memory_path=mem_file)
+            names = {s["name"] for s in reloaded.state["learned_skills"]}
+            for i in range(10):
+                self.assertIn(f"skill_{i}", names)
+
+        mock_hal = MagicMock()
+        mock_hal.dry_run = True
+        engine = HermesSelfImprovementEngine(hal=mock_hal)
+        with patch("hermes.self_improvement.check_duplicate_default_gateways_status", return_value={"has_duplicate_gateways": True}):
+            engine.run_evolution_cycle(execute=True, run_tests=False)
+            mock_hal.prune_duplicate_default_gateways.assert_called_once_with(execute=False)
+
+    def test_orchestrator_parallel_bounds_and_exception_containment(self):
+        from hermes.orchestrator import HermesOrchestrator
+
+        orch = HermesOrchestrator()
+        self.assertEqual(orch.delegate_parallel([], max_workers=0), [])
+
+        with patch("hermes.orchestrator.HermesAgentHarness.run_turn", side_effect=RuntimeError("turn boom")):
+            sess = orch.spawn_session("Audit", "Check")
+            self.assertEqual(sess.status, "failed")
+            self.assertIsNotNone(sess.completed_at)
+            self.assertIn("turn boom", sess.result.error)
+
 
 if __name__ == "__main__":
     unittest.main()

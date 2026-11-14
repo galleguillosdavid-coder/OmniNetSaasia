@@ -5,10 +5,12 @@ Measures latency, RFC 3550 jitter, packet loss, DNS resolution times, PMTU, and 
 
 from __future__ import annotations
 import os
+import re
 import json
 import socket
 import time
 import struct
+import ipaddress
 import platform
 import subprocess
 import concurrent.futures
@@ -425,8 +427,29 @@ def inspect_active_sockets() -> Dict[str, Any]:
     }
 
 
+_HOSTNAME_RE = re.compile(
+    r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
+    r"(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+)
+
+
+def _validate_probe_target(target: str) -> str:
+    """Validates that a probe target is an IPv4/IPv6 address or RFC 1123 hostname (blocks option/flag injection)."""
+    clean = (target or "").strip()
+    if not clean or clean.startswith("-") or len(clean) > 253:
+        raise ValueError(f"Objetivo de sonda inválido: {target!r}")
+    try:
+        ipaddress.ip_address(clean)
+        return clean
+    except ValueError:
+        if _HOSTNAME_RE.fullmatch(clean):
+            return clean
+    raise ValueError(f"Objetivo de sonda inválido: {target!r}")
+
+
 def discover_path_mtu(target: str = "1.1.1.1") -> Dict[str, Any]:
     """Fast DF-bit Path MTU discovery (distinguishes real DF fragmentation from ICMP filtering)."""
+    target = _validate_probe_target(target)
     plat = detect_platform()
 
     def _probe_df(payload: int) -> Tuple[bool, bool]:

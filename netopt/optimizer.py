@@ -173,7 +173,8 @@ class NetworkOptimizer:
         Returns (success_status, execution_log).
         """
         logs: List[str] = []
-        if not execute:
+        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        if not should_apply:
             logs.append("[DRY-RUN SIMULATION] No modifications applied to system.")
             for act in plan.planned_actions:
                 logs.append(f"  - Propose: {act.description} -> ({act.command or 'API'})")

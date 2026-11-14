@@ -7,6 +7,7 @@ auto-pruning old snapshots, and rolling back upon failure.
 from __future__ import annotations
 import json
 import os
+import re
 import time
 import uuid
 import socket
@@ -129,9 +130,13 @@ class RollbackManager:
         return snap
 
     def load_snapshot(self, snapshot_id: str) -> Optional[SnapshotState]:
-        """Loads a snapshot from disk by ID."""
-        file_path = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}.json")
-        if not os.path.exists(file_path):
+        """Loads a snapshot from disk by ID with strict path-traversal protection."""
+        clean_id = (snapshot_id or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", clean_id):
+            return None
+        base_dir = os.path.realpath(SNAPSHOT_DIR)
+        file_path = os.path.realpath(os.path.join(base_dir, f"{clean_id}.json"))
+        if not file_path.startswith(base_dir + os.sep) or not os.path.exists(file_path):
             return None
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -178,6 +183,17 @@ class RollbackManager:
 
         return results
 
+    @staticmethod
+    def _check_dns_resolution() -> bool:
+        """Checks live system DNS resolution against public reference domains."""
+        for host in ("cloudflare.com", "google.com"):
+            try:
+                socket.getaddrinfo(host, 80)
+                return True
+            except Exception:
+                continue
+        return False
+
     def capture_baseline(self) -> BaselineHealthMetrics:
         """Captures a pre-action baseline of network health across multiple resolvers and latency targets."""
         gw = self.hal.get_default_gateway()
@@ -186,17 +202,7 @@ class RollbackManager:
             m_gw = measure_target_metrics(gw, count=2, port=53)
             gw_reachable = m_gw.packet_loss_percent < 100.0
 
-        # Check real socket DNS resolution
-        dns_ok = False
-        try:
-            socket.getaddrinfo("cloudflare.com", 80)
-            dns_ok = True
-        except Exception:
-            try:
-                socket.getaddrinfo("google.com", 80)
-                dns_ok = True
-            except Exception:
-                dns_ok = False
+        dns_ok = self._check_dns_resolution()
 
         m1 = measure_target_metrics("1.1.1.1", count=3, port=53)
         m2 = measure_target_metrics("8.8.8.8", count=3, port=53)
@@ -225,18 +231,7 @@ class RollbackManager:
             return True, "DRY-RUN SIMULATION: Verificación Zero NetLoss aprobada."
 
         # 1. DNS Resolution Check
-        dns_ok = False
-        try:
-            socket.getaddrinfo("cloudflare.com", 80)
-            dns_ok = True
-        except Exception:
-            try:
-                socket.getaddrinfo("google.com", 80)
-                dns_ok = True
-            except Exception:
-                dns_ok = False
-
-        if not dns_ok:
+        if not self._check_dns_resolution():
             return False, "Fallo Zero NetLoss: La resolución DNS del sistema falló tras la acción."
 
         # 2. Multi-target latency and loss measurement

@@ -6,6 +6,7 @@ Spawns isolated subagents with independent context windows and models to execute
 from __future__ import annotations
 import time
 import uuid
+import threading
 import concurrent.futures
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
@@ -35,7 +36,15 @@ class HermesOrchestrator:
     def __init__(self, default_config: Optional[HermesHarnessConfig] = None):
         self.default_config = default_config or HermesHarnessConfig()
         self.active_sessions: Dict[str, SubagentSession] = {}
+        self._sessions_lock = threading.RLock()
         self.ecosystem = get_ecosystem_orchestrator()
+
+    def _record_session(self, session: SubagentSession) -> None:
+        with self._sessions_lock:
+            self.active_sessions[session.session_id] = session
+            while len(self.active_sessions) > 200:
+                oldest_id = next(iter(self.active_sessions))
+                self.active_sessions.pop(oldest_id, None)
 
     def spawn_session(
         self,
@@ -54,7 +63,7 @@ class HermesOrchestrator:
             task_prompt=task_prompt,
             status="running"
         )
-        self.active_sessions[session_id] = session
+        self._record_session(session)
 
         cfg = HermesHarnessConfig(
             provider=self.default_config.provider,
@@ -63,16 +72,19 @@ class HermesOrchestrator:
         harness = HermesAgentHarness(config=cfg)
 
         t0 = time.perf_counter()
-        # Execute turn within subagent context
-        turn_res = harness.run_turn(
-            prompt=task_prompt,
-            system_prompt=f"Eres un subagente especializado de Hermes en el rol: '{role}'. Tu misión es completar la tarea con precisión quirúrgica."
-        )
+        try:
+            turn_res = harness.run_turn(
+                prompt=task_prompt,
+                system_prompt=f"Eres un subagente especializado de Hermes en el rol: '{role}'. Tu misión es completar la tarea con precisión quirúrgica."
+            )
+            session.status = "completed" if turn_res.success else "failed"
+        except Exception as e:
+            turn_res = HarnessTurnResult(content="", success=False, error=str(e))
+            session.status = "failed"
 
         session.completed_at = time.time()
         session.duration_ms = round((time.perf_counter() - t0) * 1000, 2)
         session.result = turn_res
-        session.status = "completed" if turn_res.success else "failed"
 
         return session
 
@@ -81,8 +93,11 @@ class HermesOrchestrator:
         Executes multiple subagent tasks in parallel across worker threads.
         tasks format: [{"role": "...", "prompt": "..."}]
         """
+        if not tasks:
+            return []
+        bounded_workers = max(1, min(16, int(max_workers), len(tasks)))
         sessions: List[SubagentSession] = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=bounded_workers) as executor:
             futures = [
                 executor.submit(self.spawn_session, t["role"], t["prompt"])
                 for t in tasks

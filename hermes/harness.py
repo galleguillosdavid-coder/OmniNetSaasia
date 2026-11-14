@@ -91,13 +91,14 @@ class HermesAgentHarness:
         """
         t0 = time.perf_counter()
         clean_code = code.strip()
+        bounded_timeout = max(0.5, min(60.0, float(timeout_sec)))
         try:
             res = subprocess.run(
                 [sys.executable, "-c", clean_code],
                 capture_output=True,
                 text=True,
                 errors="replace",
-                timeout=timeout_sec
+                timeout=bounded_timeout
             )
             duration_ms = round((time.perf_counter() - t0) * 1000, 2)
             return {

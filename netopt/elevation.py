@@ -14,6 +14,8 @@ from __future__ import annotations
 import ctypes
 import os
 import platform
+import shutil
+import subprocess
 import sys
 
 
@@ -36,7 +38,7 @@ def _elevate_windows() -> None:
     """
     # When frozen (PyInstaller EXE), sys.executable IS sys.argv[0], so only pass sys.argv[1:]
     raw_args = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
-    args = " ".join(f'"{a}"' for a in raw_args)
+    args = subprocess.list2cmdline(raw_args)
     # SW_SHOWNORMAL = 1
     ret = ctypes.windll.shell32.ShellExecuteW(
         None,          # hwnd
@@ -65,21 +67,19 @@ def _is_root_posix() -> bool:
 def _elevate_posix() -> None:
     """
     Re-execute this process under sudo.
-    Uses os.execvp so it *replaces* the current process (no zombie left behind).
+    Uses os.execv with resolved absolute binary paths so it *replaces* the current process.
     """
-    sudo_cmd = ["sudo", sys.executable] + sys.argv
-    try:
-        os.execvp("sudo", sudo_cmd)
-    except FileNotFoundError:
-        # sudo not available -- try pkexec (GUI polkit on some Linux distros)
-        try:
-            os.execvp("pkexec", ["pkexec", sys.executable] + sys.argv)
-        except FileNotFoundError:
-            raise PermissionError(
-                "Could not find 'sudo' or 'pkexec'. "
-                "Please re-run OmniNet with root privileges manually:\n"
-                f"  sudo {' '.join(sys.argv)}"
-            )
+    sudo_bin = shutil.which("sudo")
+    if sudo_bin:
+        os.execv(sudo_bin, [sudo_bin, "--", sys.executable] + sys.argv)
+    pkexec_bin = shutil.which("pkexec")
+    if pkexec_bin:
+        os.execv(pkexec_bin, [pkexec_bin, sys.executable] + sys.argv)
+    raise PermissionError(
+        "Could not find 'sudo' or 'pkexec'. "
+        "Please re-run OmniNet with root privileges manually:\n"
+        f"  sudo {subprocess.list2cmdline(sys.argv)}"
+    )
 
 
 # ---------------------------------------------------------------------------

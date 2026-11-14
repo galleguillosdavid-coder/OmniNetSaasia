@@ -104,3 +104,21 @@ class CloudChatRequest(BaseModel):
     device_id: str = Field(..., min_length=4, description="Device identifier")
     messages: List[Dict[str, Any]] = Field(..., min_length=1, max_length=50, description="Chat messages array")
 
+
+class ExecuteFlagRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    execute: bool = Field(default=False, description="Whether to execute real operations or simulate")
+
+
+class LLMConfigUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    provider: Optional[str] = Field(default=None, description="LLM provider identifier")
+    model: Optional[str] = Field(default=None, description="Model name")
+    base_url: Optional[str] = Field(default=None, description="Provider API base URL")
+    api_key: Optional[str] = Field(default=None, description="Provider API key")
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="Sampling temperature")
+    max_tokens: Optional[int] = Field(default=None, ge=1, le=32768, description="Maximum response tokens")
+
+

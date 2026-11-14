@@ -9,6 +9,7 @@ import json
 import sys
 import time
 import os
+from typing import List, Optional
 from .diagnostics import run_full_diagnostics, benchmark_all_resolvers
 from .optimizer import NetworkOptimizer
 from .repair import NetworkRepairEngine
@@ -48,7 +49,7 @@ def format_diagnostics(diag) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="OmniNet - Autonomous Cross-Platform Network Optimizer & Healer"
     )
@@ -84,7 +85,7 @@ def main():
     daemon_parser.add_argument("--auto-heal", action="store_true", help="Automatically trigger self-healing upon failure")
     daemon_parser.add_argument("--cycles", type=int, default=None, help="Max cycles before stopping")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "diagnose":
         diag = run_full_diagnostics()
@@ -148,7 +149,7 @@ def main():
                 "triage_logs": triage_logs,
                 "applied": args.apply,
                 "actions": [vars(a) for a in actions]
-            }, indent=2))
+            }, indent=2, default=str))
         else:
             print(f"Diagnosed Failure Tier: {failure_type}")
             for tl in triage_logs:
@@ -164,7 +165,7 @@ def main():
         if args.list:
             if not os.path.exists(SNAPSHOT_DIR):
                 print("No snapshots found.")
-                return
+                return 0
             snap_files = [
                 os.path.join(SNAPSHOT_DIR, f)
                 for f in os.listdir(SNAPSHOT_DIR)
@@ -184,20 +185,27 @@ def main():
             print("Please specify --snapshot-id <id> or --list.")
 
     elif args.command == "daemon":
+        safe_interval = max(5, min(86400, int(args.interval)))
+        safe_cycles = max(1, int(args.cycles)) if args.cycles is not None else None
         hal = get_hal(dry_run=not args.auto_heal)
         daemon = NetworkDaemon(
             hal=hal,
-            poll_interval_sec=args.interval,
+            poll_interval_sec=safe_interval,
             auto_heal=args.auto_heal
         )
-        print(f"Starting OmniNet Daemon (Interval: {args.interval}s, Auto-Heal: {args.auto_heal})...")
+        print(f"Starting OmniNet Daemon (Interval: {safe_interval}s, Auto-Heal: {args.auto_heal})...")
         def print_cb(res):
             print(f"[{time.strftime('%X')}] Health: {res['health'].upper()} | Actions: {len(res['actions_taken'])}")
             for a in res["actions_taken"]:
                 print(f"   * {a}")
-        daemon.run_loop(max_cycles=args.cycles, callback=print_cb)
+        try:
+            daemon.run_loop(max_cycles=safe_cycles, callback=print_cb)
+        except KeyboardInterrupt:
+            daemon.stop()
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 

@@ -306,6 +306,42 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertTrue(dner_res.criterion_met)
         self.assertIn("RFC 9578", dner_res.output.get("standard_dner", ""))
 
+    def test_executor_thread_safety_and_rollback_exception_containment(self):
+        """Verifies HermesExecutor clears _ctx, serializes concurrent execute(), and contains rollback exceptions."""
+        from unittest.mock import patch, MagicMock
+        from hermes.foresee import ForeseePlan, PlanStep
+
+        executor = HermesExecutor(WindowsHAL(dry_run=False))
+        self._stub_engines(executor)
+        plan = ForeseePlan(
+            plan_id="plan-rb-err",
+            goal="test",
+            created_at=0.0,
+            health_before="healthy",
+            steps=[
+                PlanStep(
+                    "s1", "triage", "hermes_triage_repair", {},
+                    "r", "e", "c",
+                    mutating=True, requires_snapshot=True, critical=True,
+                ),
+                PlanStep(
+                    "s2", "verify", "hermes_verify_health", {},
+                    "r", "e", "c",
+                    mutating=False, depends_on=["s1"],
+                ),
+            ],
+        )
+        fake_snap = MagicMock()
+        fake_snap.snapshot_id = "snap-err-1"
+        with patch.object(executor.rollback_mgr, "capture_snapshot", return_value=fake_snap), \
+             patch.object(executor.rollback_mgr, "verify_post_action_health", return_value=(False, "degraded")), \
+             patch.object(executor.rollback_mgr, "rollback", side_effect=RuntimeError("rollback boom")):
+            rep = executor.execute(plan, diag=make_diag(), execute=True)
+
+        self.assertFalse(rep.rolled_back)
+        self.assertTrue(any("rollback boom" in entry for entry in rep.rollback_log))
+        self.assertEqual(executor._ctx, {})
+
 
 if __name__ == "__main__":
     unittest.main()

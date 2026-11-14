@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 import json
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from netopt import __version__ as OMNINET_VERSION
 from netopt.hal import get_hal
@@ -45,6 +45,7 @@ def load_tools_schema() -> List[Dict[str, Any]]:
 
 
 def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    arguments = arguments if isinstance(arguments, dict) else {}
     execute = bool(arguments.get("execute", False))
     hal = get_hal(dry_run=not execute)
 
@@ -127,7 +128,7 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
 
     elif name == "network_persistent_monitor":
         action = str(arguments.get("action", "sample_once"))
-        poll_sec = int(arguments.get("poll_interval_sec", 60))
+        poll_sec = max(5, min(86400, int(arguments.get("poll_interval_sec", 60))))
         auto_heal = bool(arguments.get("auto_heal", False))
         daemon = NetworkDaemon(
             hal=hal,
@@ -169,7 +170,7 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
 
     elif name == "network_traceroute":
         target = str(arguments.get("target", "1.1.1.1"))
-        max_hops = int(arguments.get("max_hops", 8))
+        max_hops = max(1, min(30, int(arguments.get("max_hops", 8))))
         trace = run_fast_traceroute(target=target, max_hops=max_hops)
         grade, idle_rtt, delta = check_bufferbloat(target=target)
         return {
@@ -190,6 +191,82 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return {"error": f"Unknown tool: {name}"}
 
 
+def _write_jsonrpc(payload: Dict[str, Any]) -> None:
+    sys.stdout.write(json.dumps(payload) + "\n")
+    sys.stdout.flush()
+
+
+def process_jsonrpc_line(line: str, tools: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processes a single JSON-RPC 2.0 request line and returns the response dict (or None for notifications)."""
+    try:
+        req = json.loads(line)
+    except Exception:
+        return {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+
+    if not isinstance(req, dict):
+        return {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid Request"}}
+
+    has_id = "id" in req
+    msg_id = req.get("id")
+    method = req.get("method")
+    params = req.get("params") if isinstance(req.get("params"), dict) else {}
+
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "serverInfo": {
+                    "name": "omninet-mcp-server",
+                    "version": OMNINET_VERSION
+                },
+                "capabilities": {"tools": {}}
+            }
+        }
+    elif method == "ping":
+        return {"jsonrpc": "2.0", "id": msg_id, "result": {}}
+    elif method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "tools": [
+                    {
+                        "name": t["name"],
+                        "description": t["description"],
+                        "inputSchema": t["parameters"]
+                    } for t in tools
+                ]
+            }
+        }
+    elif method == "tools/call":
+        tool_name = params.get("name")
+        tool_args = params.get("arguments", {})
+        try:
+            res = handle_tool_call(tool_name, tool_args)
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(res, indent=2)}]
+                }
+            }
+        except Exception as e:
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32000, "message": str(e)}
+            }
+    elif has_id:
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"}
+        }
+    return None
+
+
 def main():
     """Main JSON-RPC stdio loop for MCP."""
     tools = load_tools_schema()
@@ -198,84 +275,9 @@ def main():
         line = line.strip()
         if not line:
             continue
-
-        try:
-            req = json.loads(line)
-        except Exception:
-            continue
-
-        msg_id = req.get("id")
-        method = req.get("method")
-        params = req.get("params", {})
-
-        if method == "initialize":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "serverInfo": {
-                        "name": "omninet-mcp-server",
-                        "version": OMNINET_VERSION
-                    },
-                    "capabilities": {
-                        "tools": {}
-                    }
-                }
-            }
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
-
-        elif method == "ping":
-            resp = {"jsonrpc": "2.0", "id": msg_id, "result": {}}
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
-
-        elif method == "tools/list":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "tools": [
-                        {
-                            "name": t["name"],
-                            "description": t["description"],
-                            "inputSchema": t["parameters"]
-                        } for t in tools
-                    ]
-                }
-            }
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
-
-        elif method == "tools/call":
-            tool_name = params.get("name")
-            tool_args = params.get("arguments", {})
-            try:
-                res = handle_tool_call(tool_name, tool_args)
-                resp = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": json.dumps(res, indent=2)
-                            }
-                        ]
-                    }
-                }
-            except Exception as e:
-                resp = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "error": {
-                        "code": -32000,
-                        "message": str(e)
-                    }
-                }
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
+        resp = process_jsonrpc_line(line, tools)
+        if resp is not None:
+            _write_jsonrpc(resp)
 
 
 if __name__ == "__main__":

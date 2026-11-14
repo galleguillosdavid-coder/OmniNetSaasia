@@ -8,6 +8,8 @@ import os
 import sys
 import json
 import time
+import tempfile
+import threading
 import subprocess
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
@@ -46,6 +48,7 @@ class HermesMemory:
 
     def __init__(self, memory_path: str = MEMORY_FILE):
         self.memory_path = memory_path
+        self._lock = threading.RLock()
         self.state = self._load()
 
     def _default_state(self) -> Dict[str, Any]:
@@ -93,42 +96,53 @@ class HermesMemory:
         return defaults
 
     def save(self) -> None:
-        os.makedirs(os.path.dirname(self.memory_path), exist_ok=True)
-        try:
-            with open(self.memory_path, "w", encoding="utf-8") as f:
-                json.dump(self.state, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+        with self._lock:
+            mem_dir = os.path.dirname(os.path.abspath(self.memory_path)) or "."
+            os.makedirs(mem_dir, exist_ok=True)
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir=mem_dir, prefix=".hermes_mem_", suffix=".tmp")
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(self.state, f, indent=2, ensure_ascii=False)
+                    os.replace(tmp_path, self.memory_path)
+                except Exception:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+                    raise
+            except Exception:
+                pass
 
     def record_evolution(self, report: EvolutionReport) -> None:
         """Appends an evolution cycle to memory history and updates skill counts."""
-        self.state.setdefault("history", []).append({
-            "cycle_id": report.cycle_id,
-            "timestamp": report.timestamp,
-            "actions": report.actions_taken,
-            "skills_distilled": report.skills_distilled,
-            "duration_ms": report.duration_ms,
-            "verified": report.zero_regressions_verified
-        })
-        # Keep last 50 evolution cycles
-        if len(self.state["history"]) > 50:
-            self.state["history"] = self.state["history"][-50:]
-        self.save()
+        with self._lock:
+            self.state.setdefault("history", []).append({
+                "cycle_id": report.cycle_id,
+                "timestamp": report.timestamp,
+                "actions": report.actions_taken,
+                "skills_distilled": report.skills_distilled,
+                "duration_ms": report.duration_ms,
+                "verified": report.zero_regressions_verified
+            })
+            # Keep last 50 evolution cycles
+            if len(self.state["history"]) > 50:
+                self.state["history"] = self.state["history"][-50:]
+            self.save()
 
     def distill_skill(self, name: str, trigger: str, action: str) -> None:
         """Adds or updates a procedural skill in memory."""
-        for skill in self.state.setdefault("learned_skills", []):
-            if skill.get("name") == name:
-                skill["success_count"] = skill.get("success_count", 0) + 1
-                self.save()
-                return
-        self.state["learned_skills"].append({
-            "name": name,
-            "trigger": trigger,
-            "action": action,
-            "success_count": 1
-        })
-        self.save()
+        with self._lock:
+            for skill in self.state.setdefault("learned_skills", []):
+                if skill.get("name") == name:
+                    skill["success_count"] = skill.get("success_count", 0) + 1
+                    self.save()
+                    return
+            self.state["learned_skills"].append({
+                "name": name,
+                "trigger": trigger,
+                "action": action,
+                "success_count": 1
+            })
+            self.save()
 
 
 class HermesSelfImprovementEngine:
@@ -160,9 +174,10 @@ class HermesSelfImprovementEngine:
 
         # 2. Bottleneck Detection & Adaptive Remediation
         # Check routing table for 24H2 duplicate gateways
+        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
         gw_status = check_duplicate_default_gateways_status()
         if gw_status.get("has_duplicate_gateways"):
-            prune_logs = self.hal.prune_duplicate_default_gateways(execute=execute)
+            prune_logs = self.hal.prune_duplicate_default_gateways(execute=should_apply)
             actions_taken.append(f"Pruned duplicate 0.0.0.0/0 default gateways ({len(prune_logs)} actions)")
             self.memory.distill_skill(
                 name="win11_24h2_route_pruning",
