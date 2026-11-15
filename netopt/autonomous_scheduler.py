@@ -169,7 +169,8 @@ class AutonomousTaskScheduler:
         Scans all network layers, evolves baselines, autonomously generates tasks,
         executes them safely with Admin privileges, and schedules the next 10-minute cycle.
         """
-        do_exec = self.auto_execute if execute is None else execute
+        raw_exec = self.auto_execute if execute is None else execute
+        do_exec = (raw_exec is True) and not (getattr(self.hal, "dry_run", False) is True)
         now = time.time()
         self.last_cycle_ts = now
         self.next_cycle_ts = now + self.interval_sec
@@ -456,7 +457,7 @@ class AutonomousTaskScheduler:
                     mtu_logs = []
                     for iface in self.hal.get_interfaces():
                         if iface.is_up and not iface.is_loopback:
-                            mtu_logs.append(self.hal.set_interface_mtu(iface.name, opt_mtu, execute=True))
+                            mtu_logs.append(self.hal.set_interface_mtu(iface.name, opt_mtu, execute=do_exec))
                     if mtu_logs and all(getattr(m, "success", True) is False for m in mtu_logs):
                         task_failed = True
                     elif not is_dry_hal:

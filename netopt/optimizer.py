@@ -173,7 +173,7 @@ class NetworkOptimizer:
         Returns (success_status, execution_log).
         """
         logs: List[str] = []
-        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         if not should_apply:
             logs.append("[DRY-RUN SIMULATION] No modifications applied to system.")
             for act in plan.planned_actions:
@@ -256,7 +256,7 @@ class NetworkOptimizer:
         and optimizes Windows NetworkThrottlingIndex / SystemResponsiveness for zero stuttering in games and video calls.
         """
         plat = detect_platform()
-        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         actions = []
         cmd_logs = []
         if plat == PlatformType.WINDOWS:

@@ -1,11 +1,12 @@
 # Estado comprobado
 
-Última actualización: 2026-11-14T13:55:20-03:00
-Commit validado: Ciclo 120 — Thread-safety con `_sessions_lock` (límite 200), acotamiento de `max_workers` y contención de excepciones en `HermesOrchestrator` (`hermes/orchestrator.py`) (tests OK)
+Última actualización: 2026-11-14T22:09:30-03:00
+Commit validado: Ciclo 131 (rotación `netopt/licensing.py`: `flush()` + `os.fsync()` + `0o600` POSIX en `LicenseManager.save_state()`)
 
 ## Funciona y tiene evidencia
 - Mandato de Auto-Propuesta y Ejecución de Tareas Propias: Documentado en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `README.md`. El agente no se limita a inspeccionar el computador; evalúa proactivamente el repositorio y propone/ejecuta tareas técnicas según la ocasión lo requiera.
-- Suite de pruebas unitarias — `tests/test_fastapi_app.py` + `tests/test_pydantic_schemas.py` y suite completa verificadas al 100% (182 tests)
+- Suite de pruebas unitarias — `python -m unittest discover -s tests -v` verificada al 100% (`207` tests OK), incluyendo regresión de auditoría en `tests/test_cloud_server.py` (`14/14`), `tests/test_hermes.py` (`10/10`), `tests/test_hermes_cognitive.py` (`12/12`), `tests/test_micro_internet.py` (`7/7`) y `tests/test_mature_adapters.py` (`15/15`)
+- Endurecimiento de Auditoría (`docs/Auditorias/AUDITORIA_OmniNetSaasia_PARA_ANTIGRAVITY.md`, H-01..H-10): Bloqueo interproceso + `_update_cloud_db()` transaccional + `CloudDataCorruptionError` (503) + framing HTTP estricto en `cloud_server/proxy_server.py`; preservación de sesiones activas + validación estricta + `_sanitize_error` en `hermes/orchestrator.py`; verificación post-mutación estricta con `criterion_met` en `hermes/executor.py`; validación `timeout_sec` finito y acote de salida en `hermes/harness.py`
 - Migración REST API hacia FastAPI y Uvicorn (`netopt/fastapi_app.py` y `main.py`) — Implementación modular con OpenAPI automático, middleware de cuotas/tamaño (413), control de acceso loopback (403), validación tipada estricta Pydantic v2 en todas las rutas y 8 tests dedicados en `tests/test_fastapi_app.py`
 - Validación Pydantic v2 en Servidor Proxy Cloud (`cloud_server/proxy_server.py`) — Validación tipada estricta para `/v1/license/activate`, `/v1/chat` (`CloudChatRequest`), y `/v1/telemetry/report` (`TelemetryReport`) con 10 tests dedicados en `tests/test_pydantic_schemas.py`
 - Arnés Hermes y Bucle Cognitivo (`hermes/foresee.py` y `hermes/executor.py`) — Integración de la herramienta y estrategia `resource_audit` conectada a `SystemResourceAdapter` (`psutil`) para evaluar presión de CPU/memoria y saturación de sockets de red (5 tests en `tests/test_hermes_cognitive.py`)
@@ -16,7 +17,7 @@ Commit validado: Ciclo 120 — Thread-safety con `_sessions_lock` (límite 200),
 - Seguridad AutoSentinel (OMNI-038) — Nace inactivo (`enabled=False`), HAL forzado a `dry_run=True` por defecto, reparaciones en vivo protegidas por `OMNINET_ALLOW_LIVE_AUTOREPAIR` y arranque automático eliminado de `start_api_server()`
 - Política Fail-Closed en Secretos (OMNI-039A) — `get_signing_secret()` en `netopt/licensing.py` no tiene secreto hardcodeado; en producción sin `OMNINET_LICENSE_SECRET` bloquea emisión y verificación, y en desarrollo emite alerta explícita
 - Servidor Web UI y API local — Escuchando activamente en `http://127.0.0.1:8877/` (HTTP 200 OK verificado)
-- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`: ping 29.81 ms, jitter 0.37 ms, packet loss 0%)
+- Telemetría empírica in situ del host — Verificada en hardware real (`netopt/telemetry.py`, Ciclo 131: ping 36.29 ms, jitter 1.18 ms, packet loss 0%, DNS 27.81 ms, bufferbloat A+, Wi-Fi 5 GHz 100%, 112 TCP / 32 UDP sockets, 3 dispositivos ARP sin anomalías)
 - Colector global de métricas de dispositivos — Endpoint `/v1/telemetry/report` en `cloud_server/proxy_server.py` comprobado
 - Colector de conversaciones y retroalimentación de IA — Almacenamiento local y cloud comprobado
 - Telemetría RFC 9743 (BCP 133 Congestion Guidelines) y RFC 9287 (Greasing the QUIC Bit 0x2ab2) — Comprobadas en `check_rfc9743_congestion_bcp133_and_rfc9287_quic_grease_status()`

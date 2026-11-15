@@ -39,6 +39,7 @@ class NetworkDaemon:
         self.auto_heal = auto_heal
         self.running = False
         self._stop_event = threading.Event()
+        self._log_lock = threading.Lock()
         self.repair_engine = NetworkRepairEngine(self.hal)
         self.optimizer = NetworkOptimizer(self.hal)
         self.rollback_mgr = RollbackManager(self.hal)
@@ -58,24 +59,25 @@ class NetworkDaemon:
             "packet_loss": {k: v.packet_loss_percent for k, v in diag.latency_metrics.items()}
         }
 
-        # Rotate if > 10MB
-        if os.path.exists(TELEMETRY_LOG) and os.path.getsize(TELEMETRY_LOG) > 10 * 1024 * 1024:
+        with self._log_lock:
+            # Rotate if > 10MB
+            if os.path.exists(TELEMETRY_LOG) and os.path.getsize(TELEMETRY_LOG) > 10 * 1024 * 1024:
+                try:
+                    os.replace(TELEMETRY_LOG, f"{TELEMETRY_LOG}.bak")
+                except Exception:
+                    pass
+
             try:
-                os.replace(TELEMETRY_LOG, f"{TELEMETRY_LOG}.bak")
+                with open(TELEMETRY_LOG, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(record) + "\n")
             except Exception:
                 pass
-
-        try:
-            with open(TELEMETRY_LOG, "a", encoding="utf-8") as f:
-                f.write(json.dumps(record) + "\n")
-        except Exception:
-            pass
 
     def check_and_heal_once(self) -> Dict[str, Any]:
         """Runs a single iteration of SLA verification and auto-remediation."""
         diag = run_full_diagnostics()
         self.log_telemetry(diag)
-        do_exec = not (getattr(self.hal, "dry_run", False) is True)
+        do_exec = (self.auto_heal is True) and not (getattr(self.hal, "dry_run", False) is True)
 
         status: Dict[str, Any] = {
             "timestamp": diag.timestamp,
@@ -96,7 +98,7 @@ class NetworkDaemon:
                 status["actions_taken"].append(f"SLA Violation: {target} latency {m.avg_ms}ms > {self.max_latency}ms")
 
         # Trigger auto-heal if enabled and health is degraded or down
-        if self.auto_heal and (diag.overall_health in [HealthState.DOWN, HealthState.DEGRADED] or sla_violation):
+        if (self.auto_heal is True) and (diag.overall_health in [HealthState.DOWN, HealthState.DEGRADED] or sla_violation):
             failure_type, triage_logs = self.repair_engine.diagnose_and_triage(diag=diag)
             if failure_type == "HEALTHY" and sla_violation:
                 failure_type = "L7_HIGH_LOSS_OR_DEGRADED"

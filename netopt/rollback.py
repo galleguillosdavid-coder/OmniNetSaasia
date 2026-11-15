@@ -155,13 +155,14 @@ class RollbackManager:
 
     def rollback(self, snapshot_id: str, execute: bool = False) -> List[str]:
         """Restores network state (TCP, DNS, MTU, and resolver cache) from the designated snapshot."""
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         snap = self.load_snapshot(snapshot_id)
         if not snap:
             return [f"ERROR: Snapshot {snapshot_id} not found."]
 
         results = []
         if snap.tcp_parameters:
-            tcp_logs = self.hal.set_tcp_parameters(snap.tcp_parameters, execute=execute)
+            tcp_logs = self.hal.set_tcp_parameters(snap.tcp_parameters, execute=should_apply)
             results.extend([f"TCP restore: {l.command} (success={l.success})" for l in tcp_logs])
 
         default_dns = snap.dns_settings.get("default", [])
@@ -169,16 +170,16 @@ class RollbackManager:
         if default_dns:
             for iface in interfaces:
                 if iface.is_up and not iface.is_loopback:
-                    dns_log = self.hal.set_dns_servers(iface.name, default_dns, execute=execute)
+                    dns_log = self.hal.set_dns_servers(iface.name, default_dns, execute=should_apply)
                     results.append(f"DNS restore on {iface.name}: {dns_log.command} (success={dns_log.success})")
 
         if snap.mtu_settings:
             for iface in interfaces:
                 if iface.is_up and not iface.is_loopback and iface.name in snap.mtu_settings:
-                    mtu_log = self.hal.set_interface_mtu(iface.name, snap.mtu_settings[iface.name], execute=execute)
+                    mtu_log = self.hal.set_interface_mtu(iface.name, snap.mtu_settings[iface.name], execute=should_apply)
                     results.append(f"MTU restore on {iface.name}: {mtu_log.command} (success={mtu_log.success})")
 
-        flush_log = self.hal.flush_dns_cache(execute=execute)
+        flush_log = self.hal.flush_dns_cache(execute=should_apply)
         results.append(f"Cache flush: {flush_log.command} (success={flush_log.success})")
 
         return results

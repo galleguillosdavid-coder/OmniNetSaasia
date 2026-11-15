@@ -39,13 +39,14 @@ class NetworkHAL(abc.ABC):
     def run_cmd(self, cmd: List[str] | str, shell: bool = False, execute: bool = False) -> AgentActionLog:
         """Executes a system command with dry-run safety and timing."""
         cmd_str = cmd if isinstance(cmd, str) else " ".join(cmd)
+        should_run = (execute is True) and not (self.dry_run is True)
         action = AgentActionLog(
             command=cmd_str,
-            is_dry_run=(not execute or self.dry_run),
+            is_dry_run=(not should_run),
             timestamp=time.time()
         )
 
-        if not execute or self.dry_run:
+        if not should_run:
             action.success = True
             action.stdout = "[DRY-RUN SIMULATION] Command not executed on host system."
             action.duration_ms = 0.1

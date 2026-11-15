@@ -46,7 +46,8 @@ def load_tools_schema() -> List[Dict[str, Any]]:
 
 def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     arguments = arguments if isinstance(arguments, dict) else {}
-    execute = bool(arguments.get("execute", False))
+    # Strict boolean check: prevents string "false" from evaluating truthy via bool(...)
+    execute = arguments.get("execute", False) is True
     hal = get_hal(dry_run=not execute)
 
     if name == "network_diagnose":
@@ -241,8 +242,26 @@ def process_jsonrpc_line(line: str, tools: List[Dict[str, Any]]) -> Optional[Dic
             }
         }
     elif method == "tools/call":
+        if not isinstance(params, dict):
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32602, "message": "Invalid params: expected JSON object"}
+            }
         tool_name = params.get("name")
+        if not isinstance(tool_name, str) or not tool_name.strip():
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32602, "message": "Invalid params: 'name' must be a non-empty string"}
+            }
         tool_args = params.get("arguments", {})
+        if not isinstance(tool_args, dict):
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32602, "message": "Invalid params: 'arguments' must be an object"}
+            }
         try:
             res = handle_tool_call(tool_name, tool_args)
             return {

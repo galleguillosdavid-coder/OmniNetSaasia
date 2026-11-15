@@ -51,7 +51,7 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertIn("error", data)
         self.assertEqual(data.get("adapter"), "httpx_adapter")
 
-    @patch("httpx.Client.post")
+    @patch("httpx.Client.request")
     def test_httpx_adapter_post_json_success(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -63,7 +63,7 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertTrue(data.get("valid"))
         self.assertEqual(data.get("plan"), "pro")
 
-    @patch("httpx.Client.patch")
+    @patch("httpx.Client.request")
     def test_httpx_adapter_patch_json_success(self, mock_patch):
         mock_resp = MagicMock()
         mock_resp.status_code = 200

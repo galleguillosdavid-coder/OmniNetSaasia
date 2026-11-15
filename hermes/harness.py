@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import sys
 import json
+import math
 import time
 import inspect
 import subprocess
@@ -84,12 +85,31 @@ class HermesAgentHarness:
             func=self.execute_python
         )
 
+    MAX_OUTPUT_CHARS = 16384
+
     def execute_python(self, code: str, timeout_sec: float = 15.0) -> Dict[str, Any]:
         """
-        Executes a Python script in a dedicated subprocess.
-        Enables programmatic multi-tool composition in a single turn without roundtrip latency.
+        Executes a Python script in a dedicated subprocess with bounded timeout and output.
+        Note: This bounds wall-clock execution time and output size; it is NOT an OS-level
+        filesystem/network sandbox and must only run trusted internal code.
         """
         t0 = time.perf_counter()
+        if not isinstance(code, str) or not code.strip():
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": "code must be a non-empty string",
+                "exit_code": -1,
+                "duration_ms": 0.0,
+            }
+        if isinstance(timeout_sec, bool) or not isinstance(timeout_sec, (int, float)) or not math.isfinite(float(timeout_sec)):
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": "timeout_sec must be a finite number",
+                "exit_code": -1,
+                "duration_ms": 0.0,
+            }
         clean_code = code.strip()
         bounded_timeout = max(0.5, min(60.0, float(timeout_sec)))
         try:
@@ -103,8 +123,8 @@ class HermesAgentHarness:
             duration_ms = round((time.perf_counter() - t0) * 1000, 2)
             return {
                 "success": res.returncode == 0,
-                "stdout": res.stdout.strip(),
-                "stderr": res.stderr.strip(),
+                "stdout": res.stdout.strip()[:self.MAX_OUTPUT_CHARS],
+                "stderr": res.stderr.strip()[:self.MAX_OUTPUT_CHARS],
                 "exit_code": res.returncode,
                 "duration_ms": duration_ms
             }
@@ -112,7 +132,7 @@ class HermesAgentHarness:
             return {
                 "success": False,
                 "stdout": "",
-                "stderr": f"Execution timed out after {timeout_sec}s",
+                "stderr": f"Execution timed out after {bounded_timeout}s",
                 "exit_code": -1,
                 "duration_ms": round((time.perf_counter() - t0) * 1000, 2)
             }

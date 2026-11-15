@@ -108,6 +108,13 @@ def create_app(dashboard_html_provider=None) -> FastAPI:
                     status_code=413,
                     content={"error": "Payload Too Large (Máximo 1MB permitido)"}
                 )
+        elif request.method in ("POST", "PUT", "PATCH"):
+            raw_body = await request.body()
+            if len(raw_body) > MAX_PAYLOAD_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"error": "Payload Too Large (Máximo 1MB permitido)"}
+                )
 
         # 2. Local loopback / CSRF access control (OMNI-003)
         client_ip = request.client.host if request.client else "127.0.0.1"

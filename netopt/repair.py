@@ -89,7 +89,7 @@ class NetworkRepairEngine:
         Executes targeted remedial action for the diagnosed failure tier
         while enforcing dry-run HAL safety invariants.
         """
-        should_apply = bool(execute and not (getattr(self.hal, "dry_run", False) is True))
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         handlers = {
             "L1_INTERFACE_DOWN": self._repair_l1_interface_down,
             "L2_DHCP_OR_GATEWAY_FAILURE": self._repair_l2_dhcp_gateway,
@@ -151,14 +151,17 @@ class NetworkRepairEngine:
                 "reg", "add", "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
                 "/v", "EnablePMTUBHDetect", "/t", "REG_DWORD", "/d", "1", "/f",
             ], execute=execute)
+            act.action_type = ActionType.REPAIR
             act.description = "Enable RFC 4821 PLPMTUD Black Hole Detection in Windows Registry"
             actions.append(act)
         elif plat == PlatformType.LINUX:
             act = self.hal.run_cmd(["sysctl", "-w", "net.ipv4.tcp_mtu_probing=1"], execute=execute)
+            act.action_type = ActionType.REPAIR
             act.description = "Enable RFC 4821 PLPMTUD in Linux kernel (tcp_mtu_probing=1)"
             actions.append(act)
         elif plat == PlatformType.DARWIN:
             act = self.hal.run_cmd(["sysctl", "-w", "net.inet.tcp.path_mtu_discovery=1"], execute=execute)
+            act.action_type = ActionType.REPAIR
             act.description = "Enable RFC 4821 PLPMTUD in macOS kernel (path_mtu_discovery=1)"
             actions.append(act)
         actions.append(self.hal.flush_dns_cache(execute=execute))

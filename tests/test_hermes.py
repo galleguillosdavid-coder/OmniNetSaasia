@@ -193,16 +193,55 @@ class TestHermesSelfImprovement(unittest.TestCase):
             mock_hal.prune_duplicate_default_gateways.assert_called_once_with(execute=False)
 
     def test_orchestrator_parallel_bounds_and_exception_containment(self):
-        from hermes.orchestrator import HermesOrchestrator
+        from hermes.orchestrator import HermesOrchestrator, SubagentSession
 
         orch = HermesOrchestrator()
-        self.assertEqual(orch.delegate_parallel([], max_workers=0), [])
+        self.assertEqual(orch.delegate_parallel([], max_workers=4), [])
 
-        with patch("hermes.orchestrator.HermesAgentHarness.run_turn", side_effect=RuntimeError("turn boom")):
+        with self.assertRaises(ValueError):
+            orch.delegate_parallel([], max_workers=0)
+        with self.assertRaises(ValueError):
+            orch.delegate_parallel([], max_workers=True)
+        with self.assertRaises(ValueError):
+            orch.delegate_parallel([{"role": "", "prompt": "Check"}], max_workers=2)
+        with self.assertRaises(ValueError):
+            orch.spawn_session("", "Check")
+
+        with patch("hermes.orchestrator.HermesAgentHarness.run_turn", side_effect=RuntimeError("turn boom Bearer secret_tok_123\nline2")):
             sess = orch.spawn_session("Audit", "Check")
             self.assertEqual(sess.status, "failed")
             self.assertIsNotNone(sess.completed_at)
             self.assertIn("turn boom", sess.result.error)
+            self.assertNotIn("secret_tok_123", sess.result.error)
+            self.assertNotIn("\n", sess.result.error)
+
+        # H-03: Running sessions must never be evicted when exceeding MAX_RETAINED_SESSIONS
+        orch2 = HermesOrchestrator()
+        for i in range(205):
+            st = "running" if i < 5 else "completed"
+            orch2._record_session(SubagentSession(session_id=f"s-{i}", role="r", task_prompt="p", status=st))
+        running = orch2.list_sessions(status="running")
+        self.assertEqual(len(running), 5)
+        self.assertIsNotNone(orch2.get_session("s-0"))
+        self.assertIsNone(orch2.get_session("s-5"))
+
+    def test_execute_python_rejects_invalid_timeout_and_bounds_output(self):
+        """H-10: execute_python rejects NaN/bool/empty code and truncates excessive output."""
+        from hermes.harness import HermesAgentHarness
+        h = HermesAgentHarness()
+        r_nan = h.execute_python("print(1)", timeout_sec=float("nan"))
+        self.assertFalse(r_nan["success"])
+        self.assertIn("finite", r_nan["stderr"])
+
+        r_bool = h.execute_python("print(1)", timeout_sec=True)
+        self.assertFalse(r_bool["success"])
+
+        r_empty = h.execute_python("   ")
+        self.assertFalse(r_empty["success"])
+
+        r_big = h.execute_python("print('A' * 20000)")
+        self.assertTrue(r_big["success"])
+        self.assertLessEqual(len(r_big["stdout"]), h.MAX_OUTPUT_CHARS)
 
 
 if __name__ == "__main__":

@@ -259,6 +259,11 @@ class TestFastAPIApp(unittest.TestCase):
         self.assertIsNone(process_jsonrpc_line('{"jsonrpc":"2.0","method":"notifications/initialized"}', []))
         res = handle_tool_call("network_persistent_monitor", {"action": "status", "poll_interval_sec": 999999})
         self.assertEqual(res["poll_interval_sec"], 86400)
+        # Strict JSON-RPC params validation & strict boolean execute ("false" must NOT execute)
+        bad_params = process_jsonrpc_line('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":[]}', [])
+        self.assertEqual(bad_params["error"]["code"], -32602)
+        res_str_false = handle_tool_call("network_execute_optimization", {"execute": "false"})
+        self.assertFalse(res_str_false["applied"])
 
     def test_ecosystem_subagent_dispatch_default_dry_run(self):
         from netopt.ecosystem_subagents import EcosystemOrchestrator

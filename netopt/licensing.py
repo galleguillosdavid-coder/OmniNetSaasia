@@ -181,6 +181,13 @@ class LicenseManager:
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     json.dump(self.state, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    os.fsync(f.fileno())
+                if os.name == "posix":
+                    try:
+                        os.chmod(tmp_path, 0o600)
+                    except OSError:
+                        pass
                 os.replace(tmp_path, LICENSE_STATE_FILE)
             except Exception:
                 if os.path.exists(tmp_path):

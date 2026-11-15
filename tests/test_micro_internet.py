@@ -53,6 +53,14 @@ class TestMicroInternet(unittest.TestCase):
         other_dev = DeviceDID(storage_path=other_id_file)
         self.assertFalse(other_dev.verify_message("hola micro internet", sig, other_dev.public_key))
 
+        # 5. Section 3 negative tests: empty, truncated, non-hex signatures & malformed public keys
+        self.assertFalse(dev.verify_message("hola micro internet", "", dev.public_key))
+        self.assertFalse(dev.verify_message("hola micro internet", sig[:64], dev.public_key))
+        self.assertFalse(dev.verify_message("hola micro internet", "z" * 128, dev.public_key))
+        self.assertFalse(dev.verify_message("hola micro internet", sig, ""))
+        self.assertFalse(dev.verify_message("hola micro internet", sig, "abcd"))
+        self.assertFalse(dev.verify_message("hola micro internet", sig, "00" * 32))
+
         doc = dev.export_document()
         self.assertEqual(doc["id"], dev.did)
         self.assertIn("verificationMethod", doc)

@@ -290,6 +290,134 @@ class TestCloudServer(unittest.TestCase):
                 mgr.save_state()
                 self.assertTrue(os.path.exists(tmp_state))
 
+    def test_corrupt_cloud_json_raises_and_preserves_original_file(self):
+        """H-01: Corrupt JSON in cloud DB or telemetry must fail closed and never overwrite data."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            corrupt_db = os.path.join(tmp_dir, "cloud_db.json")
+            raw_corrupt = "{corrupt-json-payload"
+            with open(corrupt_db, "w", encoding="utf-8") as f:
+                f.write(raw_corrupt)
+
+            corrupt_tel = os.path.join(tmp_dir, "cloud_tel.json")
+            with open(corrupt_tel, "w", encoding="utf-8") as f:
+                f.write('{"not": "a_list"}')
+
+            with patch.object(proxy, "CLOUD_DB_FILE", corrupt_db), \
+                 patch.object(proxy, "CLOUD_TELEMETRY_FILE", corrupt_tel):
+                with self.assertRaises(proxy.CloudDataCorruptionError):
+                    proxy.load_cloud_db()
+                with self.assertRaises(proxy.CloudDataCorruptionError):
+                    proxy.append_global_telemetry({"device_hash": "d1"})
+
+            with open(corrupt_db, "r", encoding="utf-8") as f:
+                self.assertEqual(f.read(), raw_corrupt)
+            with open(corrupt_tel, "r", encoding="utf-8") as f:
+                self.assertEqual(f.read(), '{"not": "a_list"}')
+
+    def test_concurrent_update_cloud_db_no_lost_updates(self):
+        """H-02 / Sec 4: Transactional _update_cloud_db preserves all concurrent mutations."""
+        import tempfile
+        import threading
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = os.path.join(tmp_dir, "cloud_db.json")
+            with patch.object(proxy, "CLOUD_DB_FILE", db_path):
+                def worker(idx: int):
+                    def _tx(db):
+                        lics = db.setdefault("licenses", {})
+                        lics[f"KEY-{idx}"] = {"active": True, "queries_count": idx}
+                        return idx, True
+                    proxy._update_cloud_db(_tx)
+
+                threads = [threading.Thread(target=worker, args=(i,)) for i in range(16)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(timeout=5.0)
+
+                loaded = proxy.load_cloud_db()
+                self.assertEqual(len(loaded["licenses"]), 16)
+
+    def test_http_body_validation_and_webhook_idempotency(self):
+        """H-08 & Sec 4: Strict HTTP body framing and fail-closed webhook idempotency."""
+        import http.client
+        import socket
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = os.path.join(tmp_dir, "cloud_db.json")
+            tel_path = os.path.join(tmp_dir, "cloud_tel.json")
+            secret = "test_lemon_secret_123456"
+            with patch.object(proxy, "CLOUD_DB_FILE", db_path), \
+                 patch.object(proxy, "CLOUD_TELEMETRY_FILE", tel_path), \
+                 patch.object(proxy, "LEMONSQUEEZY_WEBHOOK_SECRET", secret), \
+                 patch.object(proxy, "STRIPE_WEBHOOK_SECRET", ""), \
+                 patch.object(proxy, "is_supabase_configured", return_value=False):
+                srv = ThreadingHTTPServer(("127.0.0.1", 0), proxy.OmniNetCloudProxyHandler)
+                port = srv.server_address[1]
+                t = threading.Thread(target=srv.serve_forever, daemon=True)
+                t.start()
+                try:
+                    # 1. Missing Content-Length -> 411 (raw socket so http.client doesn't auto-add Content-Length: 0)
+                    with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+                        sock.sendall(b"POST /v1/telemetry/report HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                        raw_411 = sock.recv(4096)
+                    self.assertIn(b"411 Length Required", raw_411)
+
+                    # 2. Transfer-Encoding: chunked -> 501
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("POST", "/v1/telemetry/report", body="2\r\n{}\r\n0\r\n\r\n", headers={"Transfer-Encoding": "chunked"})
+                    resp = conn.getresponse()
+                    resp.read()
+                    self.assertEqual(resp.status, 501)
+                    conn.close()
+
+                    # 3. Truncated body -> 400
+                    with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+                        sock.sendall(b"POST /v1/telemetry/report HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 50\r\nConnection: close\r\n\r\n{\"a\":1}")
+                        sock.shutdown(socket.SHUT_WR)
+                        raw_resp = sock.recv(4096)
+                    self.assertIn(b"400 Bad Request", raw_resp)
+
+                    # 4. Invalid JSON -> 400
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("POST", "/v1/telemetry/report", body="{bad", headers={"Content-Type": "application/json", "Content-Length": "4"})
+                    resp = conn.getresponse()
+                    resp.read()
+                    self.assertEqual(resp.status, 400)
+                    conn.close()
+
+                    # 5. Webhook idempotency: first creates license, second ignores duplicate
+                    payload = json.dumps({
+                        "meta": {"event_name": "order_created", "event_id": "evt_idem_001", "custom_data": {"plan": "pro"}},
+                        "data": {"id": "order_1", "attributes": {"status": "paid", "user_email": "buyer@example.com", "first_order_item": {"product_name": "OmniNet Pro"}}}
+                    }).encode("utf-8")
+                    sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("POST", "/v1/webhooks/payment", body=payload, headers={"Content-Type": "application/json", "X-Signature": sig})
+                    r1 = conn.getresponse()
+                    b1 = json.loads(r1.read().decode("utf-8"))
+                    self.assertEqual(r1.status, 200)
+                    self.assertTrue(b1.get("created"))
+                    conn.close()
+
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("POST", "/v1/webhooks/payment", body=payload, headers={"Content-Type": "application/json", "X-Signature": sig})
+                    r2 = conn.getresponse()
+                    b2 = json.loads(r2.read().decode("utf-8"))
+                    self.assertEqual(r2.status, 200)
+                    self.assertEqual(b2.get("status"), "idempotent_duplicate_ignored")
+                    conn.close()
+
+                    loaded = proxy.load_cloud_db()
+                    self.assertEqual(len(loaded["licenses"]), 1)
+                finally:
+                    srv.shutdown()
+                    srv.server_close()
+
 
 if __name__ == "__main__":
     unittest.main()

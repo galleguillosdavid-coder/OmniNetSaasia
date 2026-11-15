@@ -169,9 +169,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             snap_files = [
                 os.path.join(SNAPSHOT_DIR, f)
                 for f in os.listdir(SNAPSHOT_DIR)
-                if f.endswith(".json")
+                if f.endswith(".json") and os.path.isfile(os.path.join(SNAPSHOT_DIR, f))
             ]
-            snap_files.sort(key=lambda p: os.path.getmtime(p))
+            snap_files.sort(key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0.0)
             snaps = [os.path.basename(p) for p in snap_files]
             print(f"Available Snapshots ({len(snaps)}):")
             for s in snaps:

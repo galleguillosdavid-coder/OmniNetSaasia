@@ -19,8 +19,9 @@ import hashlib
 import tempfile
 import threading
 import urllib.request
+from contextlib import contextmanager
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable, Iterator, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from netopt.licensing import generate_signed_license_key, verify_signed_license_key, PLAN_CATALOG
@@ -60,55 +61,160 @@ MAX_PAYLOAD_SIZE = 1024 * 1024  # 1 MB
 _CLOUD_IO_LOCK = threading.RLock()
 
 
+class CloudDataCorruptionError(RuntimeError):
+    """El archivo persistente existe, pero no contiene datos JSON válidos."""
+
+
+class CloudLockTimeoutError(TimeoutError):
+    """No se pudo adquirir el bloqueo interproceso dentro del tiempo límite."""
+
+
+@contextmanager
+def _interprocess_file_lock(lock_path: str, timeout_sec: float = 5.0) -> Iterator[None]:
+    """Portable cross-process advisory file lock (msvcrt on Windows, fcntl on POSIX)."""
+    parent = os.path.dirname(os.path.abspath(lock_path)) or "."
+    os.makedirs(parent, exist_ok=True)
+    deadline = time.monotonic() + max(0.1, float(timeout_sec))
+    with open(lock_path, "a+b") as lock_file:
+        acquired = False
+        try:
+            while True:
+                try:
+                    if os.name == "nt":
+                        import msvcrt
+                        lock_file.seek(0)
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise CloudLockTimeoutError(
+                            f"Timeout esperando bloqueo de archivo: {os.path.basename(lock_path)}"
+                        )
+                    time.sleep(0.01)
+            yield
+        finally:
+            if acquired:
+                try:
+                    if os.name == "nt":
+                        import msvcrt
+                        lock_file.seek(0)
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+
+
 def _atomic_write_json(path: str, data: Any) -> None:
-    """Atomically writes JSON data to disk using tempfile + os.replace."""
-    parent = os.path.dirname(os.path.abspath(path)) or "."
+    """Atomically writes JSON data to disk with flush, fsync, and restrictive permissions."""
+    abs_path = os.path.abspath(path)
+    parent = os.path.dirname(abs_path) or "."
     os.makedirs(parent, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".cloud_", suffix=".tmp")
+    closed = False
     try:
+        try:
+            os.chmod(tmp_path, 0o600)
+        except OSError:
+            pass
         with os.fdopen(fd, "w", encoding="utf-8") as f:
+            closed = True
             json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, path)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, abs_path)
+        if os.name != "nt":
+            try:
+                dir_fd = os.open(parent, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                pass
     except Exception:
+        if not closed:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
         if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
         raise
 
 
 def _read_json_list(path: str) -> List[Dict[str, Any]]:
     with _CLOUD_IO_LOCK:
-        if os.path.exists(path):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list):
-                        return data
-            except Exception:
-                pass
-        return []
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CloudDataCorruptionError(
+                f"No se pudo leer el almacén persistente: {os.path.basename(path)}"
+            ) from exc
+        if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+            raise CloudDataCorruptionError(
+                f"Formato inválido en almacén: se esperaba una lista de objetos ({os.path.basename(path)})"
+            )
+        return data
 
 
 def _append_json_list(path: str, entry: Dict[str, Any], limit: int) -> None:
     with _CLOUD_IO_LOCK:
-        items = _read_json_list(path)
-        items.append(entry)
-        _atomic_write_json(path, items[-limit:])
+        with _interprocess_file_lock(f"{os.path.abspath(path)}.lock"):
+            items = _read_json_list(path)
+            items.append(entry)
+            _atomic_write_json(path, items[-limit:])
 
 
 def load_cloud_db() -> Dict[str, Any]:
     with _CLOUD_IO_LOCK:
-        if os.path.exists(CLOUD_DB_FILE):
-            try:
-                with open(CLOUD_DB_FILE, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        db = {
-            "licenses": {},
-            "processed_webhook_events": []
-        }
-        save_cloud_db(db)
+        if not os.path.exists(CLOUD_DB_FILE):
+            db = {
+                "licenses": {},
+                "processed_webhook_events": []
+            }
+            _atomic_write_json(CLOUD_DB_FILE, db)
+            return db
+        try:
+            with open(CLOUD_DB_FILE, "r", encoding="utf-8") as f:
+                db = json.load(f)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CloudDataCorruptionError(
+                f"No se pudo leer la base de licencias: {os.path.basename(CLOUD_DB_FILE)}"
+            ) from exc
+        if (
+            not isinstance(db, dict)
+            or not isinstance(db.get("licenses", {}), dict)
+            or not isinstance(db.get("processed_webhook_events", []), list)
+        ):
+            raise CloudDataCorruptionError(
+                f"Estructura inválida en base de licencias ({os.path.basename(CLOUD_DB_FILE)})"
+            )
+        db.setdefault("licenses", {})
+        db.setdefault("processed_webhook_events", [])
         return db
+
+
+def _update_cloud_db(mutator: Callable[[Dict[str, Any]], Any]) -> Any:
+    """Executes a read-modify-write transaction on CLOUD_DB_FILE under thread + process locks."""
+    with _CLOUD_IO_LOCK:
+        with _interprocess_file_lock(f"{os.path.abspath(CLOUD_DB_FILE)}.lock"):
+            db = load_cloud_db()
+            result, should_save = mutator(db)
+            if should_save:
+                _atomic_write_json(CLOUD_DB_FILE, db)
+            return result
 
 
 def verify_lemon_squeezy_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
@@ -154,7 +260,8 @@ def verify_stripe_signature(raw_body: bytes, signature_header: str, secret: str,
 
 def save_cloud_db(db: Dict[str, Any]) -> None:
     with _CLOUD_IO_LOCK:
-        _atomic_write_json(CLOUD_DB_FILE, db)
+        with _interprocess_file_lock(f"{os.path.abspath(CLOUD_DB_FILE)}.lock"):
+            _atomic_write_json(CLOUD_DB_FILE, db)
 
 
 def append_global_feedback(entry: Dict[str, Any]) -> None:
@@ -321,8 +428,73 @@ def format_rfc9457_problem_details(
 
 
 class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        if hasattr(self, "request") and self.request is not None:
+            try:
+                self.request.settimeout(15.0)
+            except OSError:
+                pass
+
     def log_message(self, format, *args):
         pass
+
+    def _read_exact_body(self) -> Tuple[Optional[bytes], Optional[Dict[str, Any]]]:
+        """Reads and validates the HTTP request body according to strict length/timeout rules."""
+        transfer_enc = (self.headers.get("Transfer-Encoding") or "").strip().lower()
+        if transfer_enc and transfer_enc != "identity":
+            self.send_json(501, {"error": "Transfer-Encoding no soportado"})
+            return None, None
+
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            self.send_json(411, {"error": "Cabecera Content-Length requerida"})
+            return None, None
+        try:
+            length = int(raw_len)
+        except (ValueError, TypeError):
+            self.send_json(400, {"error": "Cabecera Content-Length inválida"})
+            return None, None
+        if length < 0:
+            self.send_json(400, {"error": "Cabecera Content-Length negativa"})
+            return None, None
+        if length > MAX_PAYLOAD_SIZE:
+            self.send_json(413, {"error": "Payload Too Large (Máximo 1MB permitido)"})
+            return None, None
+
+        if length == 0:
+            return b"", {}
+
+        chunks = []
+        remaining = length
+        try:
+            while remaining > 0:
+                chunk = self.rfile.read(remaining)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+        except TimeoutError:
+            self.send_json(408, {"error": "Timeout leyendo el cuerpo HTTP"})
+            return None, None
+        except OSError:
+            self.send_json(400, {"error": "Error leyendo el cuerpo HTTP"})
+            return None, None
+
+        raw_body = b"".join(chunks)
+        if len(raw_body) != length:
+            self.send_json(400, {"error": "Cuerpo HTTP truncado o incompleto"})
+            return None, None
+
+        try:
+            parsed = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.send_json(400, {"error": "JSON inválido en el cuerpo de la petición"})
+            return None, None
+        if not isinstance(parsed, dict):
+            self.send_json(400, {"error": "El cuerpo JSON debe ser un objeto"})
+            return None, None
+        return raw_body, parsed
 
     def send_json(self, status: int, payload: Dict[str, Any]):
         body = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
@@ -362,7 +534,11 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             if not hmac.compare_digest(auth, f"Bearer {ADMIN_SECRET_KEY}"):
                 self.send_json(401, {"error": "Unauthorized: Clave de administrador requerida."})
                 return
-            db = load_cloud_db()
+            try:
+                db = load_cloud_db()
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"error": "Almacén de licencias temporalmente no disponible."})
+                return
             lics = db.get("licenses", {})
             self.send_json(200, {
                 "service": "OmniNet Global Cloud Proxy",
@@ -373,9 +549,15 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "sample_keys": [f"{k[:8]}...{k[-4:]}" for k in list(lics.keys())[:5]]
             })
         elif self.path == "/v1/telemetry/stats":
-            self.send_json(200, compute_global_telemetry_stats())
+            try:
+                self.send_json(200, compute_global_telemetry_stats())
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"error": "Almacén de telemetría temporalmente no disponible."})
         elif self.path == "/v1/feedback/stats":
-            self.send_json(200, compute_global_feedback_stats())
+            try:
+                self.send_json(200, compute_global_feedback_stats())
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"error": "Almacén de feedback temporalmente no disponible."})
         else:
             self.send_json(200, {
                 "status": "online",
@@ -384,29 +566,9 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             })
 
     def do_POST(self):
-        raw_len = self.headers.get("Content-Length", "0")
-        try:
-            length = int(raw_len)
-        except (ValueError, TypeError):
-            self.send_json(400, {"error": "Cabecera Content-Length inválida"})
+        raw_body, data = self._read_exact_body()
+        if raw_body is None or data is None:
             return
-        if length < 0:
-            self.send_json(400, {"error": "Cabecera Content-Length negativa"})
-            return
-        if length > MAX_PAYLOAD_SIZE:
-            self.send_json(413, {"error": "Payload Too Large (Máximo 1MB permitido)"})
-            return
-
-        raw_body = self.rfile.read(length) if length > 0 else b"{}"
-        data = {}
-        if raw_body:
-            try:
-                data = json.loads(raw_body.decode("utf-8"))
-            except Exception:
-                data = {}
-
-        db = load_cloud_db()
-        lics = db.setdefault("licenses", {})
 
         # 1. License Activation & Hardware ID Binding
         if self.path == "/v1/license/activate":
@@ -419,67 +581,75 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 self.send_json(400, {"valid": False, "error": f"Datos de activación inválidos: {e}"})
                 return
 
-            rec = None
-            if is_supabase_configured():
-                rec = get_license_from_supabase(key)
-            if not rec:
-                rec = lics.get(key)
+            supa_rec = get_license_from_supabase(key) if is_supabase_configured() else None
 
-            if not rec:
-                plan_sig = verify_signed_license_key(key)
-                if plan_sig:
-                    rec = {
-                        "license_key": key,
-                        "plan": plan_sig,
-                        "email": email or "customer@omninet.ai",
-                        "active": True,
-                        "max_devices": PLAN_CATALOG[plan_sig]["max_devices"],
-                        "devices": [],
-                        "queries_count": 0,
-                        "created_at": time.time()
-                    }
-                    lics[key] = rec
-                    if is_supabase_configured():
-                        upsert_license_in_supabase(rec)
+            def _activate_tx(db_obj: Dict[str, Any]):
+                lics_map = db_obj.setdefault("licenses", {})
+                rec = supa_rec or lics_map.get(key)
+                created_new = False
+                if not rec:
+                    plan_sig = verify_signed_license_key(key)
+                    if plan_sig:
+                        rec = {
+                            "license_key": key,
+                            "plan": plan_sig,
+                            "email": email or "customer@omninet.ai",
+                            "active": True,
+                            "max_devices": PLAN_CATALOG[plan_sig]["max_devices"],
+                            "devices": [],
+                            "queries_count": 0,
+                            "created_at": time.time()
+                        }
+                        lics_map[key] = rec
+                        created_new = True
 
-            if not rec or not rec.get("active"):
-                self.send_json(403, {"valid": False, "error": "Licencia inválida o inactiva"})
-                return
+                if not rec or not rec.get("active"):
+                    return (403, {"valid": False, "error": "Licencia inválida o inactiva"}, None, False), created_new
 
-            expires_at = rec.get("expires_at")
-            if expires_at and float(expires_at) < time.time():
-                self.send_json(403, {"valid": False, "error": "Licencia expirada. Renueve su suscripción para continuar."})
-                return
+                expires_at = rec.get("expires_at")
+                if expires_at and float(expires_at) < time.time():
+                    return (403, {"valid": False, "error": "Licencia expirada. Renueve su suscripción para continuar."}, None, False), created_new
 
-            devices = rec.get("devices", [])
-            if isinstance(devices, str):
-                try:
-                    devices = json.loads(devices)
-                except Exception:
+                devices = rec.get("devices", [])
+                if isinstance(devices, str):
+                    try:
+                        devices = json.loads(devices)
+                    except Exception:
+                        devices = []
+                if not isinstance(devices, list):
                     devices = []
-            if not isinstance(devices, list):
-                devices = []
 
-            max_devs = rec.get("max_devices", 1)
-            if dev_id not in devices:
-                if len(devices) >= max_devs:
-                    self.send_json(403, {
-                        "valid": False,
-                        "error": f"Esta licencia ya alcanzó el límite de {max_devs} computador(es)."
-                    })
-                    return
-                devices.append(dev_id)
-                rec["devices"] = devices
-                save_cloud_db(db)
-                if is_supabase_configured():
-                    update_license_devices(key, devices, rec.get("queries_count", 0))
+                max_devs = rec.get("max_devices", 1)
+                devices_updated = False
+                if dev_id not in devices:
+                    if len(devices) >= max_devs:
+                        return (403, {
+                            "valid": False,
+                            "error": f"Esta licencia ya alcanzó el límite de {max_devs} computador(es)."
+                        }, None, False), created_new
+                    devices.append(dev_id)
+                    rec["devices"] = devices
+                    lics_map[key] = rec
+                    devices_updated = True
 
-            self.send_json(200, {
-                "valid": True,
-                "plan": rec["plan"],
-                "devices_bound": len(devices),
-                "max_devices": max_devs
-            })
+                return (200, {
+                    "valid": True,
+                    "plan": rec["plan"],
+                    "devices_bound": len(devices),
+                    "max_devices": max_devs
+                }, rec, devices_updated), (created_new or devices_updated)
+
+            try:
+                status_code, resp_body, rec_saved, devs_updated = _update_cloud_db(_activate_tx)
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"valid": False, "error": "Almacén de licencias temporalmente no disponible."})
+                return
+
+            if is_supabase_configured() and rec_saved is not None:
+                if devs_updated:
+                    upsert_license_in_supabase(rec_saved)
+                    update_license_devices(key, rec_saved.get("devices", []), rec_saved.get("queries_count", 0))
+            self.send_json(status_code, resp_body)
 
         # 2. Secure DeepSeek Proxy Endpoint (OMNI-004, OMNI-018, OMNI-022)
         elif self.path == "/v1/chat":
@@ -505,7 +675,11 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             if is_supabase_configured():
                 rec = get_license_from_supabase(key)
             if not rec:
-                rec = lics.get(key)
+                try:
+                    rec = load_cloud_db().get("licenses", {}).get(key)
+                except CloudDataCorruptionError:
+                    self.send_json(503, {"error": "Almacén de licencias temporalmente no disponible."})
+                    return
 
             # OMNI-004 / OMNI-018: Validar existencia, estado activo y expiración
             if not rec or not rec.get("active"):
@@ -584,11 +758,18 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                         resp_data = json.loads(resp.read().decode("utf-8"))
                         reply = resp_data["choices"][0]["message"]["content"]
 
-                # Deduct quota and record anonymized telemetry only after verified upstream response
-                rec["queries_count"] = cur_count + 1
-                save_cloud_db(db)
+                # Deduct quota atomically and record anonymized telemetry only after verified upstream response
+                def _deduct_quota_tx(db_obj: Dict[str, Any]):
+                    lics_map = db_obj.setdefault("licenses", {})
+                    target_rec = lics_map.get(key) or rec
+                    target_rec["queries_count"] = cur_count + 1
+                    target_rec["period_start"] = period_start
+                    lics_map[key] = target_rec
+                    return target_rec["queries_count"], True
+
+                new_q_count = _update_cloud_db(_deduct_quota_tx)
                 if is_supabase_configured():
-                    update_license_devices(key, devices, rec["queries_count"])
+                    update_license_devices(key, devices, new_q_count)
 
                 # OMNI-008: Anonimización criptográfica estricta de telemetría (cero filtración de mensajes o IDs)
                 anon_dev = hashlib.sha256(f"dev:{dev_id}".encode()).hexdigest()[:12] if dev_id else "ANON"
@@ -638,7 +819,11 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "is_wifi7": bool(telem_req.is_wifi7 or False),
                 "app_version": str(telem_req.app_version or "2.9.6")
             }
-            append_global_telemetry(telemetry_entry)
+            try:
+                append_global_telemetry(telemetry_entry)
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"error": "Almacén de telemetría temporalmente no disponible."})
+                return
             if is_supabase_configured():
                 save_device_telemetry_in_supabase(telemetry_entry)
             self.send_json(200, {"status": "telemetry_received", "device_hash": anon_dev})
@@ -675,15 +860,10 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                     return
                 provider = "stripe"
 
-            # 3.2 Idempotencia Persistente
+            # 3.2 Idempotencia Persistente y Transaccional (H-02 / Sec 4)
             event_id = str(data.get("meta", {}).get("event_id") or data.get("id") or data.get("data", {}).get("id") or "").strip()
             if not event_id:
                 self.send_json(400, {"error": "Identificador de evento (event_id) ausente en payload."})
-                return
-
-            processed = db.setdefault("processed_webhook_events", [])
-            if event_id in processed:
-                self.send_json(200, {"status": "idempotent_duplicate_ignored", "event_id": event_id})
                 return
 
             # 3.3 Verificación estricta de evento de pago aprobado
@@ -735,24 +915,39 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             else:
                 plan = "pro"
 
-            new_key = generate_signed_license_key(plan, email)
-            record = {
-                "license_key": new_key,
-                "plan": plan,
-                "email": email,
-                "active": True,
-                "max_devices": PLAN_CATALOG[plan]["max_devices"],
-                "devices": [],
-                "queries_count": 0,
-                "created_at": time.time()
-            }
-            lics[new_key] = record
-            processed.append(event_id)
-            if len(processed) > 5000:
-                db["processed_webhook_events"] = processed[-5000:]
-            save_cloud_db(db)
+            def _webhook_tx(db_obj: Dict[str, Any]):
+                processed_list = db_obj.setdefault("processed_webhook_events", [])
+                if event_id in processed_list:
+                    return ("duplicate", None, None), False
+                lics_map = db_obj.setdefault("licenses", {})
+                new_key = generate_signed_license_key(plan, email)
+                record = {
+                    "license_key": new_key,
+                    "plan": plan,
+                    "email": email,
+                    "active": True,
+                    "max_devices": PLAN_CATALOG[plan]["max_devices"],
+                    "devices": [],
+                    "queries_count": 0,
+                    "created_at": time.time()
+                }
+                lics_map[new_key] = record
+                processed_list.append(event_id)
+                if len(processed_list) > 5000:
+                    db_obj["processed_webhook_events"] = processed_list[-5000:]
+                return ("created", new_key, record), True
 
-            if is_supabase_configured():
+            try:
+                outcome, new_key, record = _update_cloud_db(_webhook_tx)
+            except (CloudDataCorruptionError, CloudLockTimeoutError):
+                self.send_json(503, {"error": "Almacén de pagos temporalmente no disponible."})
+                return
+
+            if outcome == "duplicate":
+                self.send_json(200, {"status": "idempotent_duplicate_ignored", "event_id": event_id})
+                return
+
+            if is_supabase_configured() and record is not None:
                 upsert_license_in_supabase(record)
                 save_payment_event_in_supabase(event_name or "payment_received", provider, {"event_id": event_id, "email": email, "plan": plan})
 
@@ -767,9 +962,10 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             self.send_json(404, {"error": "Endpoint no encontrado"})
 
 
-def run_cloud_server(port: int = 9988):
-    srv = ThreadingHTTPServer(("0.0.0.0", port), OmniNetCloudProxyHandler)
-    print(f"[OmniNet Cloud SaaS] Servidor de Licencias y Proxy DeepSeek escuchando en http://0.0.0.0:{port}")
+def run_cloud_server(port: int = 9988, host: Optional[str] = None):
+    bind_host = host or os.environ.get("OMNINET_CLOUD_HOST", "127.0.0.1")
+    srv = ThreadingHTTPServer((bind_host, port), OmniNetCloudProxyHandler)
+    print(f"[OmniNet Cloud SaaS] Servidor de Licencias y Proxy DeepSeek escuchando en http://{bind_host}:{port}")
     srv.serve_forever()
 
 

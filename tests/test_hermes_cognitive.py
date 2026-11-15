@@ -342,6 +342,35 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertTrue(any("rollback boom" in entry for entry in rep.rollback_log))
         self.assertEqual(executor._ctx, {})
 
+    def test_executor_requires_post_mutation_verify_and_criterion_met(self):
+        """H-06: Pre-mutation verify or post-mutation verify with criterion_met=False must trigger rollback."""
+        from unittest.mock import patch, MagicMock
+        from hermes.foresee import ForeseePlan, PlanStep
+
+        executor = HermesExecutor(WindowsHAL(dry_run=False))
+        self._stub_engines(executor)
+        # Plan has verify BEFORE mutation, and NO verify AFTER mutation
+        plan_pre_verify = ForeseePlan(
+            plan_id="plan-pre-verify",
+            goal="test",
+            created_at=0.0,
+            health_before="healthy",
+            steps=[
+                PlanStep("v0", "verify", "hermes_verify_health", {}, "r", "e", "c", mutating=False),
+                PlanStep("m1", "triage", "hermes_triage_repair", {}, "r", "e", "c", mutating=True, requires_snapshot=True),
+            ],
+        )
+        fake_snap = MagicMock()
+        fake_snap.snapshot_id = "snap-pre-1"
+        with patch.object(executor.rollback_mgr, "capture_snapshot", return_value=fake_snap), \
+             patch.object(executor.rollback_mgr, "verify_post_action_health", return_value=(True, "ok")), \
+             patch.object(executor.rollback_mgr, "rollback", return_value=["rolled_back_ok"]) as rb_mock:
+            rep = executor.execute(plan_pre_verify, diag=make_diag(), execute=True)
+
+        self.assertTrue(rep.rolled_back)
+        rb_mock.assert_called_once_with("snap-pre-1", execute=True)
+        self.assertEqual(executor._ctx, {})
+
 
 if __name__ == "__main__":
     unittest.main()

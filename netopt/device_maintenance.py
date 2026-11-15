@@ -475,7 +475,7 @@ class DeviceMaintenanceEngine:
         if self.platform != PlatformType.WINDOWS:
             return {"orphans_found": 0, "orphans_cleaned": 0, "samples": []}
 
-        should_apply = bool(execute and not self.hal.dry_run)
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         orphans: List[str] = []
         cleaned = 0
         try:
@@ -943,7 +943,7 @@ class DeviceMaintenanceEngine:
           6. Post-action Verification Gate
         """
         t0 = time.perf_counter()
-        should_apply = bool(execute and not self.hal.dry_run)
+        should_apply = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         pre_audit = self.diagnose_all_device_faults()
         actions_log: List[Dict[str, str]] = []
         snap_id: Optional[str] = None

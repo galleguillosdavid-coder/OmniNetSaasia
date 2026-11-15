@@ -572,9 +572,10 @@ class EcosystemOrchestrator:
             ("micro_internet", "microinternet", "mesh", "did"): self.run_micro_internet_subagent,
             ("zero_netloss", "rollback", "reversion"): self.run_zero_netloss_subagent,
         }
+        should_exec = (execute is True) and not (getattr(self.hal, "dry_run", False) is True)
         for aliases, runner in dispatch_groups.items():
             if sid in aliases:
-                return runner(execute=execute)
+                return runner(execute=should_exec)
         return {
             "subagent": sid,
             "success": False,

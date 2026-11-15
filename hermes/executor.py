@@ -223,8 +223,11 @@ class HermesExecutor:
             try:
                 report = ExecutionReport(plan_id=plan.plan_id, executed_for_real=do_exec, step_results=[])
                 satisfied: set = set()
+                last_mutating_idx = -1
 
-                for step in plan.steps:
+                for idx, step in enumerate(plan.steps):
+                    if step.mutating:
+                        last_mutating_idx = idx
                     if report.aborted:
                         report.step_results.append(StepResult(step.step_id, step.strategy, step.tool, SKIPPED,
                                                               error="Plan abortado por fallo de paso crítico previo."))
@@ -252,8 +255,18 @@ class HermesExecutor:
                     elif step.critical:
                         report.aborted = True
 
-                verify = next((r for r in report.step_results if r.strategy == "verify"), None)
-                if do_exec and report.snapshot_id and (verify is None or verify.status != SUCCEEDED):
+                # H-06: Require at least one verify step AFTER the last mutating step,
+                # and require all post-mutation verify steps to succeed with criterion_met=True.
+                post_verifies = [
+                    r for idx, r in enumerate(report.step_results)
+                    if idx > last_mutating_idx and r.strategy == "verify"
+                ] if last_mutating_idx >= 0 else [
+                    r for r in report.step_results if r.strategy == "verify"
+                ]
+                verify_ok = bool(post_verifies) and all(
+                    r.status == SUCCEEDED and r.criterion_met for r in post_verifies
+                )
+                if do_exec and report.snapshot_id and not verify_ok:
                     try:
                         report.rollback_log = self.rollback_mgr.rollback(report.snapshot_id, execute=True)
                         report.rolled_back = True
