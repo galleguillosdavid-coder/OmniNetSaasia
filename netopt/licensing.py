@@ -53,28 +53,34 @@ def get_signing_secret() -> str:
 
 PLAN_CATALOG = {
     "free": {
-        "name": "Plan Gratis",
+        "name": "Plan Gratis Full (Local-First)",
         "price_usd": 0.0,
         "max_devices": 1,
         "monthly_ai_limit": 5,
-        "auto_care_10m": False,
-        "deep_clean_bleachbit_sdio": False
+        "auto_care_10m": True,
+        "deep_clean_bleachbit_sdio": True,
+        "local_full_unlocked": True,
+        "cloud_managed_ai": False,
     },
     "pro": {
-        "name": "Plan Personal Pro",
+        "name": "Plan Personal Pro (SaaS Cloud)",
         "price_usd": 4.99,
         "max_devices": 1,
         "monthly_ai_limit": 999999,
         "auto_care_10m": True,
-        "deep_clean_bleachbit_sdio": True
+        "deep_clean_bleachbit_sdio": True,
+        "local_full_unlocked": True,
+        "cloud_managed_ai": True,
     },
     "family": {
-        "name": "Plan Hogar / Pyme (5 PCs)",
+        "name": "Plan Hogar / Pyme (SaaS Cloud 5 PCs)",
         "price_usd": 12.99,
         "max_devices": 5,
         "monthly_ai_limit": 999999,
         "auto_care_10m": True,
-        "deep_clean_bleachbit_sdio": True
+        "deep_clean_bleachbit_sdio": True,
+        "local_full_unlocked": True,
+        "cloud_managed_ai": True,
     }
 }
 
@@ -205,114 +211,120 @@ class LicenseManager:
         return plan_key
 
     def get_status(self) -> Dict[str, Any]:
-        plan_id = self.state.get("plan", "free")
-        plan_meta = PLAN_CATALOG.get(plan_id, PLAN_CATALOG["free"])
-        used = int(self.state.get("ai_queries_used", 0))
-        limit = int(plan_meta["monthly_ai_limit"])
-        remaining = max(0, limit - used) if plan_id == "free" else 999999
+        with _LICENSE_LOCK:
+            plan_id = self.state.get("plan", "free")
+            plan_meta = PLAN_CATALOG.get(plan_id, PLAN_CATALOG["free"])
+            used = int(self.state.get("ai_queries_used", 0))
+            limit = int(plan_meta["monthly_ai_limit"])
+            remaining = max(0, limit - used) if plan_id == "free" else 999999
 
-        return {
-            "plan": plan_id,
-            "plan_name": plan_meta["name"],
-            "price_usd": plan_meta["price_usd"],
-            "is_pro": plan_id in ("pro", "family"),
-            "license_key": self.state.get("license_key", ""),
-            "device_id": self.device_id,
-            "ai_queries_used": used,
-            "ai_queries_remaining": remaining,
-            "ai_queries_limit": limit,
-            "checkout_url_pro": self.state.get("checkout_url_pro"),
-            "checkout_url_family": self.state.get("checkout_url_family"),
-            "cloud_proxy_url": self.state.get("cloud_proxy_url", ""),
-            "language": self.state.get("language", "es")
-        }
+            return {
+                "plan": plan_id,
+                "plan_name": plan_meta["name"],
+                "price_usd": plan_meta["price_usd"],
+                "is_pro": plan_id in ("pro", "family"),
+                "local_full_unlocked": bool(plan_meta.get("local_full_unlocked", True)),
+                "cloud_managed_ai": bool(plan_meta.get("cloud_managed_ai", plan_id in ("pro", "family"))),
+                "auto_care_10m": bool(plan_meta.get("auto_care_10m", True)),
+                "deep_clean_bleachbit_sdio": bool(plan_meta.get("deep_clean_bleachbit_sdio", True)),
+                "license_key": self.state.get("license_key", ""),
+                "device_id": self.device_id,
+                "ai_queries_used": used,
+                "ai_queries_remaining": remaining,
+                "ai_queries_limit": limit,
+                "checkout_url_pro": self.state.get("checkout_url_pro"),
+                "checkout_url_family": self.state.get("checkout_url_family"),
+                "cloud_proxy_url": self.state.get("cloud_proxy_url", ""),
+                "language": self.state.get("language", "es")
+            }
 
     def activate_license(self, license_key: str, email: str = "") -> Dict[str, Any]:
-        clean_key = (license_key or "").strip().upper()
-        if clean_key == "FREE":
-            self.state["plan"] = "free"
-            self.state["license_key"] = ""
-            self.state["ai_queries_used"] = 0
-            self.state["ai_queries_limit"] = PLAN_CATALOG["free"]["monthly_ai_limit"]
-            self.save_state()
-            return {"success": True, "plan": "free", "message": "Cambiado a Plan Gratis (5 consultas de prueba)."}
+        with _LICENSE_LOCK:
+            clean_key = (license_key or "").strip().upper()
+            if clean_key == "FREE":
+                self.state["plan"] = "free"
+                self.state["license_key"] = ""
+                self.state["ai_queries_used"] = 0
+                self.state["ai_queries_limit"] = PLAN_CATALOG["free"]["monthly_ai_limit"]
+                self.save_state()
+                return {"success": True, "plan": "free", "message": "Cambiado a Plan Gratis (5 consultas de prueba)."}
 
-        # 1. Try Cloud Proxy validation if configured (HTTP/HTTPS only)
-        cloud_url = self.state.get("cloud_proxy_url", "").strip()
-        parsed_cloud = urlparse(cloud_url) if cloud_url else None
-        if cloud_url and parsed_cloud and parsed_cloud.scheme.lower() in ("http", "https") and parsed_cloud.netloc:
-            act_url = f"{cloud_url.rstrip('/')}/v1/license/activate"
-            act_payload = {
-                "license_key": clean_key,
-                "device_id": self.device_id,
-                "email": email
-            }
-            if HttpClientAdapter.is_available():
-                status_code, cdata = HttpClientAdapter.post_json(act_url, act_payload, timeout_sec=8.0)
-                if status_code == 200 and isinstance(cdata, dict) and cdata.get("valid"):
-                    plan_unlocked = self._apply_activated_plan(cdata.get("plan", "pro"), clean_key, email)
-                    return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
-                elif status_code in (401, 403) or (isinstance(cdata, dict) and cdata.get("valid") is False):
-                    return {
-                        "success": False,
-                        "plan": self.state.get("plan", "free"),
-                        "message": cdata.get("error") if isinstance(cdata, dict) else "Licencia rechazada por el servidor de activación."
-                    }
-            try:
-                req = urllib.request.Request(
-                    act_url,
-                    data=json.dumps(act_payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    method="POST"
-                )
-                with urllib.request.urlopen(req, timeout=8) as resp:
-                    cdata = json.loads(resp.read().decode("utf-8"))
-                    if cdata.get("valid"):
+            # 1. Try Cloud Proxy validation if configured (HTTP/HTTPS only)
+            cloud_url = self.state.get("cloud_proxy_url", "").strip()
+            parsed_cloud = urlparse(cloud_url) if cloud_url else None
+            if cloud_url and parsed_cloud and parsed_cloud.scheme.lower() in ("http", "https") and parsed_cloud.netloc:
+                act_url = f"{cloud_url.rstrip('/')}/v1/license/activate"
+                act_payload = {
+                    "license_key": clean_key,
+                    "device_id": self.device_id,
+                    "email": email
+                }
+                if HttpClientAdapter.is_available():
+                    status_code, cdata = HttpClientAdapter.post_json(act_url, act_payload, timeout_sec=8.0)
+                    if status_code == 200 and isinstance(cdata, dict) and cdata.get("valid"):
                         plan_unlocked = self._apply_activated_plan(cdata.get("plan", "pro"), clean_key, email)
                         return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
-                    elif cdata.get("valid") is False:
+                    elif status_code in (401, 403) or (isinstance(cdata, dict) and cdata.get("valid") is False):
                         return {
                             "success": False,
                             "plan": self.state.get("plan", "free"),
-                            "message": cdata.get("error") or "Licencia rechazada por el servidor de activación."
+                            "message": cdata.get("error") if isinstance(cdata, dict) else "Licencia rechazada por el servidor de activación."
                         }
-            except urllib.error.HTTPError as he:
                 try:
-                    if he.code in (401, 403):
-                        err_msg = "Licencia rechazada o límite de equipos alcanzado en el servidor."
+                    req = urllib.request.Request(
+                        act_url,
+                        data=json.dumps(act_payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        method="POST"
+                    )
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        cdata = json.loads(resp.read().decode("utf-8"))
+                        if cdata.get("valid"):
+                            plan_unlocked = self._apply_activated_plan(cdata.get("plan", "pro"), clean_key, email)
+                            return {"success": True, "plan": plan_unlocked, "message": "¡Licencia Pro verificada en la nube y activada con éxito!"}
+                        elif cdata.get("valid") is False:
+                            return {
+                                "success": False,
+                                "plan": self.state.get("plan", "free"),
+                                "message": cdata.get("error") or "Licencia rechazada por el servidor de activación."
+                            }
+                except urllib.error.HTTPError as he:
+                    try:
+                        if he.code in (401, 403):
+                            err_msg = "Licencia rechazada o límite de equipos alcanzado en el servidor."
+                            try:
+                                err_body = json.loads(he.read().decode("utf-8"))
+                                err_msg = err_body.get("error") or err_msg
+                            except Exception:
+                                pass
+                            return {
+                                "success": False,
+                                "plan": self.state.get("plan", "free"),
+                                "message": err_msg
+                            }
+                    finally:
                         try:
-                            err_body = json.loads(he.read().decode("utf-8"))
-                            err_msg = err_body.get("error") or err_msg
+                            he.close()
                         except Exception:
                             pass
-                        return {
-                            "success": False,
-                            "plan": self.state.get("plan", "free"),
-                            "message": err_msg
-                        }
-                finally:
-                    try:
-                        he.close()
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                except Exception:
+                    pass
 
-        # 2. Verify cryptographic signature locally
-        plan_unlocked = verify_signed_license_key(clean_key)
-        if plan_unlocked:
-            plan_unlocked = self._apply_activated_plan(plan_unlocked, clean_key, email)
+            # 2. Verify cryptographic signature locally
+            plan_unlocked = verify_signed_license_key(clean_key)
+            if plan_unlocked:
+                plan_unlocked = self._apply_activated_plan(plan_unlocked, clean_key, email)
+                return {
+                    "success": True,
+                    "plan": plan_unlocked,
+                    "message": f"¡{PLAN_CATALOG[plan_unlocked]['name']} activado con éxito en este equipo ({self.device_id})!"
+                }
+
             return {
-                "success": True,
-                "plan": plan_unlocked,
-                "message": f"¡{PLAN_CATALOG[plan_unlocked]['name']} activado con éxito en este equipo ({self.device_id})!"
+                "success": False,
+                "plan": self.state.get("plan", "free"),
+                "message": "El código ingresado no es válido. Verifica tu código OMNI-PRO-XXXX-XXXX-XXXX."
             }
-
-        return {
-            "success": False,
-            "plan": self.state.get("plan", "free"),
-            "message": "El código ingresado no es válido. Verifica tu código OMNI-PRO-XXXX-XXXX-XXXX."
-        }
 
     def check_and_consume_ai_quota(self) -> Tuple[bool, str]:
         """Checks if the user can make an AI request and increments usage counter."""

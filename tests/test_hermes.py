@@ -243,6 +243,38 @@ class TestHermesSelfImprovement(unittest.TestCase):
         self.assertTrue(r_big["success"])
         self.assertLessEqual(len(r_big["stdout"]), h.MAX_OUTPUT_CHARS)
 
+    def test_orchestrator_propagates_default_config_and_synthesizes_errors(self):
+        from hermes.orchestrator import HermesOrchestrator
+        from hermes.harness import HermesHarnessConfig, HarnessTurnResult
+        cfg = HermesHarnessConfig(provider="openai", model="gpt-4o-mini", timeout_sec=12.5, max_tokens=200)
+        orch = HermesOrchestrator(default_config=cfg)
+        with patch("hermes.orchestrator.HermesAgentHarness.run_turn", side_effect=RuntimeError("boom")):
+            sess = orch.spawn_session("Audit", "Check")
+            self.assertEqual(sess.status, "failed")
+        with patch("hermes.orchestrator.HermesAgentHarness") as mock_h:
+            mock_h.return_value.run_turn.return_value = HarnessTurnResult(content="ok", success=True)
+            orch.spawn_session("Net", "Check")
+            passed_cfg = mock_h.call_args.kwargs["config"]
+            self.assertEqual(passed_cfg.timeout_sec, 12.5)
+            self.assertEqual(passed_cfg.max_tokens, 200)
+        synth = orch.synthesize_results([sess])
+        self.assertIn("Error:", synth["synthesized_summary"])
+
+    def test_hermes_memory_handles_relative_path_and_corrupt_non_dict_json(self):
+        import tempfile
+        from hermes.self_improvement import HermesMemory
+        with tempfile.TemporaryDirectory() as tmpd:
+            orig_cwd = os.getcwd()
+            try:
+                os.chdir(tmpd)
+                with open("rel_mem.json", "w", encoding="utf-8") as f:
+                    f.write("[]")
+                mem = HermesMemory(memory_path="rel_mem.json")
+                self.assertIn("learned_skills", mem.state)
+                self.assertIsInstance(mem.state["learned_skills"], list)
+            finally:
+                os.chdir(orig_cwd)
+
 
 if __name__ == "__main__":
     unittest.main()

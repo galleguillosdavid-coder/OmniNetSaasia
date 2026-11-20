@@ -212,15 +212,23 @@ class EcosystemOrchestrator:
         should_apply = bool(execute and not self.hal.dry_run)
         sdio_info = self.device_engine.run_sdio_driver_update(execute=should_apply)
         sdio_installed = bool(sdio_info.get("installed", False))
+        native_info = self.device_engine.audit_native_drivers()
+        native_ok = bool(native_info.get("available"))
+        prob_cnt = int(native_info.get("problem_devices_count", 0) or 0)
         return {
             "subagent": "drivers",
             "installed": sdio_installed,
             "driver_status": sdio_info.get("status", "UNAVAILABLE"),
+            "native_engine": native_info,
             "executed": bool(should_apply and sdio_installed),
             "summary": (
                 "Controladores SDIO: Verificación de hardware y periféricos completada; adaptadores de red y gráficos al día."
                 if sdio_installed else
-                "Controladores SDIO: Motor externo SDIO no instalado (estado UNAVAILABLE); verificación nativa PnP disponible."
+                (
+                    f"Controladores (Motor Nativo): {prob_cnt} dispositivo(s) con error detectados (SDIO externo en estado UNAVAILABLE)."
+                    if native_ok else
+                    "Controladores SDIO: Motor externo SDIO no instalado (estado UNAVAILABLE); verificación nativa PnP disponible."
+                )
             )
         }
 
@@ -522,6 +530,20 @@ class EcosystemOrchestrator:
 
         av_ok = probe_av.get("real_time_protection") and probe_av.get("am_service_enabled")
         drv_installed = probe_drv.get("installed", False)
+        native_drv = probe_drv.get("native_engine") or {}
+        native_drv_ok = bool(native_drv.get("available"))
+        native_drv_problems = int(native_drv.get("problem_devices_count", 0) or 0)
+
+        if drv_installed:
+            drv_meta = {"status": "Al Día", "color": "emerald", "badge": "SDIO Verificado"}
+        elif native_drv_ok:
+            drv_meta = (
+                {"status": "Al Día (Nativo)", "color": "emerald", "badge": "PnP / OS Nativo"}
+                if native_drv_problems == 0 else
+                {"status": f"{native_drv_problems} Con Error", "color": "amber", "badge": "Revisar Drivers"}
+            )
+        else:
+            drv_meta = {"status": "No Instalado", "color": "slate", "badge": "SDIO No Disponible"}
 
         status_map = {
             "network": {"status": "Activo", "color": "emerald", "badge": "Conexión Óptima"},
@@ -531,11 +553,7 @@ class EcosystemOrchestrator:
                 "badge": "Escudo en Tiempo Real" if av_ok else "Protección Inactiva"
             },
             "cleaner": {"status": "Listo", "color": "blue", "badge": "BleachBit CleanerML"},
-            "drivers": {
-                "status": "Al Día" if drv_installed else "No Instalado",
-                "color": "emerald" if drv_installed else "slate",
-                "badge": "SDIO Verificado" if drv_installed else "SDIO No Disponible"
-            },
+            "drivers": drv_meta,
             "hardware_thermal": {"status": "Saludable", "color": "emerald", "badge": "Temp Normal"},
             "startup_boost": {"status": "Optimizado", "color": "indigo", "badge": "Arranque Rápido"},
             "uninstaller": {"status": "Listo", "color": "blue", "badge": "BCUninstaller Motor"},

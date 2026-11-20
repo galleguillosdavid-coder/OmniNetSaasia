@@ -40,6 +40,32 @@ MAX_PAYLOAD_SIZE = 1024 * 1024  # 1 MB límite estricto de petición HTTP
 
 # Ensure package directory is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_local_env(env_path: str | None = None) -> int:
+    """Loads key=value pairs from .env into os.environ without overriding existing vars."""
+    target = env_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.isfile(target):
+        return 0
+    loaded = 0
+    try:
+        with open(target, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip("'\"")
+                if k and v and k not in os.environ:
+                    os.environ[k] = v
+                    loaded += 1
+    except OSError:
+        return 0
+    return loaded
+
+
+_load_local_env()
+
 from netopt.models import HealthState
 from netopt.hal import get_hal, detect_platform
 from netopt.diagnostics import (
@@ -73,7 +99,7 @@ from netopt.schemas import (
 from dataclasses import asdict
 
 
-VERSION = "2.9.6"
+from netopt import __version__ as VERSION
 
 
 def get_dashboard_html() -> str:
@@ -144,14 +170,14 @@ def get_dashboard_html() -> str:
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
       <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-        <div class="font-bold text-slate-200">🌱 Plan Gratis ($0)</div>
-        <div class="text-slate-400">• 5 preguntas de prueba al Asistente IA<br>• Medidor de velocidad y estado</div>
-        <button onclick="activateLicenseKey('FREE')" class="mt-2 w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Probar Vista Gratis</button>
+        <div class="font-bold text-emerald-300">🆓 Plan Gratis Full ($0 · Local-First)</div>
+        <div class="text-slate-300">• Red, Escudo IA, 10 Sub-Agentes, Mesh, Cuarentena y Auto-Cuidado 10m 100% libres<br>• Asistente local / BYOK ilimitado + 5 consultas Cloud de prueba</div>
+        <button onclick="activateLicenseKey('FREE')" class="mt-2 w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Usar Edición Gratis Full</button>
       </div>
 
       <div class="p-3.5 rounded-xl bg-indigo-950/50 border border-indigo-600/70 space-y-1.5">
-        <div class="font-bold text-indigo-300">🚀 Plan Personal Pro ($4.99/mes)</div>
-        <div class="text-slate-300">• Cuidado automático cada 10 min 24/7<br>• BleachBit + SDIO + Chat IA Ilimitado (1 PC)</div>
+        <div class="font-bold text-indigo-300">🚀 Plan Personal Pro ($4.99/mes · Cloud SaaS)</div>
+        <div class="text-slate-300">• Todo lo de Gratis Full + IA Cloud Administrada ilimitada (sin API Key propia)<br>• Soporte prioritario y sincronización Cloud (1 PC)</div>
         <a id="linkBuyPro" href="https://omninet.lemonsqueezy.com/checkout/buy/pro-plan" target="_blank" class="block text-center mt-2 w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold">💳 Suscribirme ($4.99/mes)</a>
       </div>
 
@@ -251,6 +277,104 @@ def get_dashboard_html() -> str:
     <!-- Aviso de Resultado en Lenguaje Sencillo -->
     <div id="simpleStatusBanner" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs md:text-sm text-slate-200 leading-relaxed">
       ✅ <strong>Todo está en orden:</strong> Tu asistente está cuidando tu conexión y tu computador en segundo plano. Haz clic en cualquier botón de arriba si quieres acelerar o limpiar ahora mismo.
+    </div>
+
+    <!-- Panel Visual Antes vs. Después -->
+    <div id="impactCard" class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div>
+        <div class="text-[var(--muted)]">📊 Rapidez (Antes → Ahora)</div>
+        <div id="impactPing" class="font-bold text-white mt-0.5">Midiendo...</div>
+      </div>
+      <div>
+        <div class="text-[var(--muted)]">📶 Estabilidad (Jitter)</div>
+        <div id="impactJitter" class="font-bold text-white mt-0.5">Midiendo...</div>
+      </div>
+      <div>
+        <div class="text-[var(--muted)]">🛡️ Calidad Bufferbloat</div>
+        <div id="impactBloat" class="font-bold text-emerald-400 mt-0.5">Midiendo...</div>
+      </div>
+    </div>
+
+    <!-- Escudo Anti-Hackeos con IA -->
+    <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div>
+        <div class="font-bold text-white">🛡️ Escudo Anti-Hackeos con IA</div>
+        <div id="aiDefenseSummary" class="text-[var(--muted)] mt-0.5">Vigila procesos sospechosos, enlaces falsos (phishing IA) y red local.</div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <input id="urlCheckInput" type="text" placeholder="Revisar enlace sospechoso..." class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 w-52">
+        <button onclick="checkSuspiciousUrl()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold">Verificar URL</button>
+        <button onclick="runAiDefenseAudit()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold">Escanear Amenazas</button>
+      </div>
+    </div>
+
+    <!-- Red Mesh Virtual, Cuarentena Reversible y Aprendizaje Hermes -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between gap-2">
+        <div>
+          <div class="font-bold text-white flex items-center justify-between">
+            <span>🌐 Red Mesh Virtual</span>
+            <button onclick="loadMeshStatus()" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Actualizar</button>
+          </div>
+          <div id="meshSummary" class="text-[var(--muted)] mt-1">Cargando estado de malla P2P...</div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between gap-2">
+        <div>
+          <div class="font-bold text-white flex items-center justify-between">
+            <span>🔒 Cuarentena Reversible</span>
+            <button onclick="loadQuarantine()" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Actualizar</button>
+          </div>
+          <div id="quarantineSummary" class="text-[var(--muted)] mt-1">Cargando bóveda de cuarentena...</div>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1">
+          <input id="quarantinePathInput" type="text" placeholder="Ruta de archivo..." class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 flex-1 min-w-0">
+          <button onclick="isolateFileToQuarantine()" class="px-2.5 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 text-white font-semibold text-[11px]">Aislar</button>
+        </div>
+        <div id="quarantineList" class="space-y-1 max-h-24 overflow-y-auto"></div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between gap-2">
+        <div>
+          <div class="font-bold text-white flex items-center justify-between">
+            <span>🧠 Aprendizaje Hermes</span>
+            <button onclick="loadHermesInsights()" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Actualizar</button>
+          </div>
+          <div id="hermesSummary" class="text-[var(--muted)] mt-1">Cargando métricas cognitivas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fondo de Pantalla Animado Matrix (Escritorio Windows y Linux) -->
+    <div class="p-4 rounded-xl bg-slate-950/90 border border-emerald-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-3">
+        <canvas id="matrixMiniCanvas" width="76" height="44" class="rounded-lg border border-emerald-700/60 bg-black shrink-0"></canvas>
+        <div>
+          <div class="font-bold text-emerald-300">🟩 Fondo Animado Matrix (Escritorio Windows / Linux)</div>
+          <div id="matrixWallpaperStatus" class="text-[var(--muted)] mt-0.5">Estado: verificando...</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/matrix" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-700/60 text-emerald-300 font-semibold">Abrir Pantalla Completa</a>
+        <button onclick="toggleMatrixWallpaper(true)" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold">Activar en Escritorio</button>
+        <button onclick="toggleMatrixWallpaper(false)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold">Detener</button>
+      </div>
+    </div>
+
+    <!-- Control Autónomo Independiente de Red (DNS Soberano + DSCP QoS + Failover + Servicio OS) -->
+    <div class="p-4 rounded-xl bg-slate-900/70 border border-cyan-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div>
+        <div class="font-bold text-cyan-300">🧭 Control Autónomo de Red (DNS Soberano · DSCP QoS · Failover · Servicio OS)</div>
+        <div id="autonomySummary" class="text-[var(--muted)] mt-0.5">Cargando estado del plano de control...</div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="toggleSovereignDns(true)" class="px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-semibold transition">Activar DNS Soberano</button>
+        <button onclick="toggleSovereignDns(false)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition">Detener DNS</button>
+        <button onclick="applyAppQos()" class="px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-white font-semibold transition">Aplicar QoS Apps</button>
+        <button onclick="toggleOsAutostart(true)" class="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-semibold transition">Instalar Auto-Arranque</button>
+        <button onclick="toggleOsAutostart(false)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition">Quitar Auto-Arranque</button>
+      </div>
     </div>
   </div>
 
@@ -406,9 +530,9 @@ def get_dashboard_html() -> str:
           detail.textContent = `${st.plan_name} (Ilimitado)`;
           detail.className = 'text-emerald-400';
         } else {
-          badge.textContent = `Plan Gratis (${st.ai_queries_remaining} pruebas)`;
-          detail.textContent = `Plan Gratis (${st.ai_queries_remaining} consultas restantes)`;
-          detail.className = 'text-amber-400';
+          badge.textContent = `Gratis Full (Local)`;
+          detail.textContent = `Plan Gratis Full Local-First (${st.ai_queries_remaining} Cloud de prueba)`;
+          detail.className = 'text-emerald-300';
         }
       } catch (e) {}
     }
@@ -591,6 +715,8 @@ def get_dashboard_html() -> str:
 
         chatHistory.push({role: 'user', content: text});
         chatHistory.push({role: 'assistant', content: data.reply});
+        if (chatHistory.length > 30) chatHistory = chatHistory.slice(-30);
+        try { localStorage.setItem('omninet_chat_history_v1', JSON.stringify(chatHistory)); } catch (e) {}
         appendMessage('agent', data.reply);
         refreshSimpleCards();
       } catch (e) {
@@ -939,10 +1065,258 @@ def get_dashboard_html() -> str:
       }
     }
 
+    async function loadImpactComparison() {
+      try {
+        const res = await fetch('/api/metrics/impact');
+        const d = await res.json();
+        const pingEl = document.getElementById('impactPing');
+        const jitEl = document.getElementById('impactJitter');
+        const bloatEl = document.getElementById('impactBloat');
+        if (!d || !d.samples_count) {
+          pingEl.textContent = 'Sin muestras aún';
+          jitEl.textContent = 'Sin muestras aún';
+          bloatEl.textContent = 'N/A';
+          return;
+        }
+        const deltaTxt = d.ping_delta_ms <= 0 ? `${d.ping_delta_ms} ms` : `+${d.ping_delta_ms} ms`;
+        pingEl.textContent = `${d.ping_before_ms} ms → ${d.ping_after_ms} ms (${deltaTxt})`;
+        jitEl.textContent = `${d.jitter_before_ms} ms → ${d.jitter_after_ms} ms`;
+        bloatEl.textContent = `${d.bufferbloat_before} → ${d.bufferbloat_after} (${d.samples_count} muestras)`;
+      } catch (e) {}
+    }
+
+    async function runAiDefenseAudit() {
+      const el = document.getElementById('aiDefenseSummary');
+      el.textContent = 'Analizando conexiones, procesos en carpetas temporales y red local...';
+      try {
+        const res = await fetch('/api/defense/audit');
+        const d = await res.json();
+        el.textContent = `Nivel: ${d.threat_level} (Riesgo ${d.risk_score}/100) — ${d.summary}`;
+      } catch (e) { el.textContent = 'No se pudo completar el análisis.'; }
+    }
+
+    async function checkSuspiciousUrl() {
+      const inp = document.getElementById('urlCheckInput');
+      const el = document.getElementById('aiDefenseSummary');
+      const url = (inp.value || '').trim();
+      if (!url) return;
+      try {
+        const res = await fetch('/api/defense/check-url', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({url})
+        });
+        const d = await res.json();
+        el.textContent = `URL (${d.verdict}, Riesgo ${d.risk_score}/100): ${(d.reasons || []).join(' ')}`;
+      } catch (e) { el.textContent = 'Error verificando la URL.'; }
+    }
+
+    async function loadMeshStatus() {
+      const el = document.getElementById('meshSummary');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/mesh/status');
+        const d = await res.json();
+        const drv = (d.tun_driver && d.tun_driver.available) ? d.tun_driver.driver + ' listo' : ((d.tun_driver && d.tun_driver.driver) || 'wintun') + ' (modo seguro)';
+        const peers = typeof d.peers_count === 'number' ? d.peers_count : 0;
+        const maxP = d.max_peers || 5;
+        el.textContent = `Subred: ${d.mesh_subnet || d.subnet || '10.77.0.0/24'} | Pares: ${peers}/${maxP} | Driver: ${drv}`;
+      } catch (e) { el.textContent = 'No se pudo cargar Red Mesh.'; }
+    }
+
+    async function loadQuarantine() {
+      const sum = document.getElementById('quarantineSummary');
+      const list = document.getElementById('quarantineList');
+      if (!sum || !list) return;
+      try {
+        const res = await fetch('/api/quarantine');
+        const d = await res.json();
+        const items = Array.isArray(d.items) ? d.items : [];
+        const active = items.filter(x => !x.restored);
+        sum.textContent = `${active.length} aislado(s) activo(s) / ${items.length} total en historial.`;
+        list.innerHTML = '';
+        active.slice(-4).reverse().forEach(it => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 bg-slate-950/70 px-2 py-1 rounded border border-slate-800';
+          const lbl = document.createElement('span');
+          lbl.className = 'truncate text-[11px] text-slate-300';
+          lbl.textContent = (it.original_path || it.item_id || '').split(/[\\/]/).pop();
+          const btn = document.createElement('button');
+          btn.className = 'px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-semibold shrink-0';
+          btn.textContent = 'Restaurar';
+          btn.onclick = () => restoreFromQuarantine(it.item_id);
+          row.appendChild(lbl);
+          row.appendChild(btn);
+          list.appendChild(row);
+        });
+      } catch (e) { sum.textContent = 'Error cargando cuarentena.'; }
+    }
+
+    async function isolateFileToQuarantine() {
+      const inp = document.getElementById('quarantinePathInput');
+      const sum = document.getElementById('quarantineSummary');
+      const filePath = (inp && inp.value || '').trim();
+      if (!filePath) return;
+      try {
+        const res = await fetch('/api/quarantine/isolate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({file_path: filePath, reason: 'ui_manual', execute: true})
+        });
+        const d = await res.json();
+        if (d.success) {
+          inp.value = '';
+          sum.textContent = `Aislado (${d.item_id}) con SHA-256 verificado.`;
+          loadQuarantine();
+        } else {
+          sum.textContent = d.error || 'No se pudo aislar el archivo.';
+        }
+      } catch (e) { sum.textContent = 'Error aislando archivo.'; }
+    }
+
+    async function restoreFromQuarantine(itemId) {
+      const sum = document.getElementById('quarantineSummary');
+      try {
+        const res = await fetch('/api/quarantine/restore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({item_id: itemId, execute: true})
+        });
+        const d = await res.json();
+        sum.textContent = d.success ? `Restaurado ${itemId} con integridad SHA-256.` : (d.error || 'Error al restaurar.');
+        loadQuarantine();
+      } catch (e) { sum.textContent = 'Error restaurando archivo.'; }
+    }
+
+    async function loadHermesInsights() {
+      const el = document.getElementById('hermesSummary');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/hermes/insights');
+        const d = await res.json();
+        const rate = d.real_pass_rate_pct !== undefined ? d.real_pass_rate_pct : (d.historical_pass_rate_pct !== undefined ? d.historical_pass_rate_pct : 0);
+        const plans = d.total_plans_evaluated !== undefined ? d.total_plans_evaluated : (d.total_plans || 0);
+        const avgScore = d.avg_plan_score !== undefined ? d.avg_plan_score : 0;
+        const hi = Array.isArray(d.high_confidence_strategies) ? d.high_confidence_strategies.length : 0;
+        el.textContent = `Éxito real: ${rate}% | Planes: ${plans} | Score: ${avgScore} | Estrategias+: ${hi}`;
+      } catch (e) { el.textContent = 'No se pudieron cargar los insights de Hermes.'; }
+    }
+
+    function startMiniMatrixPreview() {
+      const c = document.getElementById('matrixMiniCanvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const cols = 10;
+      const drops = Array(cols).fill(1);
+      const chars = '01ｱｲｳｴｵｶｷｸｹｺXYZ';
+      setInterval(() => {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '9px monospace';
+        drops.forEach((y, i) => {
+          const ch = chars[Math.floor(Math.random() * chars.length)];
+          ctx.fillText(ch, i * 8, y * 9);
+          drops[i] = (y * 9 > c.height && Math.random() > 0.85) ? 0 : y + 1;
+        });
+      }, 90);
+    }
+
+    async function loadMatrixWallpaperStatus() {
+      const el = document.getElementById('matrixWallpaperStatus');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/wallpaper/status');
+        const d = await res.json();
+        el.textContent = d.running
+          ? `Activo en escritorio (${d.platform} · ${d.mode}, PID ${d.pid})`
+          : `Inactivo (${d.platform} · ${d.mode} listo)`;
+      } catch (e) { el.textContent = 'No se pudo consultar el fondo Matrix.'; }
+    }
+
+    async function toggleMatrixWallpaper(enable) {
+      const el = document.getElementById('matrixWallpaperStatus');
+      if (el) el.textContent = enable ? 'Iniciando lluvia Matrix en escritorio...' : 'Deteniendo fondo Matrix...';
+      try {
+        await fetch('/api/wallpaper/matrix', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled: enable, execute: true})
+        });
+        loadMatrixWallpaperStatus();
+      } catch (e) { if (el) el.textContent = 'Error cambiando estado del fondo Matrix.'; }
+    }
+
+    async function loadAutonomyStatus() {
+      const el = document.getElementById('autonomySummary');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/autonomy/status');
+        const d = await res.json();
+        const dns = d.sovereign_dns || {};
+        const mp = d.multipath || {};
+        el.textContent = `DNS Soberano: ${dns.running ? 'Activo (' + dns.listen + ')' : 'Listo (' + (dns.listen || '127.0.0.1:5353') + ')'} | Bloqueados: ${dns.blocked_total || 0} | Multipath: ${mp.failover_available ? 'Listo' : '1 enlace'}`;
+      } catch (e) { el.textContent = 'No se pudo cargar el control autónomo.'; }
+    }
+
+    async function toggleSovereignDns(enable) {
+      const el = document.getElementById('autonomySummary');
+      try {
+        await fetch('/api/autonomy/sovereign-dns', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled: enable, execute: true})
+        });
+        loadAutonomyStatus();
+      } catch (e) { if (el) el.textContent = 'Error activando DNS Soberano.'; }
+    }
+
+    async function applyAppQos() {
+      const el = document.getElementById('autonomySummary');
+      try {
+        const res = await fetch('/api/autonomy/qos', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({execute: true})
+        });
+        const d = await res.json();
+        if (el) el.textContent = `QoS DSCP aplicado: ${d.applied_count || 0} políticas activas (${d.platform}).`;
+      } catch (e) { if (el) el.textContent = 'Error aplicando políticas QoS.'; }
+    }
+
+    async function toggleOsAutostart(enable) {
+      const el = document.getElementById('autonomySummary');
+      try {
+        const res = await fetch('/api/autonomy/service', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled: enable, execute: true})
+        });
+        const d = await res.json();
+        if (el) el.textContent = d.success ? `Auto-arranque OS (${d.service_name}) configurado.` : (d.output || 'Requiere permisos.');
+      } catch (e) { if (el) el.textContent = 'Error configurando auto-arranque.'; }
+    }
+
     window.onload = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('omninet_chat_history_v1') || '[]');
+        if (Array.isArray(saved) && saved.length) {
+          chatHistory = saved.slice(-30);
+          chatHistory.forEach(m => {
+            if (m && m.content) appendMessage(m.role === 'user' ? 'user' : 'agent', m.content);
+          });
+        }
+      } catch (e) {}
       refreshSimpleCards();
       loadLicenseStatus();
       loadSubagents();
+      loadImpactComparison();
+      loadMeshStatus();
+      loadQuarantine();
+      loadHermesInsights();
+      startMiniMatrixPreview();
+      loadMatrixWallpaperStatus();
+      loadAutonomyStatus();
     };
 
   </script>
@@ -1297,11 +1671,18 @@ def interactive_menu():
 
 def main():
     if len(sys.argv) == 1:
-        # When double-clicked or run without arguments, automatically launch the Web UI & open browser
+        # When double-clicked or run without arguments, automatically launch the Web UI / System Tray
         if sys.stdin and not sys.stdin.isatty() and not getattr(sys, "frozen", False):
             import mcp_server
             mcp_server.main()
             return
+        if getattr(sys, "frozen", False):
+            try:
+                from netopt.tray import run_tray_app
+                run_tray_app(port=8877, server_starter=start_api_server, live_autorepair=True)
+                return
+            except Exception:
+                pass
         start_api_server(8877, open_browser=True)
         return
 
@@ -1311,6 +1692,9 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
     
     # Delegate to subcommands
+    p_status = subparsers.add_parser("status", help="Show quick, simple health summary")
+    p_status.add_argument("--json", action="store_true")
+
     p_diag = subparsers.add_parser("diagnose", help="Run network diagnostics")
     p_diag.add_argument("--json", action="store_true")
 
@@ -1335,6 +1719,11 @@ def main():
     p_serve = subparsers.add_parser("serve", help="Run HTTP REST API server")
     p_serve.add_argument("--port", type=int, default=8877)
     p_serve.add_argument("--no-browser", action="store_true")
+    p_serve.add_argument("--live-autorepair", action="store_true", help="Enable Zero NetLoss live auto-repair")
+
+    p_tray = subparsers.add_parser("tray", help="Run OmniNet in system tray with background server")
+    p_tray.add_argument("--port", type=int, default=8877)
+    p_tray.add_argument("--live-autorepair", action="store_true", help="Enable Zero NetLoss live auto-repair")
 
     p_menu = subparsers.add_parser("menu", help="Run interactive CLI menu")
 
@@ -1349,10 +1738,28 @@ def main():
         import mcp_server
         mcp_server.main()
     elif args.command == "serve":
+        if not (1 <= args.port <= 65535):
+            parser.error(f"--port must be between 1 and 65535 (got {args.port})")
+        if getattr(args, "live_autorepair", False):
+            os.environ["OMNINET_ALLOW_LIVE_AUTOREPAIR"] = "1"
         start_api_server(args.port, open_browser=not getattr(args, "no_browser", False))
+    elif args.command == "tray":
+        if not (1 <= args.port <= 65535):
+            parser.error(f"--port must be between 1 and 65535 (got {args.port})")
+        from netopt.tray import run_tray_app
+        run_tray_app(
+            port=args.port,
+            server_starter=start_api_server,
+            live_autorepair=bool(getattr(args, "live_autorepair", False)),
+        )
     elif args.command == "menu":
         interactive_menu()
     else:
+        if args.command == "daemon":
+            if args.interval < 5:
+                parser.error(f"--interval must be at least 5 seconds (got {args.interval})")
+            if args.cycles is not None and args.cycles < 1:
+                parser.error(f"--cycles must be >= 1 (got {args.cycles})")
         # Re-use netopt.cli logic
         from netopt.cli import main as cli_main
         cli_main()

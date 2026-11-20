@@ -1,5 +1,11 @@
 # Registro histórico de tareas cerradas
 
+## 2026-11-20 — Ciclos 274–285: Matriz 3D, RFC 9957/9959, PQC `X25519MLKEM768`, Seguridad Cloud/MCP/Hermes
+- **Diseño Matrix 3D (`/matrix` en `netopt/fastapi_app.py`)**: Corredor 3D texturizado con lluvia Matrix en tiempo real (`createMatrixRainTexture`), `UnrealBloomPass` y 3 siluetas humanas luminosas (`createCodeHuman`, `emissiveIntensity: 2.45`, `figureRimLight`), verificado en Chrome sin errores.
+- **Vigilancia RFC & PQC (`netopt/diagnostics.py`, `netopt/sovereign_dns.py`)**: Añadidos `check_rfc9959_careful_resume_and_rfc9957_l4s_queue_protection_status()`, `check_pqc_tls13_x25519mlkem768_mtu_readiness()`, y failover automático DoH (`fallback_doh` `1.1.1.1` → `dns.google`) + guardia contra punteros comprimidos malformados.
+- **Seguridad & Robustez (`cloud_server/proxy_server.py`, `mcp_server.py`, `hermes/`, `main.py`)**: Cabeceras de seguridad (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store`) y `do_OPTIONS`; rechazo JSON-RPC `-32602` / `isError` + `_safe_target()` en MCP; `critical_failed` en `hermes/reflect.py` y `bounded_iters <= 5` + fallback post-diagnóstico en `hermes/cognitive_loop.py`; cotas CLI `daemon --interval >= 5` / `--cycles >= 1` en `main.py`.
+- **Estado de Handoff**: Suite completa `230/230` OK (Ciclo 282) + 3 regresiones en Ciclos 283–285 (`tests.test_innovations`, `tests.test_hermes_cognitive` aprobados), `git diff --check` limpio, siguiente rotación **Ciclo Macro 286** (`tests/`+`docs/`+`.continuity/` + Suite Completa).
+
 ## 2026-11-14 — Ciclo 120: Concurrencia y Contención de Errores en `HermesOrchestrator` (`hermes/orchestrator.py`)
 - **Auditoría y Corrección (`hermes/orchestrator.py`)**: Se protegió `active_sessions` con `_sessions_lock` (`threading.RLock`, tope 200 sesiones), se acotó `max_workers` (`[1, 16]`) con retorno temprano para listas vacías en `delegate_parallel()`, y se contuvieron excepciones de `run_turn()` en `spawn_session()`.
 - **Pruebas Reales In Situ**: `run_real_device_empirical_probes()` ejecutado (`192.168.1.1`, `41.22 ms`, jitter `1.08 ms`, pérdida `0.0%`, bufferbloat `A+`, delta `4.45 ms`, Wi-Fi `100%` 5 GHz, `116` sockets TCP, `34` UDP, `3` dispositivos ARP).

@@ -73,7 +73,7 @@ class TestAntiHallucinationComprehensive(unittest.TestCase):
     # 2. Paridad total de herramientas MCP (Anti-Phantom-Tools)
     def test_mcp_tools_manifest_dispatch_parity(self):
         tools = load_tools_schema()
-        self.assertEqual(len(tools), 15, "tools_manifest.json must declare exactly 15 tools")
+        self.assertEqual(len(tools), 17, "tools_manifest.json must declare exactly 17 tools")
 
         tool_names = [t["name"] for t in tools]
         self.assertEqual(len(tool_names), len(set(tool_names)), "All tool names in manifest must be unique")
@@ -152,9 +152,9 @@ class TestAntiHallucinationComprehensive(unittest.TestCase):
         with open(os.path.join(root_dir, "README.md"), "r", encoding="utf-8") as f:
             readme = f.read()
 
-        # Debe documentar 10 sub-agentes, 15 herramientas MCP y suite de tests completa
+        # Debe documentar 10 sub-agentes, 17 herramientas MCP y suite de tests completa
         self.assertIn("10 Sub-Agentes", readme)
-        self.assertIn("15 herramientas MCP", readme)
+        self.assertIn("17 herramientas MCP", readme)
         self.assertNotIn("Manifiesto de 12 herramientas MCP", readme)
 
     # 6. Aborto obligatorio ante fallo de Snapshot en Zero NetLoss

@@ -84,13 +84,15 @@ class HermesMemory:
         }
 
     def _load(self) -> Dict[str, Any]:
-        os.makedirs(os.path.dirname(self.memory_path), exist_ok=True)
+        mem_dir = os.path.dirname(os.path.abspath(self.memory_path)) or "."
+        os.makedirs(mem_dir, exist_ok=True)
         defaults = self._default_state()
         if os.path.exists(self.memory_path):
             try:
                 with open(self.memory_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    defaults.update(data)
+                    if isinstance(data, dict):
+                        defaults.update(data)
             except Exception:
                 pass
         return defaults

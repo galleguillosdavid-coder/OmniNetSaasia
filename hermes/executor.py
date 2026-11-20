@@ -84,10 +84,23 @@ class HermesExecutor:
         reg("hermes_pqc_audit", "Auditoría de Criptografía Poscuántica (PQC TLS 1.3 / ML-KEM).", {}, self._tool_pqc_audit)
         reg("hermes_encrypted_dns_discovery", "Autodescubrimiento de Resolvers Cifrados (RFC 9463 DDR & RFC 9540 DNR).", {}, self._tool_encrypted_dns_discovery)
         reg("hermes_dns_error_reporting", "Auditoría de Reporte de Errores DNS (RFC 9578 DNER & RFC 8914 EDE).", {}, self._tool_dns_error_reporting)
+        reg("hermes_ai_defense_audit", "Auditoría de Defensa Cibernética IA (procesos temp, listeners y ARP).", {}, self._tool_ai_defense_audit)
+        reg("hermes_multipath_failover", "Evaluación y conmutación multipath Wi-Fi/Ethernet/USB.", {}, self._tool_multipath_failover)
         reg("hermes_verify_health", "Verificación Zero NetLoss post-acción.", {}, self._tool_verify)
 
     def _do_exec(self) -> bool:
         return bool(self._ctx.get("do_exec", False))
+
+    def _tool_ai_defense_audit(self) -> Dict[str, Any]:
+        from netopt.ai_defense import audit_ai_threats
+        res = audit_ai_threats()
+        ok = res.get("threat_level") != "HIGH"
+        return {"success": True, "criterion_met": ok, "threat_level": res.get("threat_level"), "risk_score": res.get("risk_score")}
+
+    def _tool_multipath_failover(self) -> Dict[str, Any]:
+        from netopt.virtual_mesh import evaluate_multipath_failover
+        res = evaluate_multipath_failover(hal=self.hal, primary_degraded=False, execute=self._do_exec())
+        return {"success": True, "criterion_met": True, **res}
 
     def _tool_baseline(self) -> Dict[str, Any]:
         base = self.rollback_mgr.capture_baseline()

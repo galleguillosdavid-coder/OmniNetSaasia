@@ -84,13 +84,20 @@ class HermesCognitiveLoop:
                                       executed_for_real=False)
         excluded: Set[str] = set()
         current = diag
-        for i in range(1, max(1, max_iterations) + 1):
+        bounded_iters = min(5, max(1, int(max_iterations)))
+        for i in range(1, bounded_iters + 1):
             current = current or run_full_diagnostics()
             plan = self.planner.foresee(goal, current, self.evaluator.reflections_state(), excluded)
             exe = self.executor.execute(plan, diag=current, execute=execute)
             report.executed_for_real = report.executed_for_real or exe.executed_for_real
             # Only re-measure after real changes; in dry-run the state is unchanged by definition
-            after = run_full_diagnostics() if exe.executed_for_real else current
+            if exe.executed_for_real:
+                try:
+                    after = run_full_diagnostics()
+                except Exception:
+                    after = current
+            else:
+                after = current
             refl = self.evaluator.evaluate(plan, exe, health_after=after.overall_health.value)
             report.iterations.append(CognitiveIteration(i, plan, exe, refl))
             if not refl.should_replan:

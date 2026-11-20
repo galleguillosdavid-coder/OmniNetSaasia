@@ -102,9 +102,8 @@ class HermesOrchestrator:
         )
         self._record_session(session)
 
-        cfg = HermesHarnessConfig(
-            provider=self.default_config.provider,
-            model=model or self.default_config.model
+        cfg = self.default_config.model_copy(
+            update={"model": model or self.default_config.model}
         )
         harness = HermesAgentHarness(config=cfg)
 
@@ -176,7 +175,10 @@ class HermesOrchestrator:
         """Synthesizes parallel subagent results into a coherent multi-agent executive brief."""
         total = len(sessions)
         succeeded = sum(1 for s in sessions if s.status == "completed")
-        summaries = [f"[{s.role}]: {s.result.content if s.result else 'Sin salida'}" for s in sessions]
+        summaries = [
+            f"[{s.role}]: {(s.result.content or (f'Error: {s.result.error}' if s.result.error else 'Sin salida')) if s.result else 'Sin salida'}"
+            for s in sessions
+        ]
 
         return {
             "total_subagents_spawned": total,

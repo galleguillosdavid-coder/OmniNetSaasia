@@ -229,6 +229,29 @@
         },
         "required": []
       }
+    },
+    {
+      "name": "ai_defense_audit",
+      "description": "Audits active processes, temp-dir network connections, wildcard listeners, and ARP LAN anomalies to detect AI-era threats and C2 beaconing.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "ai_defense_check_url",
+      "description": "Inspects a URL or domain for AI-crafted phishing traits including Punycode (xn--), leetspeak/homoglyph brand impersonation, raw IP hosts, and risky TLDs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL or domain name to inspect."
+          }
+        },
+        "required": ["url"]
+      }
     }
   ]
 }

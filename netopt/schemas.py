@@ -122,3 +122,41 @@ class LLMConfigUpdateRequest(BaseModel):
     max_tokens: Optional[int] = Field(default=None, ge=1, le=32768, description="Maximum response tokens")
 
 
+class UrlCheckRequest(BaseModel):
+    """Schema for AI phishing / lookalike URL inspection."""
+    url: str = Field(..., min_length=1, max_length=2048)
+
+
+class QuarantineIsolateRequest(BaseModel):
+    """Schema for reversible file quarantine isolation."""
+    model_config = ConfigDict(extra="ignore")
+
+    file_path: str = Field(..., min_length=1, max_length=1024)
+    reason: str = Field(default="manual", max_length=256)
+    execute: bool = Field(default=False)
+
+
+class QuarantineRestoreRequest(BaseModel):
+    """Schema for restoring a quarantined file with SHA-256 verification."""
+    model_config = ConfigDict(extra="ignore")
+
+    item_id: str = Field(..., min_length=1, max_length=64)
+    execute: bool = Field(default=False)
+
+
+class WallpaperToggleRequest(BaseModel):
+    """Schema for toggling animated Matrix desktop wallpaper (Windows/Linux)."""
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = Field(default=True)
+    execute: bool = Field(default=False)
+
+
+class AutonomyToggleRequest(BaseModel):
+    """Schema for toggling Sovereign DNS or OS persistent autostart service."""
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = Field(default=True)
+    execute: bool = Field(default=False)
+
+

@@ -11,6 +11,7 @@ import re
 import time
 import uuid
 import socket
+import tempfile
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 from .models import SnapshotState, PlatformType
@@ -49,11 +50,11 @@ class RollbackManager:
             files = [
                 os.path.join(SNAPSHOT_DIR, f)
                 for f in os.listdir(SNAPSHOT_DIR)
-                if f.endswith(".json")
+                if f.endswith(".json") and os.path.isfile(os.path.join(SNAPSHOT_DIR, f))
             ]
             if len(files) <= limit:
                 return 0
-            files.sort(key=lambda p: os.path.getmtime(p))
+            files.sort(key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0.0)
             to_delete = files[:-limit] if limit > 0 else files
             removed = 0
             for fpath in to_delete:
@@ -113,16 +114,24 @@ class RollbackManager:
 
         file_path = os.path.join(SNAPSHOT_DIR, f"{snapshot_id}.json")
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "snapshot_id": snap.snapshot_id,
-                    "timestamp": snap.timestamp,
-                    "platform": snap.platform.value,
-                    "dns_settings": snap.dns_settings,
-                    "tcp_parameters": snap.tcp_parameters,
-                    "mtu_settings": snap.mtu_settings,
-                    "description": snap.description
-                }, f, indent=2)
+            os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+            fd, tmp_path = tempfile.mkstemp(dir=SNAPSHOT_DIR, prefix=".snap_", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump({
+                        "snapshot_id": snap.snapshot_id,
+                        "timestamp": snap.timestamp,
+                        "platform": snap.platform.value,
+                        "dns_settings": snap.dns_settings,
+                        "tcp_parameters": snap.tcp_parameters,
+                        "mtu_settings": snap.mtu_settings,
+                        "description": snap.description
+                    }, f, indent=2)
+                os.replace(tmp_path, file_path)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
             self.prune_snapshots()
         except Exception:
             pass

@@ -60,7 +60,7 @@ class ReflectEvaluator:
         h_after = (health_after or h_before).lower()
         regressed = HEALTH_RANK.get(h_after, 0) > HEALTH_RANK.get(h_before, 0)
         critical_failed = any(steps_by_id.get(r.step_id) and steps_by_id[r.step_id].critical
-                              and r.status == FAILED for r in results)
+                              for r in failed)
 
         if report.rolled_back or critical_failed or (report.executed_for_real and regressed):
             verdict = "FAIL"
@@ -147,6 +147,8 @@ class ReflectEvaluator:
 
         pass_count = sum(1 for h in history if h.get("verdict") in ("PASS", "SIMULATED"))
         pass_rate_pct = round(100.0 * pass_count / total_plans, 2) if total_plans else 0.0
+        real_pass_count = sum(1 for h in real_plans if h.get("verdict") == "PASS")
+        real_pass_rate_pct = round(100.0 * real_pass_count / len(real_plans), 2) if real_plans else 0.0
 
         high_confidence = []
         penalized = []
@@ -165,6 +167,7 @@ class ReflectEvaluator:
             "total_plans_evaluated": total_plans,
             "real_execution_plans": len(real_plans),
             "historical_pass_rate_pct": pass_rate_pct,
+            "real_pass_rate_pct": real_pass_rate_pct,
             "avg_plan_score": avg_score,
             "total_strategies_tracked": len(strategies),
             "high_confidence_strategies": sorted(high_confidence),

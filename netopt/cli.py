@@ -16,6 +16,31 @@ from .repair import NetworkRepairEngine
 from .rollback import RollbackManager, SNAPSHOT_DIR
 from .persistence import NetworkDaemon
 from .hal import get_hal, detect_platform
+from .telemetry import run_real_device_empirical_probes
+from .elevation import is_elevated
+
+
+def format_simple_status(probe: dict) -> str:
+    """Formats a concise, human-friendly summary from empirical telemetry."""
+    wifi_str = (
+        f"Wi-Fi {probe.get('wifi_band') or ''} ({probe.get('wifi_signal_pct')}%)"
+        if probe.get("is_wifi")
+        else "Ethernet"
+    )
+    anomalies = probe.get("arp_anomalies") or []
+    lan_str = f"{probe.get('arp_devices_count', 0)} dispositivo(s)"
+    if anomalies:
+        lan_str += f" [ALERTA: {len(anomalies)} anomalía(s)]"
+    admin_str = "Sí (Listo para optimizar)" if probe.get("admin_elevated") else "No (Modo solo lectura/simulación)"
+    lines = [
+        f"OmniNet v{probe.get('app_version', '?')} - Estado Rápido",
+        f"  Internet   : Ping {probe.get('ping_avg_ms')} ms | Jitter {probe.get('jitter_ms')} ms | Pérdida {probe.get('packet_loss_pct')}% | Bufferbloat {probe.get('bufferbloat_grade')}",
+        f"  Conexión   : {wifi_str} | DNS {probe.get('dns_resolution_ms', 0):.1f} ms | Gateway {probe.get('gateway')}",
+        f"  Red Local  : {lan_str} | Sockets {probe.get('total_tcp_sockets')} TCP / {probe.get('total_udp_sockets')} UDP",
+        f"  Privilegios: {admin_str}",
+        "  Dashboard  : http://127.0.0.1:8877 (o ejecuta OmniNet.bat)",
+    ]
+    return "\n".join(lines)
 
 
 def format_diagnostics(diag) -> str:
@@ -55,6 +80,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # status (simple human-friendly summary)
+    status_parser = subparsers.add_parser("status", help="Show a quick, simple health summary")
+    status_parser.add_argument("--json", action="store_true", help="Output raw JSON")
+
     # diagnose
     diag_parser = subparsers.add_parser("diagnose", help="Run non-destructive network health sweep")
     diag_parser.add_argument("--json", action="store_true", help="Output raw JSON")
@@ -87,13 +116,25 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if args.command == "diagnose":
+    if args.command == "status":
+        probe = run_real_device_empirical_probes()
+        probe["admin_elevated"] = is_elevated()
+        if args.json:
+            print(json.dumps(probe, indent=2, default=str))
+        else:
+            print(format_simple_status(probe))
+
+    elif args.command == "diagnose":
         diag = run_full_diagnostics()
         if args.json:
             print(json.dumps({
                 "platform": diag.platform.value,
                 "overall_health": diag.overall_health.value,
-                "active_interface": diag.active_interface,
+                "active_interface": (
+                    diag.active_interface
+                    if isinstance(diag.active_interface, str)
+                    else (vars(diag.active_interface) if diag.active_interface else None)
+                ),
                 "default_gateway": diag.default_gateway,
                 "gateway_reachable": diag.gateway_reachable,
                 "internet_reachable": diag.internet_reachable,
@@ -103,7 +144,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "anomalies": diag.anomalies,
                 "latency_metrics": {k: vars(v) for k, v in diag.latency_metrics.items()},
                 "dns_benchmarks": [vars(b) for b in diag.dns_benchmarks]
-            }, indent=2))
+            }, indent=2, default=str))
         else:
             print(format_diagnostics(diag))
 

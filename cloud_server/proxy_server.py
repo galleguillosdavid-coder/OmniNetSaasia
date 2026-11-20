@@ -24,6 +24,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List, Callable, Iterator, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from netopt import __version__ as OMNINET_VERSION
 from netopt.licensing import generate_signed_license_key, verify_signed_license_key, PLAN_CATALOG
 from netopt.adapters import HttpClientAdapter
 from netopt.schemas import LicenseActivationRequest, TelemetryReport, CloudChatRequest
@@ -496,11 +497,28 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
             return None, None
         return raw_body, parsed
 
+    def _send_common_security_headers(self, is_api: bool = True):
+        """Emit standard hardening headers on all Cloud SaaS responses."""
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        if is_api:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Signature, Stripe-Signature")
+            self.send_header("Cache-Control", "no-store")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._send_common_security_headers(is_api=True)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def send_json(self, status: int, payload: Dict[str, Any]):
         body = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_common_security_headers(is_api=True)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -519,13 +537,92 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/problem+json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_common_security_headers(is_api=True)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_html(self, status: int, html: str):
+        body = html.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self._send_common_security_headers(is_api=False)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path == "/v1/admin/stats":
+        if self.path in ("/", "/index.html"):
+            landing = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OmniNet AI SaaS — Free Full & Cloud Pro</title>
+<style>
+body{{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#020617;color:#e2e8f0;line-height:1.5}}
+.wrap{{max-width:980px;margin:0 auto;padding:40px 20px}}
+.badge{{display:inline-block;padding:4px 12px;border-radius:999px;background:#0f172a;border:1px solid #334155;font-size:12px;color:#38bdf8}}
+h1{{font-size:2.2rem;margin:14px 0 8px}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:26px}}
+.card{{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:22px}}
+.pro{{border-color:#0ea5e9}}
+ul{{padding-left:18px;font-size:14px;color:#cbd5e1}}
+.price{{font-size:1.7rem;font-weight:800;margin:8px 0}}
+a.btn{{display:inline-block;margin-top:10px;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px}}
+.b-free{{background:#10b981;color:#022c22}}
+.b-pro{{background:#0284c7;color:#fff}}
+.pulse{{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 14px;border-radius:10px;background:#0f172a;border:1px solid #1e293b;font-size:13px;color:#86efac}}
+.meta{{margin-top:28px;font-size:12px;color:#94a3b8}}
+</style></head><body><div class="wrap">
+<span class="badge">OmniNet Global SaaS · v{OMNINET_VERSION}</span>
+<h1>Optimización Autónoma de Red y Defensa IA para Todo el Mundo</h1>
+<p>Dos ediciones completas: descarga y usa la <strong>Edición Gratuita Full</strong> sin límites locales, o activa la <strong>Edición Cloud SaaS Pagada Full</strong> para IA administrada y flotas multi-dispositivo.</p>
+<div id="livePulse" class="pulse">⚡ Red Global OmniNet: conectando telemetría en vivo...</div>
+<div class="grid">
+  <div class="card">
+    <h2>🆓 Edición Gratuita Full (Local-First)</h2>
+    <div class="price">$0 USD <small>/ para siempre</small></div>
+    <ul>
+      <li>Optimización TCP/UDP/DNS/QUIC + Zero NetLoss + Auto-Rollback</li>
+      <li>Escudo Anti-Hackeos con IA + Cuarentena Reversible SHA-256</li>
+      <li>Red Mesh Virtual (<code>wintun.dll</code>) + 10 Sub-Agentes + Auto-Cuidado 10m</li>
+      <li>Asistente Cognitivo Hermes local + BYOK / Ollama ilimitado + 5 consultas Cloud de prueba</li>
+    </ul>
+    <a class="btn b-free" href="/v1/plans">Ver Especificación Free Full (JSON)</a>
+  </div>
+  <div class="card pro">
+    <h2>💎 Edición Pagada Full (Cloud SaaS Pro / Pyme)</h2>
+    <div class="price">$4.99 - $12.99 USD <small>/ mes</small></div>
+    <ul>
+      <li>Todo lo de la Edición Gratuita Full sin restricciones</li>
+      <li>IA Cloud Administrada ilimitada (sin necesitar tu propia API Key)</li>
+      <li>Licencia multi-dispositivo (1 PC Pro · 5 PCs Hogar / Pyme)</li>
+      <li>Telemetría global agregada y prioridad de soporte SaaS</li>
+    </ul>
+    <a class="btn b-pro" href="/v1/telemetry/stats">Ver Telemetría Global en Vivo</a>
+  </div>
+</div>
+<div class="meta">Endpoints públicos: <code>GET /health</code> · <code>GET /v1/plans</code> · <code>POST /v1/license/activate</code> · <code>POST /v1/chat</code> · <code>POST /v1/telemetry/report</code></div>
+<script>fetch('/v1/telemetry/stats').then(r=>r.json()).then(d=>{{const el=document.getElementById('livePulse');if(el)el.textContent=`🌐 Red Global Activa · Dispositivos: ${{d.total_devices||0}} · Latencia promedio: ${{d.avg_latency_ms||'--'}} ms`;}}).catch(()=>{{}});</script>
+</div></body></html>"""
+            self.send_html(200, landing)
+        elif self.path == "/health":
+            self.send_json(200, {
+                "status": "ok",
+                "service": "OmniNet Global SaaS Cloud Proxy",
+                "version": OMNINET_VERSION,
+                "supabase_connected": is_supabase_configured()
+            })
+        elif self.path == "/v1/plans":
+            from netopt.licensing import PLAN_CATALOG
+            self.send_json(200, {
+                "service": "OmniNet Global SaaS",
+                "editions": {
+                    "free_full": PLAN_CATALOG["free"],
+                    "paid_pro": PLAN_CATALOG["pro"],
+                    "paid_family": PLAN_CATALOG["family"],
+                },
+                "plans": PLAN_CATALOG
+            })
+        elif self.path == "/v1/admin/stats":
             # OMNI-022: Fail-Closed. Endpoint administrativo deshabilitado si OMNINET_ADMIN_KEY no está configurado
             if not ADMIN_SECRET_KEY:
                 self.send_json(503, {"error": "Endpoint administrativo deshabilitado: OMNINET_ADMIN_KEY no configurado en servidor (Fail-Closed)."})
@@ -817,7 +914,7 @@ class OmniNetCloudProxyHandler(BaseHTTPRequestHandler):
                 "active_interface": str(telem_req.active_interface or data.get("active_interface", "unknown")),
                 "subagents_status": data.get("subagents_status", {}),
                 "is_wifi7": bool(telem_req.is_wifi7 or False),
-                "app_version": str(telem_req.app_version or "2.9.6")
+                "app_version": str(telem_req.app_version or OMNINET_VERSION)
             }
             try:
                 append_global_telemetry(telemetry_entry)
@@ -970,6 +1067,10 @@ def run_cloud_server(port: int = 9988, host: Optional[str] = None):
 
 
 if __name__ == "__main__":
-    p = int(os.environ.get("PORT", "9988"))
-    run_cloud_server(p)
+    import argparse
+    parser = argparse.ArgumentParser(description="OmniNet Global SaaS Cloud Proxy")
+    parser.add_argument("--host", default=os.environ.get("OMNINET_CLOUD_HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "9988")))
+    args = parser.parse_args()
+    run_cloud_server(port=args.port, host=args.host)
 

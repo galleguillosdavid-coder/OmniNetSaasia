@@ -245,6 +245,54 @@ class TestMatureAdapters(unittest.TestCase):
         self.assertEqual(diag_res["total_udp"], 1)
         self.assertIn("ESTABLISHED", diag_res["states"])
 
+    def test_http_client_adapter_bound_timeout_rejects_nan_inf_bool(self):
+        from netopt.adapters import HttpClientAdapter
+        self.assertEqual(HttpClientAdapter._bound_timeout(float("nan")), 8.0)
+        self.assertEqual(HttpClientAdapter._bound_timeout(float("inf")), 8.0)
+        self.assertEqual(HttpClientAdapter._bound_timeout(True), 8.0)
+        self.assertEqual(HttpClientAdapter._bound_timeout(0.01), 0.1)
+        self.assertEqual(HttpClientAdapter._bound_timeout(500.0), 120.0)
+
+    def test_windows_network_services_health_audit(self):
+        from netopt.diagnostics import check_windows_network_services_health
+        fake_running = MagicMock()
+        fake_running.status.return_value = "running"
+        fake_running.start_type.return_value = "automatic"
+        fake_stopped = MagicMock()
+        fake_stopped.status.return_value = "stopped"
+        fake_stopped.start_type.return_value = "manual"
+
+        def _fake_get(name):
+            return fake_running if name in ("Dnscache", "Dhcp", "Netman", "NlaSvc", "WlanSvc", "DoSvc") else fake_stopped
+
+        with patch("sys.platform", "win32"), \
+             patch("psutil.win_service_get", side_effect=_fake_get):
+            res = check_windows_network_services_health()
+            self.assertTrue(res["supported"])
+            self.assertTrue(res["all_vital_running"])
+            self.assertEqual(res["background_active"], ["DoSvc"])
+
+    def test_native_drivers_audit_and_subagent_badge(self):
+        from netopt.ecosystem_subagents import EcosystemOrchestrator
+        orch = EcosystemOrchestrator()
+        with patch.object(orch.device_engine, "_find_sdio_binary", return_value=None), \
+             patch.object(orch.device_engine, "audit_native_drivers", return_value={
+                 "available": True, "motor": "Windows PnP Nativo (pnputil)", "problem_devices_count": 0, "status": "OK"
+             }):
+            res = orch.run_drivers_subagent(execute=False)
+            self.assertEqual(res["driver_status"], "UNAVAILABLE")
+            self.assertTrue(res["native_engine"]["available"])
+            with patch.object(orch, "run_antivirus_subagent", return_value={"real_time_protection": True, "am_service_enabled": True}):
+                statuses = {s["id"]: s for s in orch.get_all_subagents_status()}
+                self.assertEqual(statuses["drivers"]["status"], "Al Día (Nativo)")
+                self.assertEqual(statuses["drivers"]["badge"], "PnP / OS Nativo")
+
+    def test_software_catalog_includes_all_ecosystem_motors(self):
+        from netopt.software_catalog import SOFTWARE_REGISTRY, find_matching_software
+        for key in ("bleachbit", "restic", "sdio", "clamav", "librehardwaremonitor", "bcuninstaller"):
+            self.assertIn(key, SOFTWARE_REGISTRY)
+            self.assertTrue(len(find_matching_software(key)) >= 1)
+
 
 if __name__ == "__main__":
     unittest.main()

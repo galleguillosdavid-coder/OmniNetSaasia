@@ -78,6 +78,9 @@ def _supabase_request(
         return None
 
     sb_url = get_supabase_url()
+    parsed_sb = urllib.parse.urlparse(sb_url)
+    if parsed_sb.scheme.lower() not in ("http", "https") or not parsed_sb.netloc:
+        return None
     sb_key = get_supabase_key()
 
     headers = {

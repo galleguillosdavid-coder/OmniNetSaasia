@@ -1,30 +1,23 @@
-# Tarea activa
+# Tareas Reorganizadas por Ciclos y Sub-Ciclos (`DEC-006`)
 
-## Objetivo observable
-Ciclo 73: Formalizar e incorporar como directiva autónoma inviolable: redefinir las tareas autónomas frecuentemente y buscar soluciones activas más allá de lo evidente, utilizando internet y cualquier otro tipo de solución disruptiva (arquitecturas avanzadas, nuevos estándares RFC, optimizaciones de bajo nivel del kernel, adopción de bibliotecas de vanguardia, heurísticas cognitivas y refactorizaciones no convencionales), documentado en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `README.md`, manteniendo el 100% de tests aprobados (154/154 OK), el daemon FastAPI (:8877) y el ciclo de 40 minutos activos.
+## 1. Ciclos Periódicos (Programados vía `schedule`)
+- [ ] **Ciclo Macro (Cada 40 min, `DurationSeconds=2400`):** Rotación multimódulo (`netopt/`, `hermes/`, `cloud_server/`, `config/`+`main.py`+`mcp_server.py`, `tests/`, `docs/`+`.continuity/`), pruebas reales in situ (`run_real_device_empirical_probes()`), actualización de `.continuity/STATE.md` y reporte breve (3-5 viñetas).
+- [ ] **Sub-Ciclo Periódico de Vigilancia Antigravity (Cada 3er ciclo macro o diario):** Buscar actualizaciones, herramientas, skills, workflows y plugins de **Antigravity** (`antigravity-guide`, `agy-customizations`, `search_marketplace`, `search_web`) y aplicarlos de forma persistente (`run_workflow` para auditorías fan-out, `swarm` para refactors paralelos, `schedule` cron/timer, `invoke_subagent`).
+- [x] **Ciclo Micro-Software OmniNet (10 min / continuo):** `AutonomousTaskScheduler` + `AutoSentinel` activos bajo Zero NetLoss (`OMNI-038`).
 
-## Contexto que se debe consultar
-- `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`
-- `AGENTS.md`
-- `.continuity/STATE.md`
-- `.continuity/DECISIONS.md`
-- `PROJECT_STATE.md`
-- `docs/Auditorias/2.md`
-- `docs/Auditorias/3.md`
-- `docs/MIGRACION_BIBLIOTECAS.md`
+## 2. Sub-Ciclos por Necesidad (Reactivos / Event-Driven)
+- [ ] **Contención & Regresión:** Activar de inmediato ante cualquier test fallido, degradación empírica (`bufferbloat_grade >= C`, pérdida > 0%, anomalía ARP) o error de arranque (`main.py serve` / `cloud_server`).
+- [ ] **Auditoría de Seguridad & Persistencia:** Activar al modificar endpoints HTTP, esquemas Pydantic v2, firmas HMAC/Ed25519, locks transaccionales o rutas de mutación (`execute is True`).
 
-## Criterios de aceptación
-- [x] OMNI-038 implementado y verificado (3 tests en `test_autosentinel_safety.py`).
-- [x] Política Fail-Closed y unificación de versión v2.9.6 verificadas.
-- [x] Adaptadores maduros `psutil` y `httpx` implementados e integrados (`netopt/adapters.py`, `netopt/llm_gateway.py`, `cloud_server/proxy_server.py`, `netopt/licensing.py`).
-- [x] Esquemas Pydantic v2 integrados en `main.py`, `cloud_server/proxy_server.py` y `netopt/fastapi_app.py`.
-- [x] Estrategia y herramienta `resource_audit` integrada en Hermes Cognitive Loop (`hermes/foresee.py` y `hermes/executor.py`).
-- [x] Migración REST API hacia FastAPI/Uvicorn (`netopt/fastapi_app.py` y `main.py`) con 8 tests en `tests/test_fastapi_app.py`.
-- [x] Ejecución del mandato de adopción de bibliotecas maduras (`docs/MIGRACION_BIBLIOTECAS.md` y `docs/Auditorias/3.md`).
-- [x] Suite completa aprobada al 100% (154/154 OK).
-- [x] Telemetría in situ del host confirmada (ping 39.05 ms, jitter 1.2 ms, pérdida 0.0%, bufferbloat A+).
-- [x] Servidor Web UI activo en puerto 8877 bajo FastAPI/Uvicorn (`task-2630`).
-- [x] Documentación y estado del proyecto armonizados (README.md, AGENTS.md, AUTONOMOUS_OPERATIONAL_MANIFESTO.md a 154 tests).
-- [x] Temporizador autónomo de 40 min en ejecución (`task-2483`).
-- [ ] Implementación de OMNI-039 (Ed25519) tras recibir autorización e instrucciones detalladas.
-- - Comunicación concisa al usuario (máximo 3-5 líneas).
+## 3. Sub-Ciclos Ocasionales (Hitos / Mantenimiento Profundo)
+- [ ] **Suite Completa & Higiene Git:** Ejecutar `python -m unittest discover -s tests -v` (`233` tests), `git diff --check` y armonizar conteos/versiones en `README.md`, `AGENTS.md`, `docs/` y `.continuity/`.
+- [ ] **Migración Progresiva a Bibliotecas Maduras:** Sustituir código artesanal restante según `docs/Auditorias/3.md` apoyándose en `run_workflow` o subagentes `research`.
+
+## 4. Sub-Ciclos por Voluntad (Iniciativa Autónoma Disruptiva)
+- [ ] **Innovación RFC & Kernel (Más Allá de lo Evidente):** Investigar en Internet (L4S/TCP Prague, DoQ/DoH3, ECH, PQC `X25519MLKEM768`, Wi-Fi 7 MLO / Wi-Fi 8 UHR, NetAdapterCx/XDP, MASQUE/OHTTP) e incorporar nuevas capacidades en `netopt/` y `hermes/`.
+
+## Hitos Base Completados
+- [x] Documento de pendientes, alternativas seleccionables y guía operativa para el usuario (`docs/PENDIENTES_Y_ACCIONES_USUARIO.md`) creado y propagado a `AGENTS.md`, `README.md` y `.continuity/`.
+- [x] Remediación Auditoría H-01..H-10, Ed25519 y endurecimiento `execute is True` (Ciclos 120–131, `c63a1b7`, `207/207` tests OK).
+- [x] Migración FastAPI/Uvicorn (`netopt/fastapi_app.py`), Pydantic v2 (`netopt/schemas.py`), adaptadores `psutil`/`httpx` (`netopt/adapters.py`) y telemetría in situ (`netopt/telemetry.py`).
+- [x] Propagación de Arquitectura de Ciclos y Sub-Ciclos (`DEC-006` / `DEC-013`) en `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `.continuity/` y `memory/`.

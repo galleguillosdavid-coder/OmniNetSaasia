@@ -232,8 +232,9 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         insights = evaluator.summarize_learning_insights()
         self.assertEqual(insights["total_plans_evaluated"], 3)
         self.assertEqual(insights["real_execution_plans"], 2)
-        # Pass rate: 2 out of 3 = 66.67%
+        # Pass rate: 2 out of 3 = 66.67%; real-only pass rate: 1 out of 2 = 50.0%
         self.assertAlmostEqual(insights["historical_pass_rate_pct"], 66.67, places=1)
+        self.assertAlmostEqual(insights["real_pass_rate_pct"], 50.0, places=1)
         # Avg score: (100 + 80 + 20) / 3 = 66.67
         self.assertAlmostEqual(insights["avg_plan_score"], 66.67, places=1)
         self.assertEqual(insights["total_strategies_tracked"], 4)
@@ -370,6 +371,36 @@ class TestHermesCognitiveLoop(unittest.TestCase):
         self.assertTrue(rep.rolled_back)
         rb_mock.assert_called_once_with("snap-pre-1", execute=True)
         self.assertEqual(executor._ctx, {})
+
+    def test_critical_step_unmet_criterion_yields_fail_verdict(self):
+        from hermes.foresee import ForeseePlan, PlanStep
+        from hermes.executor import ExecutionReport, StepResult
+        plan = ForeseePlan(
+            plan_id="plan-crit-unmet",
+            goal="test",
+            created_at=0.0,
+            health_before="degraded",
+            steps=[PlanStep("s1", "verify", "hermes_verify_health", {}, "r", "e", "c", critical=True)],
+        )
+        rep = ExecutionReport(
+            plan_id="plan-crit-unmet",
+            executed_for_real=True,
+            snapshot_id=None,
+            rolled_back=False,
+            step_results=[StepResult("s1", "verify", "hermes_verify_health", SUCCEEDED, criterion_met=False)],
+        )
+        refl = ReflectEvaluator(self.memory).evaluate(plan, rep, persist=False)
+        self.assertEqual(refl.verdict, "FAIL")
+
+    def test_cognitive_loop_handles_post_diag_exception_gracefully(self):
+        hal = MagicMock()
+        hal.dry_run = False
+        loop = HermesCognitiveLoop(hal=hal, memory=self.memory)
+        self._stub_engines(loop.executor, gaming_ok=True, verify_ok=True)
+        with patch("hermes.cognitive_loop.run_full_diagnostics", side_effect=RuntimeError("probe timeout")):
+            rep = loop.run("juegos", execute=True, max_iterations=10, diag=make_diag())
+        self.assertTrue(rep.executed_for_real)
+        self.assertLessEqual(len(rep.iterations), 5)
 
 
 if __name__ == "__main__":

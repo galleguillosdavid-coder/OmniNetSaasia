@@ -1470,9 +1470,9 @@ class TestOmniNetCore(unittest.TestCase):
         """Verifies MCP handle_tool_call parameter parity with tools_manifest.json and safe active_interface serialization."""
         from mcp_server import handle_tool_call, load_tools_schema
 
-        # 1. All 15 tools in tools_manifest.json are exposed
+        # 1. All 17 tools in tools_manifest.json are exposed
         tools = load_tools_schema()
-        self.assertEqual(len(tools), 15)
+        self.assertEqual(len(tools), 17)
 
         # 2. network_diagnose handles string active_interface without vars() TypeError and respects include_dns_benchmarks=False
         mock_diag = DiagnosticsReport(

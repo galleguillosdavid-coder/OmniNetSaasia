@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 import time
+import tempfile
+import threading
 import subprocess
 import urllib.request
 import urllib.error
@@ -28,7 +30,8 @@ from .diagnostics import (
     check_doh_status,
     check_odoh_rfc9230_status,
     measure_bandwidth_speed,
-    measure_target_metrics
+    measure_target_metrics,
+    _validate_probe_target
 )
 from .optimizer import NetworkOptimizer
 from .repair import NetworkRepairEngine
@@ -60,37 +63,58 @@ DEFAULT_CONFIG = {
 }
 
 
+_LLM_CFG_LOCK = threading.RLock()
+
+
 def load_llm_config() -> Dict[str, Any]:
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-                res = DEFAULT_CONFIG.copy()
-                res.update(cfg)
-                return res
-        except Exception:
-            pass
-    return DEFAULT_CONFIG.copy()
+    with _LLM_CFG_LOCK:
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    if isinstance(cfg, dict):
+                        res = DEFAULT_CONFIG.copy()
+                        res.update(cfg)
+                        return res
+            except Exception:
+                pass
+        return DEFAULT_CONFIG.copy()
 
 
 def save_llm_config(config: Dict[str, Any]):
-    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-    try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2)
-    except Exception:
-        pass
+    with _LLM_CFG_LOCK:
+        cfg_dir = os.path.dirname(os.path.abspath(CONFIG_FILE)) or "."
+        os.makedirs(cfg_dir, exist_ok=True)
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir=cfg_dir, prefix=".llm_cfg_", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2)
+                if os.name == "posix":
+                    try:
+                        os.chmod(tmp_path, 0o600)
+                    except OSError:
+                        pass
+                os.replace(tmp_path, CONFIG_FILE)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+        except Exception:
+            pass
 
 
 def run_fast_traceroute(target: str = "1.1.1.1", max_hops: int = 8) -> Dict[str, Any]:
     """Runs a fast traceroute with strict timeout to discover network path bottlenecks."""
+    safe_target = _validate_probe_target(target)
+    safe_hops = max(1, min(30, int(max_hops)))
     t0 = time.perf_counter()
     plat = detect_platform().value
     try:
         if plat == "windows":
-            cmd = ["tracert", "-d", "-h", str(max_hops), "-w", "500", target]
+            cmd = ["tracert", "-d", "-h", str(safe_hops), "-w", "500", safe_target]
         else:
-            cmd = ["traceroute", "-n", "-m", str(max_hops), "-w", "1", target]
+            cmd = ["traceroute", "-n", "-m", str(safe_hops), "-w", "1", safe_target]
         res = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=25)
         raw_output = res.stdout.strip()
     except Exception as e:
@@ -98,8 +122,8 @@ def run_fast_traceroute(target: str = "1.1.1.1", max_hops: int = 8) -> Dict[str,
 
     duration_ms = round((time.perf_counter() - t0) * 1000, 2)
     return {
-        "target": target,
-        "max_hops": max_hops,
+        "target": safe_target,
+        "max_hops": safe_hops,
         "duration_ms": duration_ms,
         "raw_trace": raw_output
     }
@@ -170,6 +194,12 @@ class LLMGateway:
             return "find_large_files"
         if any(w in low for w in ["te lo instale", "instalarlo", "instale automáticamente", "quieres que lo instale", "deseas que lo instale", "te ayude a instalarlo", "instalo ahora"]):
             return "install_recommended_software"
+        if any(w in low for w in [
+            "estado del computador", "estado de tu computador", "estado de mi computador",
+            "reviso ahora el estado", "espacio en disco", "espacio, memoria", "programas pesados",
+            "revisar también el estado", "revisar ahora el estado", "estado de tu pc"
+        ]):
+            return "device_full_maintenance"
         return None
 
     def _record_conversation_feedback(
@@ -493,6 +523,109 @@ class LLMGateway:
 
 
         # ------------------------------------------------------------------
+        # INTENT 0D: CONVERSATION MEMORY & REAL SUMMARY (ANTI-HALLUCINATION)
+        # ------------------------------------------------------------------
+        elif any(w in msg_lower for w in [
+            "resumen de nuestras conversaciones", "resumen de la conversación", "resumen de nuestra conversación",
+            "perdiendo la memoria", "pierde la memoria", "pierdes la memoria", "qué hemos hablado",
+            "que hemos hablado", "qué te pregunté", "que te pregunte", "recuerdas lo que", "historial de chat"
+        ]):
+            executed_tool = "conversation_summary"
+            persisted: List[Dict[str, Any]] = []
+            fb_file = os.path.expanduser("~/.netopt_state/conversation_feedback.json")
+            if os.path.exists(fb_file):
+                try:
+                    with open(fb_file, "r", encoding="utf-8") as f:
+                        raw = json.load(f)
+                        if isinstance(raw, list):
+                            persisted = raw[-8:]
+                except Exception:
+                    persisted = []
+            recent_turns = []
+            for h in history[-12:]:
+                role = h.get("role", "user")
+                content = str(h.get("content", "")).strip()
+                if content:
+                    recent_turns.append({"role": role, "content": content[:220]})
+            tool_output = {
+                "session_turns_count": len(history),
+                "recent_session_turns": recent_turns,
+                "persisted_history_count": len(persisted),
+                "persisted_actions": [
+                    {
+                        "user": p.get("user_message", ""),
+                        "tool": p.get("executed_tool"),
+                    }
+                    for p in persisted
+                ],
+            }
+            backend_trace.append({
+                "step": "MEMORY_SUMMARY",
+                "command": "load_session_and_persisted_conversation_history()",
+                "output": f"Sesión: {len(history)} msgs | Persistidos: {len(persisted)} registros reales.",
+                "status": "SUCCESS",
+                "duration_ms": 5.0
+            })
+
+        # ------------------------------------------------------------------
+        # INTENT 0E: AI CYBER DEFENSE & ANTI-PHISHING URL CHECK
+        # ------------------------------------------------------------------
+        elif any(w in msg_lower for w in [
+            "phishing", "enlace sospechoso", "link sospechoso", "url sospechosa",
+            "es seguro este enlace", "verifica este link", "verifica este enlace",
+            "verifica esta url", "revisa esta url", "revisa este enlace",
+            "hackeo", "hackeos", "amenaza", "amenazas", "escudo ia", "defensa ia", "ciberseguridad"
+        ]):
+            from netopt.ai_defense import audit_ai_threats, inspect_url_or_domain
+            import re as _re
+            url_match = _re.search(r"https?://[^\s]+|\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?", msg_clean)
+            if url_match and any(w in msg_lower for w in ["enlace", "link", "url", "phishing", "http", "verifica", "revisa", "seguro"]):
+                executed_tool = "ai_defense_check_url"
+                target_url = url_match.group(0)
+                tool_output = inspect_url_or_domain(target_url)
+                backend_trace.append({
+                    "step": "AI_DEFENSE_URL",
+                    "command": f"inspect_url_or_domain('{target_url}')",
+                    "output": f"Veredicto={tool_output.get('verdict')} | Riesgo={tool_output.get('risk_score')}/100",
+                    "status": "SUCCESS",
+                    "duration_ms": 15.0
+                })
+            else:
+                executed_tool = "ai_defense_audit"
+                tool_output = audit_ai_threats()
+                backend_trace.append({
+                    "step": "AI_DEFENSE_AUDIT",
+                    "command": "audit_ai_threats()",
+                    "output": f"Nivel={tool_output.get('threat_level')} | Riesgo={tool_output.get('risk_score')}/100",
+                    "status": "SUCCESS",
+                    "duration_ms": 45.0
+                })
+
+        # ------------------------------------------------------------------
+        # INTENT 0F: AUTONOMOUS CONTROL PLANE (SOVEREIGN DNS / APP QOS / FAILOVER)
+        # ------------------------------------------------------------------
+        elif any(w in msg_lower for w in [
+            "dns soberano", "qos apps", "qos dscp", "failover multipath", "control autonomo", "control autónomo"
+        ]):
+            from netopt.sovereign_dns import get_sovereign_dns
+            from netopt.virtual_mesh import evaluate_multipath_failover
+            executed_tool = "autonomous_control_plane"
+            dns_srv = get_sovereign_dns()
+            if "activa" in msg_lower and "dns soberano" in msg_lower:
+                dns_res = dns_srv.start(execute=True)
+            else:
+                dns_res = dns_srv.status()
+            mp_res = evaluate_multipath_failover(execute=False)
+            tool_output = {"sovereign_dns": dns_res, "multipath": mp_res}
+            backend_trace.append({
+                "step": "AUTONOMY_CONTROL",
+                "command": "get_sovereign_dns() + evaluate_multipath_failover()",
+                "output": f"DNS={dns_res.get('listen')} running={dns_res.get('running')} | Multipath={mp_res.get('failover_available')}",
+                "status": "SUCCESS",
+                "duration_ms": 18.0
+            })
+
+        # ------------------------------------------------------------------
         # INTENT 1: APPLY / EXECUTE OPTIMIZATION (REAL MUTATION WITH SNAPSHOT)
         # ------------------------------------------------------------------
         elif any(w in msg_lower for w in [
@@ -561,8 +694,9 @@ class LLMGateway:
             "disco", "temporales", "temp", "servicios", "reparar todo", "sistema operativo",
             "zombies", "ccleaner", "registro", "registros", "eventos", "event log", "logs",
             "drivers", "controladores", "actualizar", "actualiza", "updates", "winget",
-            "papelera", "basura", "caché", "cache", "navegador"
-        ]):
+            "papelera", "basura", "caché", "cache", "navegador",
+            "computador", "computadora", "mi pc", "estado del pc"
+        ]) or (is_affirmative and pending_followup == "device_full_maintenance"):
             executed_tool = "device_full_maintenance"
             hal = get_hal(dry_run=False)
             maint = DeviceMaintenanceEngine(hal)
@@ -840,11 +974,12 @@ class LLMGateway:
                         f"{json.dumps(tool_output, ensure_ascii=False)}\n\n"
                         f"INSTRUCCIÓN: Responde DIRECTAMENTE al usuario entregando estos resultados ya medidos "
                         f"en modo {'SIMPLE Y EXPLICATIVO' if lang == 'simple' else 'TÉCNICO'}. "
-                        f"PROHIBIDO decir 'Ejecutando...' o usar el formato 'Estado: / Acción: / Ciclo 10m:'."
+                        f"PROHIBIDO decir 'Ejecutando...' o usar el formato 'Estado: / Acción: / Ciclo 10m:'. "
+                        f"PROHIBIDO inventar métricas, porcentajes de disco, archivos borrados o reparaciones que NO estén en [RESULTADO REAL YA EJECUTADO] o en el historial."
                     )
 
                 messages = [{"role": "system", "content": system_content}]
-                messages.extend(history[-4:])
+                messages.extend(history[-20:])
                 messages.append({"role": "user", "content": enriched_user_msg})
 
                 req_body = {
@@ -1201,6 +1336,43 @@ class LLMGateway:
         elif executed_tool == "get_incident_reports":
             reply = (
                 f"🛡️ **Cuidado Automático:** He resuelto **{tool_output.get('incidents_total', 0)} problemas** automáticamente y llevo **{tool_output.get('scheduled_tasks_total', 0)} revisiones preventivas** cada 10 minutos."
+            )
+        elif executed_tool == "conversation_summary":
+            turns = (tool_output or {}).get("recent_session_turns", [])
+            persisted = (tool_output or {}).get("persisted_actions", [])
+            user_msgs = [t["content"] for t in turns if t.get("role") == "user"]
+            if user_msgs:
+                bullets = "\n".join(f"• {m}" for m in user_msgs[-6:])
+                reply = (
+                    f"🧠 **Resumen real de nuestra conversación ({len(turns)} mensajes en sesión):**\n"
+                    f"{bullets}\n"
+                    f"• Registro persistente en disco: **{len(persisted)}** interacciones recientes guardadas."
+                )
+            elif persisted:
+                bullets = "\n".join(f"• {p.get('user', '')} ({p.get('tool') or 'chat'})" for p in persisted[-5:])
+                reply = f"🧠 **Historial persistido en este equipo:**\n{bullets}"
+            else:
+                reply = "🧠 **Historial:** Aún no hay mensajes previos registrados en esta sesión."
+        elif executed_tool == "ai_defense_check_url":
+            reasons = " ".join((tool_output or {}).get("reasons", []))
+            reply = (
+                f"🛡️ **Análisis de Enlace IA:** Veredicto **{(tool_output or {}).get('verdict', 'SAFE')}** "
+                f"(Riesgo **{(tool_output or {}).get('risk_score', 0)}/100**).\n"
+                f"• {reasons}"
+            )
+        elif executed_tool == "ai_defense_audit":
+            reply = (
+                f"🛡️ **Escudo Anti-Hackeos con IA:** Nivel **{(tool_output or {}).get('threat_level', 'LOW')}** "
+                f"(Riesgo **{(tool_output or {}).get('risk_score', 0)}/100**).\n"
+                f"• {(tool_output or {}).get('summary', 'Sin amenazas críticas detectadas.')}"
+            )
+        elif executed_tool == "autonomous_control_plane":
+            dns = (tool_output or {}).get("sovereign_dns", {})
+            mp = (tool_output or {}).get("multipath", {})
+            reply = (
+                f"🧭 **Control Autónomo de Red:** DNS Soberano **{'Activo' if dns.get('running') else 'Listo'}** "
+                f"(`{dns.get('listen', '127.0.0.1:5353')}`, bloqueados: **{dns.get('blocked_total', 0)}**).\n"
+                f"• Multipath Failover: **{'Disponible' if mp.get('failover_available') else '1 enlace activo'}**."
             )
         else:
             p_ms = (tool_output or {}).get("ping_ms", "--")

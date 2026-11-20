@@ -45,3 +45,20 @@
 - Componentes afectados: `netopt/telemetry.py`, `cloud_server/proxy_server.py`, `cloud_server/supabase_client.py`.
 - Evidencia o referencia: [`tests/test_netopt_mock.py`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/tests/test_netopt_mock.py) (`test_empirical_device_probes_and_global_telemetry_collector`).
 
+## DEC-006 — Arquitectura Multinivel de Ciclos/Sub-Ciclos y Vigilancia Persistente de Herramientas Antigravity
+- Estado: VIGENTE
+- Fecha: 2026-11-15
+- Decisión: Reorganizar la cadencia autónoma en 4 clases complementarias —**Periódicos** (Ciclo Macro 40m + Sub-Ciclo de Vigilancia Antigravity cada 3er ciclo), **Por Necesidad** (contención de regresiones, degradación in situ o auditoría de seguridad/persistencia), **Ocasionales** (suite completa, `git diff --check`, armonización documental y migración de bibliotecas) y **Por Voluntad** (innovación RFC/kernel más allá de lo evidente)— incorporando la búsqueda y adopción persistente de herramientas/actualizaciones de Antigravity (`run_workflow`, `swarm`, `schedule`, `search_marketplace`).
+- Motivo: Aprovechar lo aprendido en auditorías H-01..H-10 y ciclos 100–131 para evitar trabajo lineal rígido, acelerar la detección reactiva de fallos y usar las capacidades nativas más recientes de Antigravity dentro del propio proyecto.
+- Alternativas consideradas: Un único bucle plano cada 40 minutos sin sub-ciclos ni vigilancia de herramientas del arnés Antigravity. Descartado por rigidez y subutilización de flujos paralelos/reactivos.
+- Componentes afectados: `AGENTS.md`, `docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`, `.continuity/TASK.md`, `memory/DECISIONS.md`.
+- Evidencia o referencia: [`AGENTS.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/AGENTS.md) (§2), [`.continuity/TASK.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/.continuity/TASK.md).
+
+## DEC-007 — Regla Anti-Relleno y Mejora Continua de Diseño para Experiencia Amena
+- Estado: VIGENTE
+- Fecha: 2026-11-19
+- Decisión: Incorporar como mandato obligatorio en cada ciclo macro de 40 minutos (`AGENTS.md`, `.agents/rules/omninet-cycles.md` y prompts de `schedule`) la entrega de al menos 1 mejora concreta de código/UX/seguridad/rendimiento + su test de regresión **junto con el refinamiento continuo del diseño visual, micro-interacciones y experiencia amena** (ej. dashboard `main.py`, `/matrix` reactivo por contacto de luz verde, landing SaaS en `cloud_server/proxy_server.py`), prohibiendo ciclos pasivos.
+- Motivo: Solicitud explícita del usuario para que cada ciclo aporte valor real y evolucione la estética y usabilidad del software haciéndolo cada vez más ameno, intuitivo y vivo.
+- Componentes afectados: `AGENTS.md`, `.agents/rules/omninet-cycles.md`, `.continuity/DECISIONS.md`, `main.py`, `netopt/fastapi_app.py`.
+- Evidencia o referencia: [`AGENTS.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/AGENTS.md), [`.agents/rules/omninet-cycles.md`](file:///c:/Users/Frondabrick/Desktop/dvd/Optimizador%20de%20redes/.agents/rules/omninet-cycles.md).
+

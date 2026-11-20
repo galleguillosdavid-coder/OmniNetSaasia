@@ -105,6 +105,18 @@ class NetworkOptimizer:
                 command="netsh int tcp set global timestamps=enabled",
                 is_dry_run=self.hal.dry_run
             ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Disable Windows Delivery Optimization P2P upload throttling (DODownloadMode=0)",
+                command='reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization" /v DODownloadMode /t REG_DWORD /d 0 /f',
+                is_dry_run=self.hal.dry_run
+            ))
+            plan.planned_actions.append(AgentActionLog(
+                action_type=ActionType.OPTIMIZATION,
+                description="Release 100% QoS reservable bandwidth limit (NonBestEffortLimit=0)",
+                command='reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched" /v NonBestEffortLimit /t REG_DWORD /d 0 /f',
+                is_dry_run=self.hal.dry_run
+            ))
 
         elif plat == PlatformType.LINUX:
             reasons.append("Tuning Linux kernel TCP stack: BBR congestion control, FQ pacing, TCP Fast Open, and buffer expansion.")

@@ -9,6 +9,7 @@ import json
 import os
 import time
 import uuid
+import tempfile
 import threading
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any
@@ -76,6 +77,7 @@ class AutoSentinel:
         self.enabled = bool(enabled)
         self.running = False
         self._stop_event = threading.Event()
+        self._incidents_lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self.repair_engine = NetworkRepairEngine(self.hal)
         self.optimizer = NetworkOptimizer(self.hal)
@@ -95,12 +97,21 @@ class AutoSentinel:
             return []
 
     def _save_incidents(self):
-        os.makedirs(os.path.dirname(INCIDENTS_FILE), exist_ok=True)
-        try:
-            with open(INCIDENTS_FILE, "w", encoding="utf-8") as f:
-                json.dump([asdict(inc) for inc in self.incidents[-50:]], f, indent=2)
-        except Exception:
-            pass
+        with self._incidents_lock:
+            inc_dir = os.path.dirname(os.path.abspath(INCIDENTS_FILE)) or "."
+            os.makedirs(inc_dir, exist_ok=True)
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir=inc_dir, prefix=".incidents_", suffix=".tmp")
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump([asdict(inc) for inc in self.incidents[-50:]], f, indent=2)
+                    os.replace(tmp_path, INCIDENTS_FILE)
+                except Exception:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+                    raise
+            except Exception:
+                pass
 
     def check_health_and_auto_heal(self) -> Optional[IncidentReport]:
         """Runs a telemetry check. If bad, triggers auto-healing and logs report."""
@@ -189,6 +200,21 @@ class AutoSentinel:
             repair_acts = self.repair_engine.execute_triage_repair(failure_tier, execute=do_exec)
             for ra in repair_acts:
                 actions_taken.append(f"Reparación ejecutada: {ra.description} (status={ra.success})")
+
+        # Step 2B: Autonomous Multipath Failover (Zero NetLoss)
+        try:
+            from .virtual_mesh import evaluate_multipath_failover
+            mp_res = evaluate_multipath_failover(
+                hal=self.hal,
+                primary_degraded=(severity == "CRITICAL" or not diag.internet_reachable),
+                execute=do_exec,
+            )
+            if mp_res.get("failover_available"):
+                actions_taken.append(
+                    f"Multipath Failover: {mp_res.get('reason') or mp_res.get('secondary', 'evaluado')} (switched={mp_res.get('switched')})"
+                )
+        except Exception:
+            pass
 
         # Step 3: Aplicar optimización TCP / DNS si era problema de rendimiento
         opt_plan = self.optimizer.generate_plan(diag=diag)

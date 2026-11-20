@@ -6,7 +6,7 @@
 > **1. Independencia Total del Proyecto:** Este manifiesto gobierna de forma exclusiva e independiente el proyecto **OmniNet AI Agent Pro (`Optimizador de redes`)**, sin ninguna dependencia ni referencia a otros proyectos externos.  
 > **2. Principios Rectores Inviolables:** *Autonomía Operativa Absoluta, Comunicación Breve y Concisa, Cero Dependencias Externas Innecesarias, Invariante Zero NetLoss (Snapshot Previo + Verification Gate + Auto-Rollback), 100% Pruebas Unitarias Aprobadas, Ciclo de Auto-Mejora del Agente Cada 40 Minutos (`2400s`) y Ejecución Dinámica por Demanda/Evento del Software OmniNet*.  
 > **3. Naturaleza Ampliable y Auto-Evolutiva (Metodología Harness²):** Optimización continua de los componentes del agente (prompts, guardrails, memoria, herramientas MCP, skills, scripts y planificador autónomo).  
-> **4. Rol Inicial Supremo y Recursividad Metódica:** Cualquier IA que interactúe con el repositorio asume como TAREA INICIAL el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (consistente en `README.md`, `AGENTS.md` y `AGENT_INSTRUCTIONS.md`). Desde este rol raíz, ejecuta verificación de tests (154/154) y despliega metódicamente sub-agentes según los roles operativos especializados requeridos. Adicionalmente, obedece la Capa de Continuidad Externa (`.continuity/`) para garantizar persistencia y cero regresiones.
+> **4. Rol Inicial Supremo y Recursividad Metódica:** Cualquier IA que interactúe con el repositorio asume como TAREA INICIAL el rol de **Orquestador de Auto-Mejora (Hermes Harness²)** (consistente en `README.md`, `AGENTS.md` y `AGENT_INSTRUCTIONS.md`). Desde este rol raíz, ejecuta verificación de tests (`207/207`) y despliega metódicamente sub-agentes según los roles operativos especializados requeridos. Adicionalmente, obedece la Capa de Continuidad Externa (`.continuity/`) para garantizar persistencia y cero regresiones.
 
 ---
 
@@ -25,18 +25,13 @@
 
 ---
 
-## 2. Diferenciación de Ciclos: Agente (40 Minutos) vs Software OmniNet (Por Demanda / Evento)
+## 2. Arquitectura de Ciclos y Sub-Ciclos: Agente (Periódico / Reactivo / Ocasional / Voluntad) vs Software OmniNet
 
-- **A. Ciclo de Auto-Mejora Continua del Agente IA (Cada 40 Minutos - Visión Global y Multimódulo):**
-  - El agente mantiene activo un flujo programado cada 40 minutos (`DurationSeconds=2400` mediante la herramienta `schedule`).
-  - Misión de cada ciclo de 40 min sin paradigmas dogmáticos:
-    1. **Rotación y Revisión Multimódulo**: Recorrer y analizar sistemáticamente distintas áreas del código (`netopt/`, `hermes/`, `cloud_server/`, `config/`, `tests/`, `.agents/`, `memory/`, `docs/`).
-    2. **Iniciativa, Redefinición Frecuente de Tareas y Soluciones Más Allá de lo Evidente**: El ciclo autónomo no se restringe a revisar pasivamente el computador anfitrión ni a tareas lineales convencionales. El agente tiene el mandato explícito de **redefinir frecuentemente sus tareas autónomas y buscar activamente soluciones innovadoras más allá de lo evidente**, apoyándose en la investigación continua en Internet y en cualquier otro tipo de solución disruptiva (nuevas bibliotecas probadas, estándares RFC de vanguardia, optimizaciones profundas de kernel/NDIS, arquitecturas asimétricas, heurísticas cognitivas y refactorizaciones no convencionales), formulando, proponiendo y ejecutando de manera autónoma sus propios planes de ingeniería según la ocasión y el estado técnico lo requieran.
-    3. **Armonización Documental Continua**: Auditar y alinear la documentación viva contra la realidad técnica ejecutable (código, APIs, tests y dependencias), garantizando una única fuente de verdad epistemológica.
-    4. **Investigación Tecnológica Abierta en Internet**: Exploración de transportes modernos (L4S, BBRv3, DoQ, ECH, Wi-Fi 7 MLO, MASQUE) y bibliotecas maduras probadas (`docs/Auditorias/3.md`).
-    5. **Sustitución Progresiva por Bibliotecas Maduras**: Reducción de código artesanal innecesario mediante adaptadores limpios (Pydantic, httpx, psutil, cryptography, fastapi).
-    6. **Verificación Inviolable de Cero Regresiones**: Comprobación estricta de la suite completa (`python -m unittest discover -s tests -v` 100% aprobado).
-    7. **Informe Breve y Conciso al Usuario**: Máximo 3-5 líneas directas.
+- **A. Ciclos y Sub-Ciclos del Agente IA:**
+  1. **Ciclos Periódicos (`schedule`):** Ciclo Macro cada 40 min (`DurationSeconds=2400`) con rotación multimódulo y verificación in situ (`run_real_device_empirical_probes()`), más el **Sub-Ciclo Periódico de Vigilancia Antigravity** (buscar actualizaciones, skills, plugins y herramientas de Antigravity vía `search_marketplace`/`search_web`/`antigravity-guide` y aplicarlas de forma persistente: `run_workflow`, `swarm`, `schedule`, `invoke_subagent`).
+  2. **Sub-Ciclos por Necesidad (Reactivos):** Activación inmediata ante fallos de tests, degradación empírica de red (`bufferbloat_grade >= C`, pérdida > 0%, ARP anómalo), errores de arranque (`main.py serve`) o cambios en rutas críticas de seguridad/persistencia (`execute is True`, locks, criptografía).
+  3. **Sub-Ciclos Ocasionales (Hitos):** Ejecución de suite completa (`207+` tests), `git diff --check`, armonización documental y migración progresiva a bibliotecas maduras (`docs/Auditorias/3.md`).
+  4. **Sub-Ciclos por Voluntad (Iniciativa Disruptiva):** Investigación web abierta (L4S, BBRv3, DoQ/DoH3, ECH, PQC `X25519MLKEM768`, Wi-Fi 7/8, NetAdapterCx/XDP, MASQUE/OHTTP) y redefinición proactiva de tareas de alto impacto, reportando siempre en 3-5 viñetas.
 
 - **B. Ciclos Autónomos del Software Creado (OmniNet):**
   - El software OmniNet **no depende de un intervalo rígido externo**: opera de forma continua y autónoma, ejecutando tareas y ciclos de optimización, mantenimiento y autorreparación **cada vez que sea necesario** sobre cualquiera de sus 10 subsistemas (Redes, Antivirus, Limpieza BleachBit, Drivers SDIO, Temperatura, Arranque, Desinstalación limpia, Privacidad/Anti-telemetría, Reparación OS y Respaldo).

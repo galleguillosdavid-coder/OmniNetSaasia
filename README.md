@@ -7,7 +7,7 @@
 [![Sub-Agents](https://img.shields.io/badge/Ecosystem-10%20Sub--Agents-emerald.svg)](netopt/ecosystem_subagents.py)
 [![Cloud Backend](https://img.shields.io/badge/Cloud%20SaaS-Supabase%20%2B%20DeepSeek-indigo.svg)](cloud_server/)
 [![Safety](https://img.shields.io/badge/Safety-Zero_NetLoss_%2B_Auto--Rollback-green.svg)](netopt/rollback.py)
-[![Tests](https://img.shields.io/badge/Tests-135%2F135%20Passing%20(100%25)-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-230%2F230%20Passing%20(100%25)-brightgreen.svg)](tests/)
 
 ---
 
@@ -16,14 +16,14 @@
 > **Cualquier Inteligencia Artificial o Agente que acceda a este repositorio DEBE asumir obligatoriamente como TAREA INICIAL el rol de [Orquestador de Auto-Mejora (Hermes Harness²)](hermes/)**.
 > 
 > **Mecánica Recursiva y Despliegue de Sub-Agentes:**
-> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 154/154 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
+> 1. **Paso 0 (Inicialización Metódica Obligatoria):** Toda IA inicia como *Orquestador de Auto-Mejora (Hermes Harness²)*, verificando la salud del sistema (`python -m unittest discover -s tests -v` con 230/230 aprobados) e inspeccionando la memoria operativa persistente ([`memory/`](memory/) y [`.continuity/`](.continuity/)).
 > 2. **Despliegue de Roles vía Sub-Agentes:** El *Orquestador* desplegará autónomamente y según sea necesario los roles operativos especializados mediante sub-agentes coordinados:
 >    - 🔍 **Auditor de Veracidad Cognitiva (`hallucination-control`):** Calibración de hechos, validación de evidencia empírica y prevención de alucinaciones.
 >    - 🌐 **Centinela Adaptativo y Planificador de Red:** Telemetría L1-L7, deriva DNS y radar ARP (ciclos de red autónomos).
 >    - 🤖 **Orquestador de los 10 Sub-Agentes:** Mantenimiento de PC (Antivirus, BleachBit, SDIO Drivers, LibreHardware, Autoruns, BCUninstaller, ShutUp10, DISM/SFC, Restic).
 >    - 🛡️ **Ingeniero de Optimización Zero NetLoss:** Afinamiento TCP/L4S/QUIC con snapshot previo y compuerta de verificación en < 5s.
 >    - 💬 **Asistente Conversacional en Lenguaje Simple:** Interfaz clara y sin tecnicismos hacia el usuario final.
-> 3. **Recursividad Inter-Documentos:** Esta directiva inicial vincula y se retroalimenta metódicamente desde [`AGENTS.md`](AGENTS.md), [`docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`](docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md) y [`docs/AGENT_INSTRUCTIONS.md`](docs/AGENT_INSTRUCTIONS.md). Ante cualquier desviación o duda operativa, la IA debe re-invocar este protocolo para re-alinearse metódicamente.
+> 3. **Recursividad Inter-Documentos:** Esta directiva inicial vincula y se retroalimenta metódicamente desde [`AGENTS.md`](AGENTS.md), [`docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md`](docs/AUTONOMOUS_OPERATIONAL_MANIFESTO.md), [`docs/AGENT_INSTRUCTIONS.md`](docs/AGENT_INSTRUCTIONS.md) y [`docs/PENDIENTES_Y_ACCIONES_USUARIO.md`](docs/PENDIENTES_Y_ACCIONES_USUARIO.md) (pendientes, alternativas seleccionables y guía operativa). Ante cualquier desviación o duda operativa, la IA debe re-invocar este protocolo para re-alinearse metódicamente.
 
 ---
 
@@ -130,7 +130,7 @@ Para máxima elegancia arquitectónica, la raíz del proyecto se mantiene estric
 │   ├── orchestrator.py             # Spawner de sub-agentes en paralelo y síntesis de sesiones
 │   └── self_improvement.py        # Destilación de habilidades y memoria curada persistente
 ├── config/                         # Manifiestos y configuraciones
-│   └── tools_manifest.json         # Manifiesto de 15 herramientas MCP
+│   └── tools_manifest.json         # Manifiesto de 17 herramientas MCP
 ├── scripts/                        # Scripts de arranque y compilación
 │   ├── bootstrap.py, OmniNet.bat, run.sh, OmniNet.spec
 ├── .continuity/                    # Capa de continuidad externa persistente (PROJECT, STATE, DECISIONS, TASK)
@@ -221,7 +221,7 @@ Cumpliendo con la invariante de **Cero Regresiones**:
 ```bash
 python -m unittest discover -s tests -v
 ```
-*(154 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
+*(230 pruebas unitarias automáticas con cobertura integral de HAL, adaptadores psutil/httpx, optimizador, rollback, licenciamiento, los 10 sub-agentes, arnés Hermes, micro internet, telemetría, esquemas Pydantic v2, REST API FastAPI y suite anti-alucinaciones).*
 
 ---
 

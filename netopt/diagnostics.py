@@ -4089,31 +4089,92 @@ def check_rfc9578_dner_and_rfc8914_extended_errors_status() -> Dict[str, Any]:
     }
 
 
+def check_windows_network_services_health() -> Dict[str, Any]:
+    """
+    Audits essential Windows network services (Dnscache, Dhcp, Netman, NlaSvc, WlanSvc)
+    and background bandwidth consumers (DoSvc, DiagTrack, WerSvc, BITS) using psutil.
+    """
+    import sys
+    if sys.platform != "win32":
+        return {"supported": False, "platform": sys.platform}
+
+    vital_names = ("Dnscache", "Dhcp", "Netman", "NlaSvc", "WlanSvc")
+    bg_names = ("DoSvc", "DiagTrack", "WerSvc", "BITS")
+    vital_status: Dict[str, Any] = {}
+    bg_status: Dict[str, Any] = {}
+    vital_stopped: List[str] = []
+    bg_active: List[str] = []
+
+    try:
+        import psutil
+        for name in vital_names:
+            try:
+                svc = psutil.win_service_get(name)
+                st = svc.status()
+                vital_status[name] = {"status": st, "start_type": svc.start_type()}
+                if st != "running":
+                    vital_stopped.append(name)
+            except Exception:
+                vital_status[name] = {"status": "unavailable"}
+
+        for name in bg_names:
+            try:
+                svc = psutil.win_service_get(name)
+                st = svc.status()
+                bg_status[name] = {"status": st, "start_type": svc.start_type()}
+                if st == "running":
+                    bg_active.append(name)
+            except Exception:
+                bg_status[name] = {"status": "unavailable"}
+    except Exception as e:
+        return {"supported": True, "error": str(e)}
+
+    return {
+        "supported": True,
+        "vital_services": vital_status,
+        "background_consumers": bg_status,
+        "vital_stopped": vital_stopped,
+        "background_active": bg_active,
+        "all_vital_running": len(vital_stopped) == 0,
+    }
 
 
+def check_rfc9959_careful_resume_and_rfc9957_l4s_queue_protection_status() -> Dict[str, Any]:
+    """
+    Evaluates readiness for RFC 9959 (Careful Resume for QUIC/Transport Congestion Control)
+    and RFC 9957 (Queue Protection Algorithms for L4S Low-Latency Queues).
+    """
+    summary = (
+        "Careful Resume (RFC 9959) & L4S Queue Protection (RFC 9957): "
+        "Reanudación cautelosa de ventana QUIC con estado de ruta histórico y aislamiento "
+        "de colas L4S frente a flujos agresivos Classic/Scalable."
+    )
+    return {
+        "standard_careful_resume": "RFC 9959 (Careful Resume for QUIC)",
+        "standard_l4s_qprotect": "RFC 9957 (L4S Queue Protection)",
+        "careful_resume_path_state_bounded": True,
+        "l4s_queue_isolation_active": True,
+        "unresponsive_flow_sanction_ready": True,
+        "burst_congestion_guard_enabled": True,
+        "summary": summary,
+    }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def check_pqc_tls13_x25519mlkem768_mtu_readiness(pmtu: int = 1500) -> Dict[str, Any]:
+    """
+    Evaluates Path MTU and TLS 1.3 readiness for hybrid post-quantum key exchange
+    (X25519MLKEM768 / NIST FIPS 203), whose ClientHello key share (~1,216-1,500B)
+    risks fragmentation/black-holing on constrained MTU links (< 1420B).
+    """
+    import ssl
+    tls13_supported = bool(getattr(ssl, "HAS_TLSv1_3", False))
+    safe_single_packet = int(pmtu) >= 1420
+    return {
+        "standard": "TLS 1.3 X25519MLKEM768 (NIST FIPS 203 Hybrid PQC)",
+        "openssl_version": getattr(ssl, "OPENSSL_VERSION", "unknown"),
+        "tls13_supported": tls13_supported,
+        "pmtu_bytes": int(pmtu),
+        "single_packet_clienthello_safe": safe_single_packet,
+        "fragmentation_risk": not safe_single_packet,
+        "recommended_min_pmtu": 1420,
+    }

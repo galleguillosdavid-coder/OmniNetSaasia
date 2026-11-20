@@ -163,6 +163,56 @@ SOFTWARE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "modality": "Gratis / Mixto",
         "description": "La mejor VPN gratuita con datos ilimitados bajo estricta ley suiza de privacidad para navegar seguro en redes Wi-Fi públicas.",
         "keywords": ["vpn", "ip", "ocultar ip", "privacidad", "wifi pública", "proton", "protonvpn"]
+    },
+    "restic": {
+        "id": "restic",
+        "name": "Restic",
+        "winget_id": "Restic.Restic",
+        "official_url": "https://restic.net/",
+        "category": "Respaldo y Seguridad",
+        "modality": "Gratis (Código Abierto)",
+        "description": "Motor de copias de seguridad rápidas, cifradas y deduplicadas para proteger archivos críticos.",
+        "keywords": ["restic", "backup", "respaldo", "copia de seguridad", "cifrado"]
+    },
+    "sdio": {
+        "id": "sdio",
+        "name": "Snappy Driver Installer Origin (SDIO)",
+        "winget_id": "GlennDelahoy.SnappyDriverInstallerOrigin",
+        "official_url": "https://www.glenn.delahoy.com/snappy-driver-installer-origin/",
+        "category": "Drivers y Controladores",
+        "modality": "Gratis (Código Abierto)",
+        "description": "Actualizador avanzado de controladores de red, chipset, audio y video sin publicidad.",
+        "keywords": ["sdio", "driver", "drivers", "controlador", "controladores", "snappy"]
+    },
+    "clamav": {
+        "id": "clamav",
+        "name": "ClamAV",
+        "winget_id": "Cisco.ClamAV",
+        "official_url": "https://www.clamav.net/",
+        "category": "Seguridad y Antivirus",
+        "modality": "Gratis (Código Abierto)",
+        "description": "Motor antivirus open-source para escaneo bajo demanda y detección de malware/troyanos.",
+        "keywords": ["clamav", "clamscan", "antivirus", "malware", "escaneo"]
+    },
+    "librehardwaremonitor": {
+        "id": "librehardwaremonitor",
+        "name": "LibreHardwareMonitor",
+        "winget_id": "LibreHardwareMonitor.LibreHardwareMonitor",
+        "official_url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor",
+        "category": "Hardware y Sensores",
+        "modality": "Gratis (Código Abierto)",
+        "description": "Monitor de temperaturas de CPU/GPU, voltajes, ventiladores y desgaste de batería.",
+        "keywords": ["librehardwaremonitor", "temperatura", "sensores", "cpu", "gpu", "ventilador"]
+    },
+    "bcuninstaller": {
+        "id": "bcuninstaller",
+        "name": "Bulk Crap Uninstaller (BCUninstaller)",
+        "winget_id": "Klocman.BulkCrapUninstaller",
+        "official_url": "https://www.bcuninstaller.com/",
+        "category": "Limpieza y Desinstalación",
+        "modality": "Gratis (Código Abierto)",
+        "description": "Desinstalador limpio para eliminar programas rebeldes y restos en el registro de Windows.",
+        "keywords": ["bcuninstaller", "desinstalar", "desinstalador", "programas", "registro"]
     }
 }
 

@@ -11,38 +11,38 @@ import math
 import time
 import inspect
 import subprocess
-from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Callable
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from netopt.models import PlatformType
 from netopt.hal import detect_platform
 
 
-@dataclass
-class ToolDefinition:
+class ToolDefinition(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str
     description: str
     parameters: Dict[str, Any]
     func: Callable[..., Any]
 
 
-@dataclass
-class HermesHarnessConfig:
+class HermesHarnessConfig(BaseModel):
     provider: str = "deepseek"
     model: str = "deepseek-chat"
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"
-    temperature: float = 0.2
-    max_tokens: int = 450
-    max_turns: int = 8
-    timeout_sec: float = 30.0
-    fallback_providers: List[str] = field(default_factory=lambda: ["openai", "ollama", "local"])
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=450, gt=0)
+    max_turns: int = Field(default=8, gt=0)
+    timeout_sec: float = Field(default=30.0, gt=0.0)
+    fallback_providers: List[str] = Field(default_factory=lambda: ["openai", "ollama", "local"])
 
 
-@dataclass
-class HarnessTurnResult:
+class HarnessTurnResult(BaseModel):
     content: str
-    tool_calls_executed: List[Dict[str, Any]] = field(default_factory=list)
+    tool_calls_executed: List[Dict[str, Any]] = Field(default_factory=list)
     success: bool = True
     duration_ms: float = 0.0
     model_used: str = ""
@@ -145,18 +145,25 @@ class HermesAgentHarness:
                 "duration_ms": round((time.perf_counter() - t0) * 1000, 2)
             }
 
-    def dispatch_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    def dispatch_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Safely dispatches a tool by name with error containment."""
         if tool_name not in self.tools:
             return {
                 "success": False,
                 "error": f"Herramienta '{tool_name}' no encontrada en el arnés Hermes."
             }
+        if arguments is not None and not isinstance(arguments, dict):
+            return {
+                "success": False,
+                "tool": tool_name,
+                "error": "arguments debe ser un diccionario."
+            }
+        safe_args = arguments or {}
 
         tool = self.tools[tool_name]
         t0 = time.perf_counter()
         try:
-            result = tool.func(**arguments)
+            result = tool.func(**safe_args)
             duration_ms = round((time.perf_counter() - t0) * 1000, 2)
             inner_ok = result.get("success", True) if isinstance(result, dict) else True
             return {

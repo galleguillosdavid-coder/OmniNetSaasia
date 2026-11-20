@@ -7,6 +7,7 @@ providing deep system observability, top network process telemetry, and robust H
 from __future__ import annotations
 import os
 import sys
+import math
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -298,10 +299,15 @@ class HttpClientAdapter:
 
     @staticmethod
     def _bound_timeout(timeout_sec: float) -> float:
+        if isinstance(timeout_sec, bool):
+            return 8.0
         try:
-            return max(0.1, min(120.0, float(timeout_sec)))
+            val = float(timeout_sec)
         except (TypeError, ValueError):
             return 8.0
+        if not math.isfinite(val):
+            return 8.0
+        return max(0.1, min(120.0, val))
 
     @classmethod
     def post_json(

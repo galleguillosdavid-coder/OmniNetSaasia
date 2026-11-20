@@ -262,8 +262,20 @@ class TestFastAPIApp(unittest.TestCase):
         # Strict JSON-RPC params validation & strict boolean execute ("false" must NOT execute)
         bad_params = process_jsonrpc_line('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":[]}', [])
         self.assertEqual(bad_params["error"]["code"], -32602)
+        self.assertIn("JSON object", bad_params["error"]["message"])
         res_str_false = handle_tool_call("network_execute_optimization", {"execute": "false"})
         self.assertFalse(res_str_false["applied"])
+        res_mon_bad_int = handle_tool_call("network_persistent_monitor", {"action": "status", "poll_interval_sec": "invalid", "auto_heal": "false"})
+        self.assertEqual(res_mon_bad_int["poll_interval_sec"], 60)
+        self.assertFalse(res_mon_bad_int["auto_heal"])
+        with patch("mcp_server.DeviceMaintenanceEngine") as mock_dme:
+            mock_dme.return_value.run_full_device_maintenance.return_value = {"executed": False}
+            handle_tool_call("device_full_maintenance", {"execute": "false"})
+            mock_dme.return_value.run_full_device_maintenance.assert_called_with(execute=False)
+        with patch("mcp_server.get_task_scheduler") as mock_sched:
+            mock_sched.return_value.discover_and_schedule_cycle.return_value = {"executed": False}
+            handle_tool_call("network_discover_and_schedule_tasks", {"execute": "false"})
+            mock_sched.return_value.discover_and_schedule_cycle.assert_called_with(execute=False)
 
     def test_ecosystem_subagent_dispatch_default_dry_run(self):
         from netopt.ecosystem_subagents import EcosystemOrchestrator
@@ -389,6 +401,75 @@ class TestFastAPIApp(unittest.TestCase):
             rc2 = cli.main(["repair", "--json"])
             self.assertEqual(rc2, 0)
             self.assertIn('"failure_type": "HEALTHY"', buf.getvalue())
+
+        import json
+        from types import SimpleNamespace
+        from netopt.models import PlatformType, HealthState, DiagnosticsReport
+        buf_diag = io.StringIO()
+        mock_diag = DiagnosticsReport(
+            timestamp=1.0,
+            platform=PlatformType.WINDOWS,
+            overall_health=HealthState.HEALTHY,
+            active_interface=SimpleNamespace(name="Wi-Fi", is_up=True),
+            default_gateway="192.168.1.1",
+            gateway_reachable=True,
+            internet_reachable=True,
+            dns_resolving=True,
+            detected_pmtu=1500,
+            bufferbloat_grade="A+",
+            dns_benchmarks=[],
+            latency_metrics={},
+        )
+        with patch("netopt.cli.run_full_diagnostics", return_value=mock_diag), \
+             contextlib.redirect_stdout(buf_diag):
+            rc3 = cli.main(["diagnose", "--json"])
+            self.assertEqual(rc3, 0)
+            parsed = json.loads(buf_diag.getvalue())
+            self.assertEqual(parsed["active_interface"]["name"], "Wi-Fi")
+
+        buf_status = io.StringIO()
+        sample_probe = {
+            "app_version": "2.9.6",
+            "ping_avg_ms": 25.0,
+            "jitter_ms": 0.5,
+            "packet_loss_pct": 0.0,
+            "bufferbloat_grade": "A+",
+            "is_wifi": True,
+            "wifi_band": "5 GHz",
+            "wifi_signal_pct": 100,
+            "dns_resolution_ms": 20.0,
+            "gateway": "192.168.1.1",
+            "arp_devices_count": 2,
+            "arp_anomalies": [],
+            "total_tcp_sockets": 50,
+            "total_udp_sockets": 10,
+        }
+        with patch("netopt.cli.run_real_device_empirical_probes", return_value=sample_probe), \
+             patch("netopt.cli.is_elevated", return_value=True), \
+             contextlib.redirect_stdout(buf_status):
+            rc4 = cli.main(["status"])
+            self.assertEqual(rc4, 0)
+            self.assertIn("Bufferbloat A+", buf_status.getvalue())
+            self.assertIn("Listo para optimizar", buf_status.getvalue())
+
+        from netopt.tray import create_tray_icon_image
+        img = create_tray_icon_image(size=32)
+        self.assertEqual(img.size, (32, 32))
+
+        import os
+        import tempfile
+        import main as app_main
+        with tempfile.TemporaryDirectory() as tmpd:
+            env_file = os.path.join(tmpd, ".env")
+            with open(env_file, "w", encoding="utf-8") as f:
+                f.write("# comment\nOMNINET_TEST_VAR=hello_world\nOMNINET_EXISTING_VAR=from_file\n")
+            with patch.dict(os.environ, {"OMNINET_EXISTING_VAR": "from_env"}, clear=False):
+                os.environ.pop("OMNINET_TEST_VAR", None)
+                loaded = app_main._load_local_env(env_file)
+                self.assertEqual(loaded, 1)
+                self.assertEqual(os.environ.get("OMNINET_TEST_VAR"), "hello_world")
+                self.assertEqual(os.environ.get("OMNINET_EXISTING_VAR"), "from_env")
+                os.environ.pop("OMNINET_TEST_VAR", None)
 
 
 if __name__ == "__main__":

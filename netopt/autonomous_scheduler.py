@@ -10,6 +10,7 @@ import json
 import os
 import time
 import uuid
+import tempfile
 import threading
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Any
@@ -68,6 +69,7 @@ class AutonomousTaskScheduler:
         self.auto_execute = auto_execute
         self.running = False
         self._stop_event = threading.Event()
+        self._state_lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self.optimizer = NetworkOptimizer(self.hal)
         self.repair_engine = NetworkRepairEngine(self.hal)
@@ -87,13 +89,25 @@ class AutonomousTaskScheduler:
         except Exception:
             return []
 
+    def _atomic_write_json(self, target_path: str, payload: Any) -> None:
+        with self._state_lock:
+            target_dir = os.path.dirname(os.path.abspath(target_path)) or "."
+            os.makedirs(target_dir, exist_ok=True)
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir=target_dir, prefix=".sched_", suffix=".tmp")
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(payload, f, indent=2, ensure_ascii=False)
+                    os.replace(tmp_path, target_path)
+                except Exception:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+                    raise
+            except Exception:
+                pass
+
     def _save_tasks(self):
-        os.makedirs(STATE_DIR, exist_ok=True)
-        try:
-            with open(TASKS_FILE, "w", encoding="utf-8") as f:
-                json.dump([asdict(t) for t in self.tasks[-50:]], f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+        self._atomic_write_json(TASKS_FILE, [asdict(t) for t in self.tasks[-50:]])
 
     def _load_evolution(self) -> Dict[str, Any]:
         default_evo = {
@@ -124,12 +138,7 @@ class AutonomousTaskScheduler:
             return default_evo
 
     def _save_evolution(self):
-        os.makedirs(STATE_DIR, exist_ok=True)
-        try:
-            with open(EVOLUTION_FILE, "w", encoding="utf-8") as f:
-                json.dump(self.evolution, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+        self._atomic_write_json(EVOLUTION_FILE, self.evolution)
 
     def _evolve_telemetry(self, avg_rtt: float, jitter: float, best_dns: Any, opt_mtu: int, persist: bool = True):
         """Updates EWMA baselines and self-evolves anomaly detection thresholds."""

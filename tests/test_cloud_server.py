@@ -414,9 +414,36 @@ class TestCloudServer(unittest.TestCase):
 
                     loaded = proxy.load_cloud_db()
                     self.assertEqual(len(loaded["licenses"]), 1)
+
+                    # 6. Security headers + CORS preflight (OPTIONS)
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("GET", "/health")
+                    r_health = conn.getresponse()
+                    r_health.read()
+                    self.assertEqual(r_health.status, 200)
+                    self.assertEqual(r_health.getheader("X-Content-Type-Options"), "nosniff")
+                    self.assertEqual(r_health.getheader("X-Frame-Options"), "DENY")
+                    self.assertEqual(r_health.getheader("Cache-Control"), "no-store")
+                    conn.close()
+
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("OPTIONS", "/health")
+                    r_opt = conn.getresponse()
+                    r_opt.read()
+                    self.assertEqual(r_opt.status, 204)
+                    self.assertIn("OPTIONS", r_opt.getheader("Access-Control-Allow-Methods", ""))
+                    conn.close()
                 finally:
                     srv.shutdown()
                     srv.server_close()
+
+    def test_supabase_client_rejects_non_http_scheme(self):
+        from cloud_server import supabase_client as sb
+        with patch.dict(os.environ, {"SUPABASE_URL": "file:///etc/passwd", "SUPABASE_ANON_KEY": "anon123"}):
+            with patch("urllib.request.urlopen") as mock_urlopen:
+                res = sb._supabase_request("licenses", method="GET")
+                self.assertIsNone(res)
+                mock_urlopen.assert_not_called()
 
 
 if __name__ == "__main__":

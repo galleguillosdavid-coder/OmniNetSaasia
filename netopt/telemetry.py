@@ -19,6 +19,7 @@ import urllib.error
 from typing import Dict, Any, Optional
 from urllib.parse import urlparse
 
+from . import __version__ as OMNINET_VERSION
 from .hal import detect_platform, get_hal
 from .diagnostics import (
     measure_target_metrics,
@@ -94,7 +95,7 @@ def run_real_device_empirical_probes(target: str = "1.1.1.1") -> Dict[str, Any]:
         "arp_devices_count": len(arp_data.get("neighbors", [])),
         "arp_anomalies": arp_data.get("anomalies", []),
         "subagents_status": subagents_summary,
-        "app_version": "2.9.6"
+        "app_version": OMNINET_VERSION
     }
 
     # Persist locally for device historical trending
@@ -160,7 +161,7 @@ def dispatch_global_device_telemetry(
         "active_interface": report.get("wifi_band") or "Ethernet",
         "subagents_status": report.get("subagents_status"),
         "is_wifi7": report.get("is_wifi7", False),
-        "app_version": report.get("app_version", "2.9.6")
+        "app_version": report.get("app_version", OMNINET_VERSION)
     }
 
     # Try mature HttpClientAdapter (httpx) first
@@ -206,4 +207,57 @@ def dispatch_global_device_telemetry(
             "error": str(e),
             "payload_cached_locally": True
         }
+
+
+def get_impact_summary(metrics_path: str = LOCAL_METRICS_LOG) -> Dict[str, Any]:
+    """
+    Computes an honest Before-vs-After impact comparison from persisted empirical probes.
+    Compares the initial baseline sample against the latest sample.
+    """
+    with _METRICS_FILE_LOCK:
+        items: list = []
+        if os.path.exists(metrics_path):
+            try:
+                with open(metrics_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, list):
+                        items = [x for x in loaded if isinstance(x, dict)]
+            except Exception:
+                items = []
+
+    if not items:
+        return {
+            "samples_count": 0,
+            "has_comparison": False,
+            "ping_before_ms": None,
+            "ping_after_ms": None,
+            "ping_delta_ms": 0.0,
+            "jitter_before_ms": None,
+            "jitter_after_ms": None,
+            "jitter_delta_ms": 0.0,
+            "bufferbloat_before": "N/A",
+            "bufferbloat_after": "N/A",
+            "improved": False,
+        }
+
+    first = items[0]
+    latest = items[-1]
+    p_before = float(first.get("ping_avg_ms") or 0.0)
+    p_after = float(latest.get("ping_avg_ms") or 0.0)
+    j_before = float(first.get("jitter_ms") or 0.0)
+    j_after = float(latest.get("jitter_ms") or 0.0)
+
+    return {
+        "samples_count": len(items),
+        "has_comparison": len(items) >= 2,
+        "ping_before_ms": round(p_before, 2),
+        "ping_after_ms": round(p_after, 2),
+        "ping_delta_ms": round(p_after - p_before, 2),
+        "jitter_before_ms": round(j_before, 2),
+        "jitter_after_ms": round(j_after, 2),
+        "jitter_delta_ms": round(j_after - j_before, 2),
+        "bufferbloat_before": str(first.get("bufferbloat_grade") or "N/A"),
+        "bufferbloat_after": str(latest.get("bufferbloat_grade") or "N/A"),
+        "improved": (p_after <= p_before) and (j_after <= j_before),
+    }
 

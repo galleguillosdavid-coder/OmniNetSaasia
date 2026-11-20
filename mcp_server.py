@@ -1,6 +1,6 @@
 """
 Model Context Protocol (MCP) Server for OmniNet.
-Exposes 15 network diagnostics, optimization, repair, deep telemetry, and 10-minute
+Exposes 17 network diagnostics, optimization, repair, deep telemetry, AI cyber defense, and 10-minute
 autonomous task scheduling tools over JSON-RPC 2.0 stdio.
 """
 
@@ -44,14 +44,39 @@ def load_tools_schema() -> List[Dict[str, Any]]:
     return []
 
 
+def _strict_bool(value: Any, default: bool = False) -> bool:
+    """Returns value only if it is an explicit bool; otherwise returns default."""
+    return value if isinstance(value, bool) else default
+
+
+def _clamp_int(value: Any, default: int, min_val: int, max_val: int) -> int:
+    """Safely parses an int (rejecting bools/invalid values) and clamps it."""
+    if isinstance(value, bool):
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(min_val, min(max_val, parsed))
+
+
+def _safe_target(value: Any, default: str = "1.1.1.1") -> str:
+    """Sanitizes hostname/IP targets for MCP network tools."""
+    import re
+    raw = str(value or "").strip()
+    if not raw or len(raw) > 253 or not re.fullmatch(r"[A-Za-z0-9.\-:]+", raw):
+        return default
+    return raw
+
+
 def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     arguments = arguments if isinstance(arguments, dict) else {}
     # Strict boolean check: prevents string "false" from evaluating truthy via bool(...)
-    execute = arguments.get("execute", False) is True
+    execute = _strict_bool(arguments.get("execute"), False)
     hal = get_hal(dry_run=not execute)
 
     if name == "network_diagnose":
-        include_dns = bool(arguments.get("include_dns_benchmarks", True))
+        include_dns = _strict_bool(arguments.get("include_dns_benchmarks"), True)
         diag = run_full_diagnostics(include_dns_benchmarks=include_dns)
         return {
             "platform": diag.platform.value,
@@ -129,8 +154,8 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
 
     elif name == "network_persistent_monitor":
         action = str(arguments.get("action", "sample_once"))
-        poll_sec = max(5, min(86400, int(arguments.get("poll_interval_sec", 60))))
-        auto_heal = bool(arguments.get("auto_heal", False))
+        poll_sec = _clamp_int(arguments.get("poll_interval_sec", 60), 60, 5, 86400)
+        auto_heal = _strict_bool(arguments.get("auto_heal"), False)
         daemon = NetworkDaemon(
             hal=hal,
             poll_interval_sec=poll_sec,
@@ -152,15 +177,14 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     elif name == "network_discover_and_schedule_tasks":
-        exec_tasks = bool(arguments.get("execute", False))
         sched = get_task_scheduler()
-        return sched.discover_and_schedule_cycle(execute=exec_tasks)
+        return sched.discover_and_schedule_cycle(execute=execute)
 
     elif name == "network_inspect_sockets":
         return inspect_active_sockets()
 
     elif name == "network_discover_pmtu":
-        target = str(arguments.get("target", "1.1.1.1"))
+        target = _safe_target(arguments.get("target"), "1.1.1.1")
         return discover_path_mtu(target=target)
 
     elif name == "network_audit_arp_lan":
@@ -170,8 +194,8 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         return inspect_wifi_and_nic()
 
     elif name == "network_traceroute":
-        target = str(arguments.get("target", "1.1.1.1"))
-        max_hops = max(1, min(30, int(arguments.get("max_hops", 8))))
+        target = _safe_target(arguments.get("target"), "1.1.1.1")
+        max_hops = _clamp_int(arguments.get("max_hops", 8), 8, 1, 30)
         trace = run_fast_traceroute(target=target, max_hops=max_hops)
         grade, idle_rtt, delta = check_bufferbloat(target=target)
         return {
@@ -185,9 +209,18 @@ def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         return measure_bandwidth_speed()
 
     elif name == "device_full_maintenance":
-        execute = bool(arguments.get("execute", False))
-        hal = get_hal(dry_run=not execute)
         return DeviceMaintenanceEngine(hal).run_full_device_maintenance(execute=execute)
+
+    elif name == "ai_defense_audit":
+        from netopt.ai_defense import audit_ai_threats
+        return audit_ai_threats()
+
+    elif name == "ai_defense_check_url":
+        url_val = str(arguments.get("url") or "").strip()
+        if not url_val:
+            return {"error": "Missing non-empty 'url' argument"}
+        from netopt.ai_defense import inspect_url_or_domain
+        return inspect_url_or_domain(url_val)
 
     return {"error": f"Unknown tool: {name}"}
 
@@ -210,7 +243,7 @@ def process_jsonrpc_line(line: str, tools: List[Dict[str, Any]]) -> Optional[Dic
     has_id = "id" in req
     msg_id = req.get("id")
     method = req.get("method")
-    params = req.get("params") if isinstance(req.get("params"), dict) else {}
+    params = req.get("params", {})
 
     if method == "initialize":
         return {
@@ -262,14 +295,24 @@ def process_jsonrpc_line(line: str, tools: List[Dict[str, Any]]) -> Optional[Dic
                 "id": msg_id,
                 "error": {"code": -32602, "message": "Invalid params: 'arguments' must be an object"}
             }
-        try:
-            res = handle_tool_call(tool_name, tool_args)
+        known_tools = {t["name"] for t in tools if isinstance(t, dict) and "name" in t}
+        if known_tools and tool_name not in known_tools:
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
-                "result": {
-                    "content": [{"type": "text", "text": json.dumps(res, indent=2)}]
-                }
+                "error": {"code": -32602, "message": f"Unknown tool: {tool_name}"}
+            }
+        try:
+            res = handle_tool_call(tool_name, tool_args)
+            result_payload: Dict[str, Any] = {
+                "content": [{"type": "text", "text": json.dumps(res, indent=2)}]
+            }
+            if isinstance(res, dict) and res.get("error"):
+                result_payload["isError"] = True
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": result_payload,
             }
         except Exception as e:
             return {

@@ -93,3 +93,10 @@
 - **Decisión:** Extraer `process_jsonrpc_line()` y `_write_jsonrpc()` en `mcp_server.py` con códigos estándar JSON-RPC 2.0 (`-32700`, `-32600`, `-32601`, silencio en notificaciones sin `id`) y acotar `poll_interval_sec` (`[5, 86400]`) y `max_hops` (`[1, 30]`); en `netopt/cli.py`, parametrizar `main(argv=None) -> int`, acotar `--interval` (`[5, 86400]s`) y `--cycles` (`>= 1`), manejar `KeyboardInterrupt` llamando `daemon.stop()` y usar `default=str` en `repair --json` — Ciclos 107 y 118.
 - **Alternativas consideradas:** Dejar parseo inline en `stdin` y aceptar intervalos `<= 0` en CLI/MCP. Descartado por riesgo de busy-loop infinito y errores no conformes al protocolo MCP.
 - **Consecuencias:** Servidor MCP y CLI 100% conformes, testables herméticamente y protegidos contra parámetros fuera de rango.
+
+---
+
+## [2026-11-15] DEC-013: Arquitectura de Ciclos/Sub-Ciclos y Vigilancia Persistente de Herramientas Antigravity
+- **Decisión:** Estructurar la mejora continua en ciclos y sub-ciclos **Periódicos** (macro 40m + vigilancia Antigravity), **Por Necesidad** (reactivos ante fallos/regresiones/seguridad), **Ocasionales** (suite completa, paridad documental, migración de bibliotecas) y **Por Voluntad** (innovación RFC/kernel), integrando la búsqueda y uso persistente de actualizaciones y herramientas de Antigravity (`run_workflow`, `swarm`, `schedule`, `search_marketplace`).
+- **Alternativas consideradas:** Mantener un único ciclo lineal de 40 minutos. Descartado tras las lecciones de la auditoría H-01..H-10 y el endurecimiento `execute is True` (Ciclos 121–131).
+- **Consecuencias:** Mayor velocidad de respuesta ante regresiones, aprovechamiento sistemático de nuevas herramientas Antigravity y propagación uniforme en `AGENTS.md`, `AUTONOMOUS_OPERATIONAL_MANIFESTO.md` y `.continuity/`.
